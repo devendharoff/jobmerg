@@ -207,42 +207,42 @@ export default function LandingPage({ onNavigate, onSearch, jobs = [], onSelectJ
               <div className="grid grid-cols-6 gap-3">
                 {/* LinkedIn */}
                 <div className="flex flex-col items-center gap-1.5">
-                  <div className="w-12 h-12 bg-white border border-gray-250 rounded-2xl flex items-center justify-center shadow-sm">
-                    <img alt="LinkedIn" className="w-6 h-6 object-contain" src="/assets/logos/job_websites/linkedin.png" />
+                  <div className="w-14 h-14 bg-white border border-gray-200 hover:border-[#353df6]/30 rounded-2xl flex items-center justify-center shadow-sm hover:shadow-md transition-all cursor-pointer">
+                    <img alt="LinkedIn" className="w-8 h-8 object-contain" src="top_logos (1)/logos/job_websites/linkedin.png" />
                   </div>
                   <span className="text-[10px] font-extrabold text-gray-500">LinkedIn</span>
                 </div>
                 {/* Indeed */}
                 <div className="flex flex-col items-center gap-1.5">
-                  <div className="w-12 h-12 bg-white border border-gray-250 rounded-2xl flex items-center justify-center shadow-sm">
-                    <img alt="Indeed" className="w-6 h-6 object-contain" src="/assets/logos/job_websites/indeed.png" />
+                  <div className="w-14 h-14 bg-white border border-gray-200 hover:border-[#353df6]/30 rounded-2xl flex items-center justify-center shadow-sm hover:shadow-md transition-all cursor-pointer">
+                    <img alt="Indeed" className="w-8 h-8 object-contain" src="https://cdn.simpleicons.org/indeed/003A9B" />
                   </div>
                   <span className="text-[10px] font-extrabold text-gray-500">Indeed</span>
                 </div>
                 {/* Glassdoor */}
                 <div className="flex flex-col items-center gap-1.5">
-                  <div className="w-12 h-12 bg-white border border-gray-250 rounded-2xl flex items-center justify-center shadow-sm">
-                    <img alt="Glassdoor" className="w-6 h-6 object-contain" src="/assets/logos/job_websites/glassdoor.png" />
+                  <div className="w-14 h-14 bg-white border border-gray-200 hover:border-[#353df6]/30 rounded-2xl flex items-center justify-center shadow-sm hover:shadow-md transition-all cursor-pointer">
+                    <img alt="Glassdoor" className="w-8 h-8 object-contain" src="https://cdn.simpleicons.org/glassdoor/0CAA41" />
                   </div>
                   <span className="text-[10px] font-extrabold text-gray-500">Glassdoor</span>
                 </div>
                 {/* ZipRecruiter */}
                 <div className="flex flex-col items-center gap-1.5">
-                  <div className="w-12 h-12 bg-white border border-gray-250 rounded-2xl flex items-center justify-center shadow-sm">
-                    <img alt="ZipRecruiter" className="w-6 h-6 object-contain" src="/assets/logos/job_websites/ziprecruiter.png" />
+                  <div className="w-14 h-14 bg-white border border-gray-200 hover:border-[#353df6]/30 rounded-2xl flex items-center justify-center shadow-sm hover:shadow-md transition-all cursor-pointer">
+                    <img alt="ZipRecruiter" className="w-8 h-8 object-contain" src="top_logos (1)/logos/job_websites/ziprecruiter.png" />
                   </div>
                   <span className="text-[10px] font-extrabold text-gray-500">ZipRecruiter</span>
                 </div>
                 {/* Monster */}
                 <div className="flex flex-col items-center gap-1.5">
-                  <div className="w-12 h-12 bg-white border border-gray-250 rounded-2xl flex items-center justify-center shadow-sm">
-                    <img alt="Monster" className="w-6 h-6 object-contain" src="/assets/logos/job_websites/monster.png" />
+                  <div className="w-14 h-14 bg-white border border-gray-200 hover:border-[#353df6]/30 rounded-2xl flex items-center justify-center shadow-sm hover:shadow-md transition-all cursor-pointer">
+                    <img alt="Monster" className="w-8 h-8 object-contain" src="https://cdn.simpleicons.org/monster/8A2BE2" />
                   </div>
                   <span className="text-[10px] font-extrabold text-gray-500">Monster</span>
                 </div>
                 {/* More */}
                 <div className="flex flex-col items-center gap-1.5">
-                  <div className="w-12 h-12 bg-white border border-gray-250 rounded-2xl flex items-center justify-center shadow-sm text-[#353df6] font-bold text-lg">
+                  <div className="w-14 h-14 bg-blue-50/50 border border-blue-100 hover:border-[#353df6]/30 rounded-2xl flex items-center justify-center shadow-sm hover:shadow-md transition-all cursor-pointer text-[#353df6] font-black text-lg">
                     •••
                   </div>
                   <span className="text-[10px] font-extrabold text-gray-500">+ 50 more</span>
@@ -508,81 +508,82 @@ export default function LandingPage({ onNavigate, onSearch, jobs = [], onSelectJ
             </div>
           </div>
 
-          {/* Job List for Active Category (Wide Rows) */}
-          <div className="space-y-4 max-w-4xl mx-auto">
+          {/* Job Grid for Active Category */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {jobs
               .filter((job) => job.category === activeCategory)
-              .slice(0, 4)
+              .slice(0, 3)
               .map((job) => (
                 <div
                   key={job.id}
-                  className="bg-white p-5 rounded-3xl border border-gray-150 hover:border-gray-200 shadow-sm hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 flex flex-col md:flex-row md:items-center justify-between gap-5 group"
+                  className="bg-white p-6 rounded-3xl border border-gray-150 hover:border-gray-200 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between h-full group"
                 >
-                  {/* Left details row */}
-                  <div className="flex items-center gap-4 flex-1 min-w-0">
-                    <div className="w-12 h-12 bg-gray-50 border border-gray-100 rounded-2xl flex items-center justify-center overflow-hidden shrink-0 shadow-inner">
-                      <img
-                        alt={job.company}
-                        className="w-8 h-8 object-contain"
-                        src={job.logoUrl}
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).src = 'https://img.icons8.com/color/48/000000/briefcase.png';
-                        }}
-                      />
-                    </div>
-                    <div className="flex-1 min-w-0 text-left">
-                      <div className="flex items-center gap-2.5">
-                        <h3 className="text-sm font-extrabold text-gray-900 truncate group-hover:text-[#4f46e5] transition-colors duration-200">
-                          {job.title}
-                        </h3>
-                        <span className="text-[9px] font-extrabold text-[#4f46e5] bg-[#4f46e5]/5 border border-[#4f46e5]/10 px-2 py-0.5 rounded-md uppercase tracking-wider">
-                          {job.workType}
-                        </span>
+                  <div className="space-y-4">
+                    {/* Logo & Bookmark Icon */}
+                    <div className="flex justify-between items-start">
+                      <div className="w-11 h-11 bg-gray-50 border border-gray-100 rounded-2xl flex items-center justify-center overflow-hidden shrink-0 shadow-inner">
+                        <img
+                          alt={job.company}
+                          className="w-7 h-7 object-contain"
+                          src={job.logoUrl}
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = 'https://img.icons8.com/color/48/000000/briefcase.png';
+                          }}
+                        />
                       </div>
-                      <p className="text-xs font-semibold text-gray-400 truncate mt-0.5">
+                      <span className="text-[10px] font-extrabold text-[#4f46e5] bg-[#4f46e5]/5 border border-[#4f46e5]/10 px-2.5 py-1 rounded-full uppercase tracking-wider">
+                        {job.workType}
+                      </span>
+                    </div>
+
+                    {/* Job Title & Company */}
+                    <div>
+                      <h3 className="text-sm font-extrabold text-gray-900 truncate group-hover:text-[#4f46e5] transition-colors duration-200">
+                        {job.title}
+                      </h3>
+                      <p className="text-xs font-semibold text-gray-400 truncate">
                         {job.company} • {job.location}
                       </p>
                     </div>
-                  </div>
 
-                  {/* Middle Stats block */}
-                  <div className="flex items-center gap-6 text-[10px] font-bold text-gray-500 uppercase tracking-wide shrink-0">
-                    <div>
-                      <span className="text-gray-400 block font-semibold text-[8px] uppercase tracking-widest text-left">Experience</span>
-                      <span className="text-gray-700 font-extrabold">{job.experienceRequired}</span>
+                    {/* Details Row */}
+                    <div className="grid grid-cols-2 gap-2 py-2 border-y border-gray-100 text-[10px] font-bold text-gray-500 uppercase tracking-wide">
+                      <div>
+                        <span className="text-gray-400 block font-semibold text-[8px] uppercase tracking-widest text-left">Experience</span>
+                        <span className="text-gray-700 font-extrabold">{job.experienceRequired}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-400 block font-semibold text-[8px] uppercase tracking-widest text-left">Stipend/Salary</span>
+                        <span className="text-[#4f46e5] font-extrabold text-xs truncate block max-w-full">{job.salaryRange}</span>
+                      </div>
                     </div>
-                    <div className="w-px h-6 bg-gray-100"></div>
-                    <div>
-                      <span className="text-gray-400 block font-semibold text-[8px] uppercase tracking-widest text-left">Salary/Budget</span>
-                      <span className="text-[#4f46e5] font-extrabold text-xs truncate block max-w-[120px]">{job.salaryRange}</span>
+
+                    {/* Skills badges */}
+                    <div className="flex flex-wrap gap-1">
+                      {job.skills.slice(0, 3).map((skill) => (
+                        <span
+                          key={skill}
+                          className="px-2 py-1 bg-gray-50 border border-gray-100 rounded-lg text-[9px] font-extrabold text-gray-600"
+                        >
+                          {skill}
+                        </span>
+                      ))}
+                      {job.skills.length > 3 && (
+                        <span className="px-2 py-1 bg-gray-50 border border-gray-150 rounded-lg text-[9px] font-extrabold text-gray-400">
+                          +{job.skills.length - 3} more
+                        </span>
+                      )}
                     </div>
                   </div>
 
-                  {/* Skills badges */}
-                  <div className="flex flex-wrap gap-1 max-w-xs shrink-0">
-                    {job.skills.slice(0, 2).map((skill) => (
-                      <span
-                        key={skill}
-                        className="px-2.5 py-1 bg-gray-50 border border-gray-100 rounded-lg text-[9px] font-extrabold text-gray-600"
-                      >
-                        {skill}
-                      </span>
-                    ))}
-                    {job.skills.length > 2 && (
-                      <span className="px-2 py-1 bg-gray-50 border border-gray-150 rounded-lg text-[9px] font-extrabold text-gray-400">
-                        +{job.skills.length - 2} more
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Right Action button */}
-                  <div className="shrink-0">
+                  {/* View details Action button */}
+                  <div className="pt-5">
                     <button
                       type="button"
                       onClick={() => onSelectJob(job)}
-                      className="px-5 py-3 bg-[#4f46e5]/5 hover:bg-[#4f46e5] text-[#4f46e5] hover:text-white rounded-2xl text-xs font-bold transition-all duration-300 flex items-center gap-1.5 cursor-pointer shadow-sm"
+                      className="w-full py-3 bg-[#4f46e5]/5 hover:bg-[#3f37c9] text-[#4f46e5] hover:text-white rounded-2xl text-xs font-bold transition-all duration-300 flex items-center justify-center gap-1.5 cursor-pointer shadow-sm group-hover:shadow-md"
                     >
-                      View & Apply
+                      View details & Apply
                       <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
                     </button>
                   </div>
