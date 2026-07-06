@@ -1,0 +1,166 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Space Grotesk", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+@layer utilities {
+  .animate-spin-slow {
+    animation: spin 12s linear infinite;
+  }
+  .animate-fade-in {
+    animation: fadeIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+  .animate-slide-in {
+    animation: slideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+  .animate-float {
+    animation: float 5s ease-in-out infinite;
+  }
+  .animate-radar {
+    animation: radar-sweep 4s linear infinite;
+  }
+  .bg-grid-pattern {
+    background-image: radial-gradient(rgba(79, 70, 229, 0.08) 1.2px, transparent 1.2px);
+    background-size: 24px 24px;
+  }
+  .bg-dot-pattern {
+    background-image: radial-gradient(rgba(0, 0, 0, 0.03) 1px, transparent 1px);
+    background-size: 16px 16px;
+  }
+  .shadow-premium {
+    box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.02), 0 1px 3px 0 rgba(0, 0, 0, 0.01), 0 20px 40px -12px rgba(79, 70, 229, 0.06);
+  }
+  .shadow-glow-indigo {
+    box-shadow: 0 0 25px 3px rgba(79, 70, 229, 0.12);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes radar-sweep {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* Custom styling for sleek scrollbars on list widgets */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(79, 70, 229, 0.1);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(79, 70, 229, 0.25);
+}
+
+@media print {
+  body {
+    background: white;
+    color: black;
+  }
+  
+  /* Hide dashboard navigation, inputs form, button toolbars, and anything marked as print:hidden */
+  aside, 
+  nav, 
+  button, 
+  form,
+  header,
+  .print\:hidden {
+    display: none !important;
+  }
+  
+  /* Reset wrapper layout heights/margins */
+  .min-h-screen,
+  main,
+  .lg\:overflow-hidden,
+  .lg\:h-screen,
+  .lg\:col-span-6 {
+    overflow: visible !important;
+    height: auto !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+  
+  /* Reset resume sheet properties for perfect alignment on A4 pages */
+  #resume-printable-sheet {
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin: 0 auto !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    background: white !important;
+    color: black !important;
+    display: block !important;
+  }
+
+  /* Enable background colors and borders in PDF print preview */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}
+
+/* Infinite Marquee Animation styles */
+@keyframes marquee {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-33.3333%);
+  }
+}
+
+.animate-marquee {
+  display: flex;
+  width: max-content;
+  animation: marquee 40s linear infinite;
+}
+

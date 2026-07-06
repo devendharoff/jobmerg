@@ -1,0 +1,8 @@
+{
+  "name": "JobMerge",
+  "description": "An interactive job discovery and career alignment platform that aggregates listings across multiple platforms and calculates real-time resume fit percentages using Gemini AI.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
