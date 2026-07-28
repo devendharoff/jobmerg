@@ -58,6 +58,7 @@ export default function App() {
   const [isLoadingFilters, setIsLoadingFilters] = useState<boolean>(false);
   const [isAllFiltersOpen, setIsAllFiltersOpen] = useState<boolean>(false);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
+  const [selectedJobDetailModal, setSelectedJobDetailModal] = useState<Job | null>(null);
 
   // Debounce search query and location query
   useEffect(() => {
