@@ -840,8 +840,8 @@ export default function App() {
       {activeScreen === 'Dashboard' && (
         <div className="flex-1 flex flex-col lg:flex-row lg:h-screen lg:overflow-hidden bg-[#f8f9fa]">
           
-          {/* Main Navigation Sidebar (Left Column - Fixed & Premium) */}
-          <aside className="w-full lg:w-64 bg-white border-r border-gray-150 flex flex-col justify-between shrink-0 lg:h-screen lg:sticky lg:top-0 overflow-hidden select-none z-30 shadow-xs">
+          {/* Main Navigation Sidebar (Left Column - 100% Viewport Fixed) */}
+          <aside className="w-full lg:w-64 bg-white border-r border-gray-150 flex flex-col justify-between shrink-0 lg:h-screen lg:fixed lg:top-0 lg:bottom-0 lg:left-0 overflow-hidden select-none z-30 shadow-xs">
             <div className="p-5 space-y-5">
               {/* Logo */}
               <button 
@@ -991,7 +991,7 @@ export default function App() {
           </aside>
 
           {/* Active Work Pane (Right / Center Column) */}
-          <main className="flex-1 p-6 md:p-8 lg:overflow-hidden max-w-7xl mx-auto w-full lg:h-full flex flex-col">
+          <main className="flex-1 p-6 md:p-8 lg:overflow-hidden max-w-7xl w-full lg:h-full flex flex-col lg:ml-64">
             
             {/* Find Jobs View */}
             {activeDashboardTab === 'FindJobs' && (
