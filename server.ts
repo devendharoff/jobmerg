@@ -3,6 +3,14 @@ import path from "path";
 import dotenv from "dotenv";
 import { GoogleGenAI, Type } from "@google/genai";
 import { createServer as createViteServer } from "vite";
+import fs from "fs";
+import { exec } from "child_process";
+import { promisify } from "util";
+import { fileURLToPath } from "url";
+
+const execAsync = promisify(exec);
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 dotenv.config();
 
@@ -58,9 +66,169 @@ const REFERENCE_JOBS = [
 // Resume Review and Job Match endpoint
 app.post("/api/resume-review", async (req, res) => {
   try {
-    const { resumeText, userSkills, experienceYears } = req.body;
-    if (!resumeText) {
-      return res.status(400).json({ error: "Missing resumeText parameter" });
+    const { resumeText, resumeFile, fileName, userSkills, experienceYears } = req.body;
+    
+    if (!resumeText && !resumeFile) {
+      return res.status(400).json({ error: "Missing resumeText or resumeFile parameter" });
+    }
+
+    // Check if we are using the Hiring Agent Python pipeline (when a PDF file is uploaded)
+    if (resumeFile) {
+      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+      const cleanFileName = (fileName || 'resume.pdf').replace(/[^a-zA-Z0-9.\-_]/g, '');
+      const tempFileName = `temp-${uniqueSuffix}-${cleanFileName}`;
+      const tempFilePath = path.join(process.cwd(), tempFileName);
+      
+      // Save base64 upload to temp PDF file
+      fs.writeFileSync(tempFilePath, Buffer.from(resumeFile, 'base64'));
+
+      try {
+        const pythonPath = "python";
+        const scriptPath = path.join(process.cwd(), "hiring-agent-main", "hiring-agent-main", "score.py");
+        const command = `"${pythonPath}" "${scriptPath}" "${tempFilePath}" --role software_engineering_intern --json`;
+        
+        // Pass parent env to child process
+        const env = { 
+          ...process.env, 
+          DEFAULT_MODEL: "gemini-2.0-flash",
+          GEMINI_API_KEY: process.env.GEMINI_API_KEY 
+        };
+
+        const { stdout, stderr } = await execAsync(command, { 
+          env,
+          cwd: path.join(process.cwd(), "hiring-agent-main", "hiring-agent-main")
+        });
+        
+        if (stderr && !stdout) {
+          throw new Error("Python Pipeline Error: " + stderr);
+        }
+
+        // Robustly locate and extract the JSON object block from stdout
+        const jsonStartIndex = stdout.indexOf('{');
+        const jsonEndIndex = stdout.lastIndexOf('}');
+        if (jsonStartIndex === -1 || jsonEndIndex === -1 || jsonEndIndex < jsonStartIndex) {
+          throw new Error("No valid JSON output found from the pipeline. Raw output: " + stdout);
+        }
+        const jsonString = stdout.substring(jsonStartIndex, jsonEndIndex + 1);
+        const resultData = JSON.parse(jsonString);
+
+        // Calculate overall score
+        let overallScore = 0;
+        if (resultData.scores) {
+          for (const key in resultData.scores) {
+            overallScore += Math.min(resultData.scores[key].score, resultData.scores[key].max);
+          }
+        }
+        if (resultData.bonus_points) overallScore += resultData.bonus_points.total;
+        if (resultData.deductions) overallScore -= resultData.deductions.total;
+        overallScore = Math.max(0, Math.min(100, Math.round(overallScore)));
+
+        // Compile a clean summary from category evidences
+        let summary = "";
+        if (resultData.scores) {
+          const evidenceList = Object.keys(resultData.scores)
+            .map(k => resultData.scores[k].evidence)
+            .filter(Boolean);
+          if (evidenceList.length > 0) {
+            summary = "Candidate review completed successfully: " + evidenceList.join(". ") + ".";
+          }
+        }
+        if (!summary) {
+          summary = `The resume achieved an overall ATS quality score of ${overallScore}/100 based on the software engineering intern rubric.`;
+        }
+
+        // Get key strengths and improvements
+        const strengths = resultData.key_strengths || ["Well-formatted profile structure."];
+        const improvements = resultData.areas_for_improvement || ["Could highlight open-source contributions further."];
+        
+        // Generate constructive tips based on score findings
+        const tips = [
+          "Rewrite your bullet points using the Google X-Y-Z formula: Accomplished [X] as measured by [Y], by doing [Z].",
+          "Ensure secondary skills like cloud infrastructure or containerization are explicitly highlighted."
+        ];
+        if (resultData.scores && resultData.scores.open_source && resultData.scores.open_source.score < 20) {
+          tips.push("Contribute to public Github repositories to enhance your open-source evaluation score.");
+        }
+        if (resultData.scores && resultData.scores.self_projects && resultData.scores.self_projects.score < 15) {
+          tips.push("Document your personal projects in Github readmes to display structural code execution capabilities.");
+        }
+
+        // Clean cache file name used by Python script
+        const cacheFileName = `resumecache_${tempFileName.replace('.pdf', '')}.json`;
+        const cacheFilePath = path.join(process.cwd(), "hiring-agent-main", "hiring-agent-main", "cache", cacheFileName);
+        
+        let extractedText = "";
+        let parsedSkills: string[] = [];
+
+        if (fs.existsSync(cacheFilePath)) {
+          try {
+            const cachedResume = JSON.parse(fs.readFileSync(cacheFilePath, 'utf-8'));
+            if (cachedResume.basics && cachedResume.basics.summary) {
+              extractedText += " " + cachedResume.basics.summary;
+            }
+            if (cachedResume.skills) {
+              cachedResume.skills.forEach((s: any) => {
+                if (s.name) parsedSkills.push(s.name);
+                if (s.keywords) parsedSkills.push(...s.keywords);
+              });
+            }
+            if (cachedResume.projects) {
+              cachedResume.projects.forEach((p: any) => {
+                if (p.name) extractedText += " " + p.name;
+                if (p.description) extractedText += " " + p.description;
+              });
+            }
+            extractedText += " " + parsedSkills.join(" ");
+          } catch (err) {
+            console.error("Failed to parse cache file details for matches:", err);
+          }
+        }
+
+        // Compute alignment matching with reference jobs directory
+        const matchedJobs = REFERENCE_JOBS.map(job => {
+          let basePercent = 60;
+          const overlap = job.skills.filter(s => 
+            extractedText.toLowerCase().includes(s.toLowerCase()) || 
+            (userSkills && userSkills.some((us: string) => us.toLowerCase() === s.toLowerCase()))
+          ).length;
+          
+          basePercent += overlap * 7;
+          const finalPercent = Math.min(Math.max(basePercent, 45), 98);
+
+          return {
+            jobId: job.id,
+            matchPercent: finalPercent,
+            matchExplanation: `Match of ${finalPercent}% calculated based on the overlap of key technical competencies such as ${job.skills.slice(0, 3).join(", ")}. Your profile demonstrates high familiarity with these tools, aligning well with ${job.company}'s technology stack requirements.`
+          };
+        });
+
+        // Clean up temp files
+        try {
+          if (fs.existsSync(tempFilePath)) {
+            fs.unlinkSync(tempFilePath);
+          }
+        } catch (unlinkErr) {
+          console.error("Temp file cleanup warning:", unlinkErr);
+        }
+
+        return res.json({
+          overallScore,
+          summary,
+          strengths,
+          improvements,
+          tips,
+          jobMatches: matchedJobs
+        });
+
+      } catch (pipelineErr: any) {
+        // Clean up temp files in case of errors
+        try {
+          if (fs.existsSync(tempFilePath)) {
+            fs.unlinkSync(tempFilePath);
+          }
+        } catch (unlinkErr) {}
+        throw pipelineErr;
+      }
     }
 
     const ai = getAiClient();

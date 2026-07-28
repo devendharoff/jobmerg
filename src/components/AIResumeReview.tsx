@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { 
   Sparkles, Check, Play, AlertCircle, RefreshCw, FileText, 
-  ChevronRight, Award, CheckCircle, Info 
+  ChevronRight, Award, CheckCircle, Info, Upload, X
 } from 'lucide-react';
 import { UserProfile, Job } from '../types';
 
@@ -27,7 +27,13 @@ export default function AIResumeReview({
   onUpdateUserProfile,
   onUpdateJobMatches
 }: AIResumeReviewProps) {
+  const [activeInputTab, setActiveInputTab] = useState<'pdf' | 'text'>('pdf');
   const [resumeText, setResumeText] = useState(userProfile.resumeText || '');
+  
+  // PDF File Upload States
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [fileBase64, setFileBase64] = useState<string | null>(null);
+
   const [isLoading, setIsLoading] = useState(false);
   const [loadingStep, setLoadingStep] = useState(0);
   const [result, setResult] = useState<ReviewResult | null>(null);
@@ -41,8 +47,42 @@ export default function AIResumeReview({
     "Computing optimal match scores with Gemini models..."
   ];
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      if (file.type !== 'application/pdf') {
+        setError("Only PDF files are supported for high-fidelity resume-to-score parsing.");
+        return;
+      }
+      setError('');
+      setSelectedFile(file);
+
+      const reader = new FileReader();
+      reader.onload = () => {
+        const base64String = reader.result as string;
+        // Extract base64 payload part
+        const base64Data = base64String.split(',')[1];
+        setFileBase64(base64Data);
+      };
+      reader.onerror = () => {
+        setError("Failed to read the file. Please try again.");
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const removeSelectedFile = () => {
+    setSelectedFile(null);
+    setFileBase64(null);
+    setError('');
+  };
+
   const triggerReview = async () => {
-    if (!resumeText.trim()) {
+    if (activeInputTab === 'pdf' && !fileBase64) {
+      setError("Please select or drop a valid PDF resume file before initiating analysis.");
+      return;
+    }
+    if (activeInputTab === 'text' && !resumeText.trim()) {
       setError("Please write or paste your resume content before conducting an evaluation.");
       return;
     }
@@ -51,8 +91,10 @@ export default function AIResumeReview({
     setError('');
     setLoadingStep(0);
 
-    // Profile text updates
-    onUpdateUserProfile({ resumeText });
+    // Profile text updates (fallback if text mode is used)
+    if (activeInputTab === 'text') {
+      onUpdateUserProfile({ resumeText });
+    }
 
     // Stagger loading progress indicators
     const interval = setInterval(() => {
@@ -69,14 +111,17 @@ export default function AIResumeReview({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          resumeText,
+          resumeText: activeInputTab === 'text' ? resumeText : '',
+          resumeFile: activeInputTab === 'pdf' ? fileBase64 : null,
+          fileName: activeInputTab === 'pdf' && selectedFile ? selectedFile.name : null,
           userSkills: userProfile.skills,
           experienceYears: userProfile.experienceYears
         })
       });
 
       if (!response.ok) {
-        throw new Error("Server responded with error: " + response.statusText);
+        const errText = await response.text();
+        throw new Error(errText || response.statusText);
       }
 
       const data: ReviewResult = await response.json();
@@ -108,7 +153,7 @@ export default function AIResumeReview({
             <Sparkles className="w-5.5 h-5.5 text-[#4f46e5]" />
             AI Resume Analyzer & Matcher
           </h1>
-          <p className="text-sm font-semibold text-gray-400 mt-1">Submit your resume text to receive detailed feedback and calculate dynamic job match scoring with Gemini.</p>
+          <p className="text-sm font-semibold text-gray-400 mt-1">Submit your resume text or upload your PDF to receive detailed feedback and calculate dynamic job match scoring with Gemini.</p>
         </div>
       </div>
 
@@ -116,18 +161,83 @@ export default function AIResumeReview({
         {/* Left Column: Input Panel */}
         <div className="lg:col-span-5 space-y-4">
           <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-premium space-y-4 text-left">
-            <div className="flex justify-between items-center pb-2 border-b border-gray-100">
-              <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Paste Resume Content</span>
-              <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Ctrl+V support</span>
+            
+            {/* Input Method Tabs */}
+            <div className="flex bg-gray-50 p-1 rounded-xl">
+              <button
+                type="button"
+                onClick={() => { setActiveInputTab('pdf'); setError(''); }}
+                disabled={isLoading}
+                className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                  activeInputTab === 'pdf'
+                    ? 'bg-white text-[#4f46e5] shadow-sm'
+                    : 'text-gray-400 hover:text-gray-700'
+                }`}
+              >
+                Upload PDF Resume
+              </button>
+              <button
+                type="button"
+                onClick={() => { setActiveInputTab('text'); setError(''); }}
+                disabled={isLoading}
+                className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                  activeInputTab === 'text'
+                    ? 'bg-white text-[#4f46e5] shadow-sm'
+                    : 'text-gray-400 hover:text-gray-700'
+                }`}
+              >
+                Paste Resume Text
+              </button>
             </div>
 
-            <textarea
-              className="w-full bg-gray-50/50 border border-gray-100 rounded-2xl p-4 text-xs font-mono leading-relaxed text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#4f46e5]/30 focus:bg-white transition-all h-[420px] shadow-inner"
-              placeholder="PASTE YOUR PROFESSIONAL RESUME TEXT HERE...&#10;For example:&#10;DEVENDER KUMAR&#10;Software Engineer | devender@email.com&#10;&#10;EXPERIENCE...&#10;SKILLS..."
-              value={resumeText}
-              onChange={(e) => setResumeText(e.target.value)}
-              disabled={isLoading}
-            />
+            {activeInputTab === 'pdf' ? (
+              /* PDF Upload Area */
+              <div className="space-y-3">
+                {!selectedFile ? (
+                  <label className="border-2 border-dashed border-gray-200 hover:border-[#4f46e5]/50 bg-gray-50/50 rounded-2xl p-8 flex flex-col items-center justify-center cursor-pointer transition-all hover:bg-white min-h-[300px]">
+                    <input 
+                      type="file" 
+                      accept=".pdf" 
+                      className="hidden" 
+                      onChange={handleFileChange}
+                      disabled={isLoading}
+                    />
+                    <div className="w-12 h-12 bg-white border border-gray-100 rounded-xl flex items-center justify-center shadow-sm text-gray-400 mb-4">
+                      <Upload className="w-5 h-5 text-[#4f46e5]" />
+                    </div>
+                    <span className="text-xs font-bold text-gray-700 mb-1">Click to Upload Resume PDF</span>
+                    <span className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">Supports PDF up to 10MB</span>
+                  </label>
+                ) : (
+                  <div className="border border-gray-100 bg-gray-50/30 rounded-2xl p-6 flex flex-col items-center justify-center min-h-[300px] text-center space-y-4">
+                    <div className="w-16 h-16 bg-[#4f46e5]/10 text-[#4f46e5] rounded-2xl flex items-center justify-center relative">
+                      <FileText className="w-8 h-8" />
+                      <button
+                        type="button"
+                        onClick={removeSelectedFile}
+                        disabled={isLoading}
+                        className="absolute -top-1.5 -right-1.5 w-6 h-6 bg-white border border-gray-150 hover:bg-red-50 hover:text-red-600 rounded-full flex items-center justify-center shadow-sm cursor-pointer"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold text-gray-800 max-w-[240px] truncate">{selectedFile.name}</h4>
+                      <p className="text-[10px] text-gray-400 mt-1 font-semibold">{(selectedFile.size / (1024 * 1024)).toFixed(2)} MB • Ready for AI review</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              /* Paste Resume Text Area */
+              <textarea
+                className="w-full bg-gray-50/50 border border-gray-100 rounded-2xl p-4 text-xs font-mono leading-relaxed text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#4f46e5]/30 focus:bg-white transition-all h-[300px] shadow-inner"
+                placeholder="PASTE YOUR PROFESSIONAL RESUME TEXT HERE...&#10;For example:&#10;DEVENDER KUMAR&#10;Software Engineer | devender@email.com&#10;&#10;EXPERIENCE...&#10;SKILLS..."
+                value={resumeText}
+                onChange={(e) => setResumeText(e.target.value)}
+                disabled={isLoading}
+              />
+            )}
 
             {error && (
               <div className="p-3.5 bg-red-50 border border-red-150 text-red-700 text-xs font-bold rounded-xl flex items-start gap-2.5">
@@ -145,7 +255,7 @@ export default function AIResumeReview({
               {isLoading ? (
                 <>
                   <RefreshCw className="w-4.5 h-4.5 animate-spin" />
-                  Analyzing Resume...
+                  Running Hiring Agent Pipeline...
                 </>
               ) : (
                 <>

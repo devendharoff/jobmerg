@@ -3,7 +3,8 @@ import {
   Sparkles, Search, MapPin, SlidersHorizontal, BookOpen, Bookmark, 
   Briefcase, Award, ArrowRight, Check, CheckCircle2, DollarSign, 
   Compass, BarChart3, FileText, User, LogOut, ChevronRight, HelpCircle, 
-  X, AlertCircle, BookmarkCheck, Heart, UserCheck, ShieldCheck, Clock
+  X, AlertCircle, BookmarkCheck, Heart, UserCheck, ShieldCheck, Clock,
+  ChevronDown
 } from 'lucide-react';
 import { 
   ActiveScreen, Job, UserProfile, JobApplication, SalaryInsight 
@@ -40,9 +41,38 @@ export default function App() {
   // Search parameters
   const [searchQuery, setSearchQuery] = useState('');
   const [locationQuery, setLocationQuery] = useState('');
-  const [selectedWorkType, setSelectedWorkType] = useState<string>('All');
-  const [selectedJobType, setSelectedJobType] = useState<string>('All');
-  const [selectedCategory, setSelectedCategory] = useState<'All' | 'Students' | 'Freshers' | 'Graduates' | 'Experienced'>('All');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
+  const [debouncedLocationQuery, setDebouncedLocationQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  
+  // LinkedIn Filter States
+  const [selectedDatePosted, setSelectedDatePosted] = useState<string>('all');
+  const [selectedWorkplaceTypes, setSelectedWorkplaceTypes] = useState<string[]>([]);
+  const [selectedExperienceLevels, setSelectedExperienceLevels] = useState<string[]>([]);
+  const [selectedJobTypes, setSelectedJobTypes] = useState<string[]>([]);
+  const [easyApplyOnly, setEasyApplyOnly] = useState<boolean>(false);
+  const [selectedCompanies, setSelectedCompanies] = useState<string[]>([]);
+  const [selectedSalaryRange, setSelectedSalaryRange] = useState<string>('all');
+  const [sortBy, setSortBy] = useState<string>('recent');
+  
+  const [isLoadingFilters, setIsLoadingFilters] = useState<boolean>(false);
+  const [isAllFiltersOpen, setIsAllFiltersOpen] = useState<boolean>(false);
+  const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
+
+  // Debounce search query and location query
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedLocationQuery(locationQuery);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [locationQuery]);
 
   // Fetch jobs from Supabase on mount
   useEffect(() => {
@@ -444,23 +474,320 @@ export default function App() {
   };
 
 
-  // Filter Jobs list
+  // Filter Jobs list helper functions
+  const isJobWithinTimeRange = (postedTime: string, range: string): boolean => {
+    if (range === 'all') return true;
+    const timeStr = postedTime.toLowerCase();
+    
+    if (timeStr.includes('second') || timeStr.includes('minute') || timeStr.includes('hour') || timeStr.includes('recently') || timeStr.includes('now')) {
+      return true;
+    }
+    const match = timeStr.match(/(\d+)\s*d/);
+    if (match) {
+      const days = parseInt(match[1], 10);
+      if (range === '24h') return days <= 1;
+      if (range === 'week') return days <= 7;
+      if (range === 'month') return days <= 30;
+    }
+    return false;
+  };
+
+  const isSalaryAboveThreshold = (salaryRangeStr: string, thresholdKey: string): boolean => {
+    if (thresholdKey === 'all') return true;
+    const lowerRange = salaryRangeStr.toLowerCase();
+    
+    if (lowerRange.includes('month') || lowerRange.includes('/mo') || lowerRange.includes('pm')) {
+      const stipendMatch = lowerRange.replace(/,/g, '').match(/(\d+)/);
+      if (stipendMatch) {
+        const monthly = parseInt(stipendMatch[1], 10);
+        const annualEquivalent = (monthly * 12) / 100000;
+        const thresholdVal = thresholdKey === '10l' ? 10 : thresholdKey === '15l' ? 15 : thresholdKey === '20l' ? 20 : thresholdKey === '30l' ? 30 : 0;
+        return annualEquivalent >= thresholdVal;
+      }
+    }
+
+    if (lowerRange.includes('cr')) return true;
+    
+    const lakhMatches = [...lowerRange.matchAll(/(\d+(\.\d+)?)\s*l/g)];
+    if (lakhMatches.length > 0) {
+      const values = lakhMatches.map(m => parseFloat(m[1]));
+      const maxVal = Math.max(...values);
+      const thresholdVal = thresholdKey === '10l' ? 10 : thresholdKey === '15l' ? 15 : thresholdKey === '20l' ? 20 : thresholdKey === '30l' ? 30 : 0;
+      return maxVal >= thresholdVal;
+    }
+    return true;
+  };
+
+  const matchesExperienceLevel = (job: Job, selectedLevels: string[]): boolean => {
+    if (selectedLevels.length === 0) return true;
+    const expStr = job.experienceRequired.toLowerCase();
+    const jobTypeStr = job.jobType.toLowerCase();
+    
+    return selectedLevels.some(level => {
+      if (level === 'Internship') return jobTypeStr === 'internship';
+      if (level === 'Entry level') return expStr.includes('0 – 1') || expStr.includes('0 – 2') || expStr.includes('1 – 2') || expStr.includes('0 yrs');
+      if (level === 'Associate') return expStr.includes('2 – 4') || expStr.includes('2 – 5') || expStr.includes('1 – 3') || expStr.includes('2 yrs');
+      if (level === 'Mid-Senior') return expStr.includes('3 – 5') || expStr.includes('3 – 6') || expStr.includes('4 – 7') || expStr.includes('3 yrs');
+      if (level === 'Executive') return expStr.includes('5 –') || expStr.includes('6 –') || expStr.includes('7 –') || expStr.includes('5+') || expStr.includes('7+');
+      return false;
+    });
+  };
+
+  const getRelevanceScore = (job: Job, userProfile: UserProfile, query: string): number => {
+    let score = 0;
+    const lowerTitle = job.title.toLowerCase();
+    const lowerDesc = job.description.toLowerCase();
+    const queryLower = query.toLowerCase();
+
+    if (queryLower) {
+      if (lowerTitle.includes(queryLower)) score += 50;
+      if (lowerDesc.includes(queryLower)) score += 20;
+      job.skills.forEach(skill => {
+        if (skill.toLowerCase().includes(queryLower)) score += 15;
+      });
+    }
+
+    if (userProfile && userProfile.skills) {
+      const matchedSkillsCount = job.skills.filter(skill => 
+        userProfile.skills.some(userSkill => userSkill.toLowerCase() === skill.toLowerCase())
+      ).length;
+      score += matchedSkillsCount * 10;
+    }
+
+    const timeStr = job.postedTime.toLowerCase();
+    if (timeStr.includes('second') || timeStr.includes('minute') || timeStr.includes('hour') || timeStr.includes('now') || timeStr.includes('recently')) {
+      score += 15;
+    } else if (timeStr.includes('hour')) {
+      const hours = parseInt(timeStr.match(/\d+/)?.[0] || '0', 10);
+      score += Math.max(0, 15 - hours * 0.5);
+    } else if (timeStr.includes('day')) {
+      const days = parseInt(timeStr.match(/\d+/)?.[0] || '0', 10);
+      score += Math.max(0, 5 - days * 0.5);
+    }
+
+    if (job.easyApply) score += 5;
+    if (job.aiMatchPercent) score += job.aiMatchPercent * 0.5;
+
+    return score;
+  };
+
+  // Helper to read URL query parameters
+  const getURLQueryParams = () => {
+    const params = new URLSearchParams(window.location.search);
+    return {
+      keywords: params.get('keywords') || '',
+      location: params.get('location') || '',
+      f_TPR: params.get('f_TPR') || 'all',
+      f_WT: params.get('f_WT') ? params.get('f_WT')?.split(',') : [],
+      f_E: params.get('f_E') ? params.get('f_E')?.split(',') : [],
+      f_JT: params.get('f_JT') ? params.get('f_JT')?.split(',') : [],
+      f_EA: params.get('f_EA') === 'true',
+      f_CO: params.get('f_CO') ? params.get('f_CO')?.split(',') : [],
+      f_SL: params.get('f_SL') || 'all',
+      sort: params.get('sort') || 'recent',
+      category: params.get('category') || 'All'
+    };
+  };
+
+  // Helper to write URL query parameters
+  const updateURLQueryParams = (filters: {
+    keywords: string;
+    location: string;
+    f_TPR: string;
+    f_WT: string[];
+    f_E: string[];
+    f_JT: string[];
+    f_EA: boolean;
+    f_CO: string[];
+    f_SL: string;
+    sort: string;
+    category: string;
+  }) => {
+    const params = new URLSearchParams();
+    if (filters.keywords) params.set('keywords', filters.keywords);
+    if (filters.location) params.set('location', filters.location);
+    if (filters.f_TPR !== 'all') params.set('f_TPR', filters.f_TPR);
+    if (filters.f_WT && filters.f_WT.length > 0) params.set('f_WT', filters.f_WT.join(','));
+    if (filters.f_E && filters.f_E.length > 0) params.set('f_E', filters.f_E.join(','));
+    if (filters.f_JT && filters.f_JT.length > 0) params.set('f_JT', filters.f_JT.join(','));
+    if (filters.f_EA) params.set('f_EA', 'true');
+    if (filters.f_CO && filters.f_CO.length > 0) params.set('f_CO', filters.f_CO.join(','));
+    if (filters.f_SL !== 'all') params.set('f_SL', filters.f_SL);
+    if (filters.sort !== 'recent') params.set('sort', filters.sort);
+    if (filters.category !== 'All') params.set('category', filters.category);
+
+    const newUrl = `${window.location.pathname}?${params.toString()}`;
+    window.history.pushState({}, '', newUrl);
+  };
+
+  // Initialize state from URL on mount
+  useEffect(() => {
+    const params = getURLQueryParams();
+    setSearchQuery(params.keywords);
+    setDebouncedSearchQuery(params.keywords);
+    setLocationQuery(params.location);
+    setDebouncedLocationQuery(params.location);
+    setSelectedDatePosted(params.f_TPR);
+    setSelectedWorkplaceTypes(params.f_WT);
+    setSelectedExperienceLevels(params.f_E);
+    setSelectedJobTypes(params.f_JT);
+    setEasyApplyOnly(params.f_EA);
+    setSelectedCompanies(params.f_CO);
+    setSelectedSalaryRange(params.f_SL);
+    setSortBy(params.sort);
+    setSelectedCategory(params.category);
+  }, []);
+
+  // Sync filters to URL and show skeleton loader
+  useEffect(() => {
+    updateURLQueryParams({
+      keywords: searchQuery,
+      location: locationQuery,
+      f_TPR: selectedDatePosted,
+      f_WT: selectedWorkplaceTypes,
+      f_E: selectedExperienceLevels,
+      f_JT: selectedJobTypes,
+      f_EA: easyApplyOnly,
+      f_CO: selectedCompanies,
+      f_SL: selectedSalaryRange,
+      sort: sortBy,
+      category: selectedCategory
+    });
+
+    setIsLoadingFilters(true);
+    const timer = setTimeout(() => {
+      setIsLoadingFilters(false);
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, [
+    debouncedSearchQuery,
+    debouncedLocationQuery,
+    selectedDatePosted,
+    selectedWorkplaceTypes,
+    selectedExperienceLevels,
+    selectedJobTypes,
+    easyApplyOnly,
+    selectedCompanies,
+    selectedSalaryRange,
+    sortBy,
+    selectedCategory
+  ]);
+
+  // Compute final filtered & sorted jobs list
   const filteredJobs = jobs.filter((job) => {
     const matchesCategory = selectedCategory === 'All' || job.category === selectedCategory;
+    if (!matchesCategory) return false;
 
-    const matchesSearch = 
-      job.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      job.company.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      job.skills.some(skill => skill.toLowerCase().includes(searchQuery.toLowerCase()));
+    const matchesSearch = !debouncedSearchQuery || 
+      job.title.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
+      job.company.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
+      job.skills.some(skill => skill.toLowerCase().includes(debouncedSearchQuery.toLowerCase()));
+    if (!matchesSearch) return false;
 
-    const matchesLocation = 
-      job.location.toLowerCase().includes(locationQuery.toLowerCase());
+    const matchesLocation = !debouncedLocationQuery || 
+      job.location.toLowerCase().includes(debouncedLocationQuery.toLowerCase());
+    if (!matchesLocation) return false;
 
-    const matchesWorkType = selectedWorkType === 'All' || job.workType === selectedWorkType;
-    const matchesJobType = selectedJobType === 'All' || job.jobType === selectedJobType;
+    const matchesWorkType = selectedWorkplaceTypes.length === 0 || selectedWorkplaceTypes.includes(job.workType);
+    if (!matchesWorkType) return false;
 
-    return matchesCategory && matchesSearch && matchesLocation && matchesWorkType && matchesJobType;
+    const matchesJobType = selectedJobTypes.length === 0 || selectedJobTypes.includes(job.jobType);
+    if (!matchesJobType) return false;
+
+    if (!matchesExperienceLevel(job, selectedExperienceLevels)) return false;
+
+    if (!isJobWithinTimeRange(job.postedTime, selectedDatePosted)) return false;
+
+    if (easyApplyOnly && !job.easyApply) return false;
+
+    const matchesCompany = selectedCompanies.length === 0 || selectedCompanies.includes(job.company);
+    if (!matchesCompany) return false;
+
+    if (!isSalaryAboveThreshold(job.salaryRange, selectedSalaryRange)) return false;
+
+    return true;
+  }).sort((a, b) => {
+    if (sortBy === 'recent') {
+      const getHoursVal = (timeStr: string) => {
+        const lower = timeStr.toLowerCase();
+        if (lower.includes('second') || lower.includes('minute') || lower.includes('recently') || lower.includes('now')) return 0.1;
+        const matchH = lower.match(/(\d+)\s*h/);
+        if (matchH) return parseFloat(matchH[1]);
+        const matchD = lower.match(/(\d+)\s*d/);
+        if (matchD) return parseFloat(matchD[1]) * 24;
+        return 999;
+      };
+      return getHoursVal(a.postedTime) - getHoursVal(b.postedTime);
+    } else {
+      return getRelevanceScore(b, userProfile, debouncedSearchQuery) - getRelevanceScore(a, userProfile, debouncedSearchQuery);
+    }
   });
+
+  // Calculate dynamic facet counts based on current filters
+  const getFacetCounts = () => {
+    const counts = {
+      workplace: { 'Remote': 0, 'Hybrid': 0, 'On-site': 0 },
+      jobType: { 'Full-time': 0, 'Part-time': 0, 'Contract': 0, 'Internship': 0 },
+      experience: { 'Internship': 0, 'Entry level': 0, 'Associate': 0, 'Mid-Senior': 0, 'Executive': 0 },
+      company: {} as Record<string, number>
+    };
+
+    jobs.forEach(job => {
+      const matchesCategory = selectedCategory === 'All' || job.category === selectedCategory;
+      if (!matchesCategory) return;
+      
+      const matchesSearch = !debouncedSearchQuery || 
+        job.title.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
+        job.company.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
+        job.skills.some(skill => skill.toLowerCase().includes(debouncedSearchQuery.toLowerCase()));
+
+      const matchesLocation = !debouncedLocationQuery || 
+        job.location.toLowerCase().includes(debouncedLocationQuery.toLowerCase());
+      
+      if (!matchesSearch || !matchesLocation) return;
+
+      const matchesWT = selectedWorkplaceTypes.length === 0 || selectedWorkplaceTypes.includes(job.workType);
+      const matchesJT = selectedJobTypes.length === 0 || selectedJobTypes.includes(job.jobType);
+      const matchesEL = matchesExperienceLevel(job, selectedExperienceLevels);
+      const matchesDate = isJobWithinTimeRange(job.postedTime, selectedDatePosted);
+      const matchesEA = !easyApplyOnly || !!job.easyApply;
+      const matchesSalary = isSalaryAboveThreshold(job.salaryRange, selectedSalaryRange);
+      const matchesCO = selectedCompanies.length === 0 || selectedCompanies.includes(job.company);
+
+      if (matchesJT && matchesEL && matchesDate && matchesEA && matchesSalary && matchesCO) {
+        if (job.workType in counts.workplace) {
+          counts.workplace[job.workType as keyof typeof counts.workplace]++;
+        }
+      }
+
+      if (matchesWT && matchesEL && matchesDate && matchesEA && matchesSalary && matchesCO) {
+        if (job.jobType in counts.jobType) {
+          counts.jobType[job.jobType as keyof typeof counts.jobType]++;
+        }
+      }
+
+      if (matchesWT && matchesJT && matchesDate && matchesEA && matchesSalary && matchesCO) {
+        const expStr = job.experienceRequired.toLowerCase();
+        let level = '';
+        if (expStr.includes('0') || expStr.includes('1')) level = 'Entry level';
+        if (expStr.includes('2')) level = 'Associate';
+        if (expStr.includes('3') || expStr.includes('4')) level = 'Mid-Senior';
+        if (expStr.includes('5') || expStr.includes('6') || expStr.includes('7')) level = 'Executive';
+        if (job.jobType === 'Internship') level = 'Internship';
+
+        if (level && level in counts.experience) {
+          counts.experience[level as keyof typeof counts.experience]++;
+        }
+      }
+
+      if (matchesWT && matchesJT && matchesEL && matchesDate && matchesEA && matchesSalary) {
+        counts.company[job.company] = (counts.company[job.company] || 0) + 1;
+      }
+    });
+
+    return counts;
+  };
 
   // Handle viewing specific jobs (e.g. from salary or analytics suggested listings)
   const handleViewJob = (job: Job) => {
@@ -514,7 +841,7 @@ export default function App() {
         <div className="flex-1 flex flex-col lg:flex-row lg:h-screen lg:overflow-hidden bg-[#f8f9fa]">
           
           {/* Main Navigation Sidebar (Left Column) */}
-          <aside className="w-full lg:w-64 bg-white border-r border-gray-100 flex flex-col justify-between shrink-0 lg:h-screen lg:overflow-y-auto">
+          <aside className="w-full lg:w-64 bg-white border-r border-gray-100 flex flex-col justify-between shrink-0 lg:h-screen lg:overflow-hidden">
             <div className="p-6 space-y-8">
               {/* Logo */}
               <button 
@@ -736,49 +1063,366 @@ export default function App() {
                      })}
                    </div>
 
-                   {/* Filter Selectors */}
-                   <div className="flex flex-wrap gap-2.5 pt-1 items-center">
-                     <SlidersHorizontal className="w-3.5 h-3.5 text-gray-400 mr-1 shrink-0" />
-                     
-                     {/* Work Type selector */}
-                     <div className="flex gap-1 bg-gray-50 border border-gray-100 rounded-xl p-1 text-[10px] font-bold">
-                       {['All', 'Remote', 'Hybrid', 'On-site'].map((type) => (
-                         <button
-                           key={type}
-                           onClick={() => setSelectedWorkType(type)}
-                           className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
-                             selectedWorkType === type 
-                               ? 'bg-white text-[#4f46e5] shadow-sm font-extrabold' 
-                               : 'text-gray-500 hover:text-gray-800'
-                           }`}
-                         >
-                           {type}
-                         </button>
-                       ))}
-                     </div>
+                    {/* Filter Selectors (LinkedIn-Style Horizontal Bar) */}
+                    <div className="space-y-3 pt-1">
+                      <div className="relative flex flex-wrap gap-2 items-center z-20">
+                        {/* Date Posted Pill */}
+                        <div className="relative">
+                          <button 
+                            onClick={() => setActiveDropdown(activeDropdown === 'date' ? null : 'date')}
+                            className={`px-3.5 py-1.5 rounded-full border text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                              selectedDatePosted !== 'all' 
+                                ? 'bg-[#3f37c9]/5 border-[#3f37c9]/30 text-[#3f37c9] shadow-sm font-extrabold'
+                                : 'bg-white hover:bg-gray-50 border-gray-200 text-gray-600'
+                            }`}
+                          >
+                            <span>Date Posted</span>
+                            <ChevronDown className="w-3.5 h-3.5 opacity-60" />
+                          </button>
+                          {activeDropdown === 'date' && (
+                            <>
+                              <div className="fixed inset-0 z-30" onClick={() => setActiveDropdown(null)}></div>
+                              <div className="absolute left-0 mt-2 bg-white border border-gray-150 rounded-2xl shadow-xl p-4 w-56 z-40 animate-fade-in space-y-3">
+                                <h4 className="text-[11px] font-black uppercase text-gray-400 tracking-wider">Show results posted within:</h4>
+                                <div className="space-y-2">
+                                  {[
+                                    { id: 'all', label: 'Any time' },
+                                    { id: '24h', label: 'Past 24 hours' },
+                                    { id: 'week', label: 'Past week' },
+                                    { id: 'month', label: 'Past month' }
+                                  ].map(opt => (
+                                    <label key={opt.id} className="flex items-center gap-2.5 text-xs text-gray-700 font-semibold cursor-pointer">
+                                      <input 
+                                        type="radio" 
+                                        name="date-posted" 
+                                        className="text-[#4f46e5] focus:ring-[#4f46e5] rounded-full border-gray-300 w-3.5 h-3.5"
+                                        checked={selectedDatePosted === opt.id}
+                                        onChange={() => {
+                                          setSelectedDatePosted(opt.id);
+                                          setActiveDropdown(null);
+                                        }}
+                                      />
+                                      <span>{opt.label}</span>
+                                    </label>
+                                  ))}
+                                </div>
+                              </div>
+                            </>
+                          )}
+                        </div>
 
-                     {/* Job Type selector */}
-                     <div className="flex gap-1 bg-gray-50 border border-gray-100 rounded-xl p-1 text-[10px] font-bold">
-                       {['All', 'Full-time', 'Part-time', 'Contract', 'Internship'].map((type) => (
-                         <button
-                           key={type}
-                           onClick={() => setSelectedJobType(type)}
-                           className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
-                             selectedJobType === type 
-                               ? 'bg-white text-[#4f46e5] shadow-sm font-extrabold' 
-                               : 'text-gray-500 hover:text-gray-800'
-                           }`}
-                         >
-                           {type}
-                         </button>
-                       ))}
-                     </div>
+                        {/* Workplace Type Pill */}
+                        <div className="relative">
+                          <button 
+                            onClick={() => setActiveDropdown(activeDropdown === 'workplace' ? null : 'workplace')}
+                            className={`px-3.5 py-1.5 rounded-full border text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                              selectedWorkplaceTypes.length > 0
+                                ? 'bg-[#3f37c9]/5 border-[#3f37c9]/30 text-[#3f37c9] shadow-sm font-extrabold'
+                                : 'bg-white hover:bg-gray-50 border-gray-200 text-gray-600'
+                            }`}
+                          >
+                            <span>Workplace type {selectedWorkplaceTypes.length > 0 && `(${selectedWorkplaceTypes.length})`}</span>
+                            <ChevronDown className="w-3.5 h-3.5 opacity-60" />
+                          </button>
+                          {activeDropdown === 'workplace' && (
+                            <>
+                              <div className="fixed inset-0 z-30" onClick={() => setActiveDropdown(null)}></div>
+                              <div className="absolute left-0 mt-2 bg-white border border-gray-150 rounded-2xl shadow-xl p-4 w-60 z-40 animate-fade-in space-y-3">
+                                <h4 className="text-[11px] font-black uppercase text-gray-400 tracking-wider">Select options:</h4>
+                                <div className="space-y-2">
+                                  {['On-site', 'Hybrid', 'Remote'].map(type => {
+                                    const counts = getFacetCounts();
+                                    const count = counts.workplace[type as keyof typeof counts.workplace] || 0;
+                                    return (
+                                      <label key={type} className="flex items-center justify-between text-xs text-gray-700 font-semibold cursor-pointer">
+                                        <div className="flex items-center gap-2.5">
+                                          <input 
+                                            type="checkbox" 
+                                            className="text-[#4f46e5] focus:ring-[#4f46e5] rounded border-gray-300 w-3.5 h-3.5"
+                                            checked={selectedWorkplaceTypes.includes(type)}
+                                            onChange={(e) => {
+                                              if (e.target.checked) {
+                                                setSelectedWorkplaceTypes([...selectedWorkplaceTypes, type]);
+                                              } else {
+                                                setSelectedWorkplaceTypes(selectedWorkplaceTypes.filter(t => t !== type));
+                                              }
+                                            }}
+                                          />
+                                          <span>{type}</span>
+                                        </div>
+                                        <span className="text-[10px] text-gray-400 font-bold">({count})</span>
+                                      </label>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            </>
+                          )}
+                        </div>
 
-                     <span className="text-[11px] text-gray-400 font-bold ml-auto uppercase tracking-wide">
-                       Found {filteredJobs.length} matches
-                     </span>
+                        {/* Experience Level Pill */}
+                        <div className="relative">
+                          <button 
+                            onClick={() => setActiveDropdown(activeDropdown === 'experience' ? null : 'experience')}
+                            className={`px-3.5 py-1.5 rounded-full border text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                              selectedExperienceLevels.length > 0
+                                ? 'bg-[#3f37c9]/5 border-[#3f37c9]/30 text-[#3f37c9] shadow-sm font-extrabold'
+                                : 'bg-white hover:bg-gray-50 border-gray-200 text-gray-600'
+                            }`}
+                          >
+                            <span>Experience level {selectedExperienceLevels.length > 0 && `(${selectedExperienceLevels.length})`}</span>
+                            <ChevronDown className="w-3.5 h-3.5 opacity-60" />
+                          </button>
+                          {activeDropdown === 'experience' && (
+                            <>
+                              <div className="fixed inset-0 z-30" onClick={() => setActiveDropdown(null)}></div>
+                              <div className="absolute left-0 mt-2 bg-white border border-gray-150 rounded-2xl shadow-xl p-4 w-60 z-40 animate-fade-in space-y-3">
+                                <h4 className="text-[11px] font-black uppercase text-gray-400 tracking-wider">Select levels:</h4>
+                                <div className="space-y-2">
+                                  {['Internship', 'Entry level', 'Associate', 'Mid-Senior', 'Executive'].map(level => {
+                                    const counts = getFacetCounts();
+                                    const count = counts.experience[level as keyof typeof counts.experience] || 0;
+                                    return (
+                                      <label key={level} className="flex items-center justify-between text-xs text-gray-700 font-semibold cursor-pointer">
+                                        <div className="flex items-center gap-2.5">
+                                          <input 
+                                            type="checkbox" 
+                                            className="text-[#4f46e5] focus:ring-[#4f46e5] rounded border-gray-300 w-3.5 h-3.5"
+                                            checked={selectedExperienceLevels.includes(level)}
+                                            onChange={(e) => {
+                                              if (e.target.checked) {
+                                                setSelectedExperienceLevels([...selectedExperienceLevels, level]);
+                                              } else {
+                                                setSelectedExperienceLevels(selectedExperienceLevels.filter(l => l !== level));
+                                              }
+                                            }}
+                                          />
+                                          <span>{level}</span>
+                                        </div>
+                                        <span className="text-[10px] text-gray-400 font-bold">({count})</span>
+                                      </label>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            </>
+                          )}
+                        </div>
+
+                        {/* Job Type Pill */}
+                        <div className="relative">
+                          <button 
+                            onClick={() => setActiveDropdown(activeDropdown === 'jobtype' ? null : 'jobtype')}
+                            className={`px-3.5 py-1.5 rounded-full border text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                              selectedJobTypes.length > 0
+                                ? 'bg-[#3f37c9]/5 border-[#3f37c9]/30 text-[#3f37c9] shadow-sm font-extrabold'
+                                : 'bg-white hover:bg-gray-50 border-gray-200 text-gray-600'
+                            }`}
+                          >
+                            <span>Job type {selectedJobTypes.length > 0 && `(${selectedJobTypes.length})`}</span>
+                            <ChevronDown className="w-3.5 h-3.5 opacity-60" />
+                          </button>
+                          {activeDropdown === 'jobtype' && (
+                            <>
+                              <div className="fixed inset-0 z-30" onClick={() => setActiveDropdown(null)}></div>
+                              <div className="absolute left-0 mt-2 bg-white border border-gray-150 rounded-2xl shadow-xl p-4 w-60 z-40 animate-fade-in space-y-3">
+                                <h4 className="text-[11px] font-black uppercase text-gray-400 tracking-wider">Select types:</h4>
+                                <div className="space-y-2">
+                                  {['Full-time', 'Part-time', 'Contract', 'Internship'].map(type => {
+                                    const counts = getFacetCounts();
+                                    const count = counts.jobType[type as keyof typeof counts.jobType] || 0;
+                                    return (
+                                      <label key={type} className="flex items-center justify-between text-xs text-gray-700 font-semibold cursor-pointer">
+                                        <div className="flex items-center gap-2.5">
+                                          <input 
+                                            type="checkbox" 
+                                            className="text-[#4f46e5] focus:ring-[#4f46e5] rounded border-gray-300 w-3.5 h-3.5"
+                                            checked={selectedJobTypes.includes(type)}
+                                            onChange={(e) => {
+                                              if (e.target.checked) {
+                                                setSelectedJobTypes([...selectedJobTypes, type]);
+                                              } else {
+                                                setSelectedJobTypes(selectedJobTypes.filter(t => t !== type));
+                                              }
+                                            }}
+                                          />
+                                          <span>{type}</span>
+                                        </div>
+                                        <span className="text-[10px] text-gray-400 font-bold">({count})</span>
+                                      </label>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            </>
+                          )}
+                        </div>
+
+                        {/* Easy Apply Toggle Button */}
+                        <button
+                          onClick={() => setEasyApplyOnly(!easyApplyOnly)}
+                          className={`px-3.5 py-1.5 rounded-full border text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                            easyApplyOnly
+                              ? 'bg-emerald-50 border-emerald-300 text-emerald-700 shadow-sm font-extrabold'
+                              : 'bg-white hover:bg-gray-50 border-gray-200 text-gray-600'
+                          }`}
+                        >
+                          <Sparkles className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                          <span>Easy Apply</span>
+                        </button>
+
+                        {/* Company Selector Pill */}
+                        <div className="relative">
+                          <button 
+                            onClick={() => setActiveDropdown(activeDropdown === 'company' ? null : 'company')}
+                            className={`px-3.5 py-1.5 rounded-full border text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                              selectedCompanies.length > 0
+                                ? 'bg-[#3f37c9]/5 border-[#3f37c9]/30 text-[#3f37c9] shadow-sm font-extrabold'
+                                : 'bg-white hover:bg-gray-50 border-gray-200 text-gray-600'
+                            }`}
+                          >
+                            <span>Company {selectedCompanies.length > 0 && `(${selectedCompanies.length})`}</span>
+                            <ChevronDown className="w-3.5 h-3.5 opacity-60" />
+                          </button>
+                          {activeDropdown === 'company' && (
+                            <>
+                              <div className="fixed inset-0 z-30" onClick={() => setActiveDropdown(null)}></div>
+                              <div className="absolute left-0 mt-2 bg-white border border-gray-150 rounded-2xl shadow-xl p-4 w-64 z-40 animate-fade-in space-y-3 max-h-72 overflow-y-auto">
+                                <h4 className="text-[11px] font-black uppercase text-gray-400 tracking-wider">Select companies:</h4>
+                                <div className="space-y-2">
+                                  {Object.entries(getFacetCounts().company)
+                                    .sort((a, b) => b[1] - a[1])
+                                    .slice(0, 10)
+                                    .map(([companyName, count]) => (
+                                      <label key={companyName} className="flex items-center justify-between text-xs text-gray-700 font-semibold cursor-pointer">
+                                        <div className="flex items-center gap-2.5">
+                                          <input 
+                                            type="checkbox" 
+                                            className="text-[#4f46e5] focus:ring-[#4f46e5] rounded border-gray-300 w-3.5 h-3.5"
+                                            checked={selectedCompanies.includes(companyName)}
+                                            onChange={(e) => {
+                                              if (e.target.checked) {
+                                                setSelectedCompanies([...selectedCompanies, companyName]);
+                                              } else {
+                                                setSelectedCompanies(selectedCompanies.filter(c => c !== companyName));
+                                              }
+                                            }}
+                                          />
+                                          <span className="truncate max-w-[140px]">{companyName}</span>
+                                        </div>
+                                        <span className="text-[10px] text-gray-400 font-bold">({count})</span>
+                                      </label>
+                                    ))}
+                                </div>
+                              </div>
+                            </>
+                          )}
+                        </div>
+
+                        {/* All Filters Button */}
+                        <button
+                          onClick={() => setIsAllFiltersOpen(true)}
+                          className="ml-auto px-4 py-1.5 rounded-full bg-gray-900 hover:bg-gray-800 text-white text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm hover:shadow active:scale-95"
+                        >
+                          <SlidersHorizontal className="w-3.5 h-3.5" />
+                          <span>All Filters</span>
+                        </button>
+                      </div>
+
+                      {/* Active Filter Summary Row */}
+                      {(selectedDatePosted !== 'all' || selectedWorkplaceTypes.length > 0 || selectedExperienceLevels.length > 0 || selectedJobTypes.length > 0 || selectedCompanies.length > 0 || selectedSalaryRange !== 'all' || easyApplyOnly) && (
+                        <div className="flex flex-wrap gap-1.5 pt-1.5 border-t border-gray-100 items-center text-[10px] font-bold">
+                          <span className="text-gray-400 font-extrabold uppercase tracking-wide mr-1">Active:</span>
+                          
+                          {selectedDatePosted !== 'all' && (
+                            <span className="inline-flex items-center gap-1 bg-[#4f46e5]/5 border border-[#4f46e5]/10 text-[#4f46e5] px-2 py-0.5 rounded-md">
+                              <span>Date: {selectedDatePosted === '24h' ? '24h' : selectedDatePosted === 'week' ? 'Week' : 'Month'}</span>
+                              <button onClick={() => setSelectedDatePosted('all')} className="hover:text-red-500 cursor-pointer text-xs">✕</button>
+                            </span>
+                          )}
+                          
+                          {selectedWorkplaceTypes.map(wt => (
+                            <span key={wt} className="inline-flex items-center gap-1 bg-[#4f46e5]/5 border border-[#4f46e5]/10 text-[#4f46e5] px-2 py-0.5 rounded-md">
+                              <span>{wt}</span>
+                              <button onClick={() => setSelectedWorkplaceTypes(selectedWorkplaceTypes.filter(x => x !== wt))} className="hover:text-red-500 cursor-pointer text-xs">✕</button>
+                            </span>
+                          ))}
+                          
+                          {selectedExperienceLevels.map(el => (
+                            <span key={el} className="inline-flex items-center gap-1 bg-[#4f46e5]/5 border border-[#4f46e5]/10 text-[#4f46e5] px-2 py-0.5 rounded-md">
+                              <span>{el}</span>
+                              <button onClick={() => setSelectedExperienceLevels(selectedExperienceLevels.filter(x => x !== el))} className="hover:text-red-500 cursor-pointer text-xs">✕</button>
+                            </span>
+                          ))}
+                          
+                          {selectedJobTypes.map(jt => (
+                            <span key={jt} className="inline-flex items-center gap-1 bg-[#4f46e5]/5 border border-[#4f46e5]/10 text-[#4f46e5] px-2 py-0.5 rounded-md">
+                              <span>{jt}</span>
+                              <button onClick={() => setSelectedJobTypes(selectedJobTypes.filter(x => x !== jt))} className="hover:text-red-500 cursor-pointer text-xs">✕</button>
+                            </span>
+                          ))}
+                          
+                          {selectedCompanies.map(co => (
+                            <span key={co} className="inline-flex items-center gap-1 bg-[#4f46e5]/5 border border-[#4f46e5]/10 text-[#4f46e5] px-2 py-0.5 rounded-md">
+                              <span>{co}</span>
+                              <button onClick={() => setSelectedCompanies(selectedCompanies.filter(x => x !== co))} className="hover:text-red-500 cursor-pointer text-xs">✕</button>
+                            </span>
+                          ))}
+
+                          {selectedSalaryRange !== 'all' && (
+                            <span className="inline-flex items-center gap-1 bg-[#4f46e5]/5 border border-[#4f46e5]/10 text-[#4f46e5] px-2 py-0.5 rounded-md">
+                              <span>Salary: {selectedSalaryRange === '10l' ? '₹10L+' : selectedSalaryRange === '15l' ? '₹15L+' : selectedSalaryRange === '20l' ? '₹20L+' : '₹30L+'}</span>
+                              <button onClick={() => setSelectedSalaryRange('all')} className="hover:text-red-500 cursor-pointer text-xs">✕</button>
+                            </span>
+                          )}
+
+                          {easyApplyOnly && (
+                            <span className="inline-flex items-center gap-1 bg-emerald-50 border border-emerald-200 text-emerald-700 px-2 py-0.5 rounded-md">
+                              <span>Easy Apply</span>
+                              <button onClick={() => setEasyApplyOnly(false)} className="hover:text-red-500 cursor-pointer text-xs">✕</button>
+                            </span>
+                          )}
+
+                          <button 
+                            onClick={() => {
+                              setSelectedDatePosted('all');
+                              setSelectedWorkplaceTypes([]);
+                              setSelectedExperienceLevels([]);
+                              setSelectedJobTypes([]);
+                              setSelectedCompanies([]);
+                              setSelectedSalaryRange('all');
+                              setEasyApplyOnly(false);
+                              setSearchQuery('');
+                              setLocationQuery('');
+                            }}
+                            className="text-red-500 hover:text-red-700 ml-1 hover:underline cursor-pointer transition-colors uppercase tracking-wider font-extrabold text-[9px]"
+                          >
+                            Clear all
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Header Results Summary and Sorting */}
+                      <div className="flex items-center justify-between border-t border-gray-100 pt-3">
+                        <span className="text-[11px] text-gray-400 font-bold uppercase tracking-wide">
+                          Found {filteredJobs.length} matches
+                        </span>
+                        
+                        <div className="flex items-center gap-1.5 text-[11px] font-bold text-gray-600">
+                          <span className="text-gray-400 uppercase tracking-wide">Sort by:</span>
+                          <select 
+                            value={sortBy}
+                            onChange={(e) => setSortBy(e.target.value)}
+                            className="bg-transparent border-none text-[11px] font-black text-[#4f46e5] py-0 pl-1 pr-6 focus:ring-0 focus:outline-none cursor-pointer"
+                          >
+                            <option value="recent">Most Recent</option>
+                            <option value="relevant">Most Relevant</option>
+                          </select>
+                        </div>
+                      </div>
                     </div>
                   </div>
+
                                {/* Job Search Core Grid */}
                   <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch flex-1 min-h-0 lg:overflow-hidden pb-4">
                     
@@ -795,15 +1439,43 @@ export default function App() {
                             onClick={() => {
                               setSearchQuery('');
                               setLocationQuery('');
-                              setSelectedWorkType('All');
-                              setSelectedJobType('All');
+                              setSelectedDatePosted('all');
+                              setSelectedWorkplaceTypes([]);
+                              setSelectedExperienceLevels([]);
+                              setSelectedJobTypes([]);
+                              setSelectedCompanies([]);
+                              setSelectedSalaryRange('all');
+                              setEasyApplyOnly(false);
                               setSelectedCategory('All');
+                              setSortBy('recent');
                             }}
                             className="text-[#4f46e5] text-xs font-bold hover:underline cursor-pointer"
                           >
                             Reset filters
                           </button>
                         </div>
+                      ) : isLoadingFilters ? (
+                        // LinkedIn-style Premium Skeleton Cards
+                        Array.from({ length: 4 }).map((_, index) => (
+                          <div key={index} className="p-5 rounded-3xl border border-gray-100 bg-white space-y-4 animate-pulse">
+                            <div className="flex items-start gap-4">
+                              <div className="w-11 h-11 bg-gray-200 rounded-2xl shrink-0"></div>
+                              <div className="flex-1 space-y-2">
+                                <div className="h-4 bg-gray-200 rounded-md w-3/4"></div>
+                                <div className="h-3 bg-gray-200 rounded-md w-1/2"></div>
+                              </div>
+                            </div>
+                            <div className="flex gap-2">
+                              <div className="h-5 bg-gray-200 rounded-lg w-16"></div>
+                              <div className="h-5 bg-gray-200 rounded-lg w-16"></div>
+                              <div className="h-5 bg-gray-200 rounded-lg w-16"></div>
+                            </div>
+                            <div className="pt-3 border-t border-gray-50 flex items-center justify-between">
+                              <div className="h-5 bg-gray-200 rounded-full w-24"></div>
+                              <div className="h-3 bg-gray-200 rounded-md w-12"></div>
+                            </div>
+                          </div>
+                        ))
                       ) : (
                         filteredJobs.map((job) => {
                           const isSelected = selectedJob && job.id === selectedJob.id;
@@ -1172,13 +1844,304 @@ export default function App() {
                           )}
                         </div>
                       </div>
-                    ))}
+                        ))}
                   </div>
                 )}
               </div>
             )}
-
           </main>
+        </div>
+      )}
+
+      {/* All Filters Drawer/Modal rendering */}
+      {isAllFiltersOpen && (
+        <div className="fixed inset-0 z-50 flex justify-end">
+          {/* Backdrop */}
+          <div 
+            className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"
+            onClick={() => setIsAllFiltersOpen(false)}
+          ></div>
+          
+          {/* Drawer Container */}
+          <div className="relative w-full max-w-lg bg-white h-full shadow-2xl flex flex-col z-10 animate-slide-left overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <h3 className="text-md font-extrabold text-gray-900 font-display">All Filters</h3>
+              <button 
+                onClick={() => setIsAllFiltersOpen(false)}
+                className="p-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-50 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Scrollable Filters Content */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-8 scrollbar-thin">
+              {/* Date Posted */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-black uppercase text-gray-400 tracking-wider">Date Posted</h4>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { id: 'all', label: 'Any time' },
+                    { id: '24h', label: 'Past 24 hours' },
+                    { id: 'week', label: 'Past week' },
+                    { id: 'month', label: 'Past month' }
+                  ].map(opt => (
+                    <label 
+                      key={opt.id} 
+                      className={`p-3 border rounded-xl flex items-center gap-3.5 text-xs font-bold cursor-pointer transition-all ${
+                        selectedDatePosted === opt.id 
+                          ? 'border-[#4f46e5] bg-[#4f46e5]/5 text-[#4f46e5]' 
+                          : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                      }`}
+                    >
+                      <input 
+                        type="radio" 
+                        name="drawer-date-posted" 
+                        className="text-[#4f46e5] focus:ring-[#4f46e5] rounded-full border-gray-300 w-4 h-4"
+                        checked={selectedDatePosted === opt.id}
+                        onChange={() => setSelectedDatePosted(opt.id)}
+                      />
+                      <span>{opt.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Workplace Type */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-black uppercase text-gray-400 tracking-wider">Workplace Type</h4>
+                <div className="space-y-2">
+                  {['On-site', 'Hybrid', 'Remote'].map(type => {
+                    const counts = getFacetCounts();
+                    const count = counts.workplace[type as keyof typeof counts.workplace] || 0;
+                    const isChecked = selectedWorkplaceTypes.includes(type);
+                    return (
+                      <label 
+                        key={type} 
+                        className={`p-3 border rounded-xl flex items-center justify-between text-xs font-bold cursor-pointer transition-all ${
+                          isChecked 
+                            ? 'border-[#4f46e5] bg-[#4f46e5]/5 text-[#4f46e5]' 
+                            : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3.5">
+                          <input 
+                            type="checkbox" 
+                            className="text-[#4f46e5] focus:ring-[#4f46e5] rounded border-gray-300 w-4 h-4"
+                            checked={isChecked}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedWorkplaceTypes([...selectedWorkplaceTypes, type]);
+                              } else {
+                                setSelectedWorkplaceTypes(selectedWorkplaceTypes.filter(t => t !== type));
+                              }
+                            }}
+                          />
+                          <span>{type}</span>
+                        </div>
+                        <span className="text-[10px] text-gray-400 font-extrabold">({count})</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Experience Level */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-black uppercase text-gray-400 tracking-wider">Experience Level</h4>
+                <div className="space-y-2">
+                  {['Internship', 'Entry level', 'Associate', 'Mid-Senior', 'Executive'].map(level => {
+                    const counts = getFacetCounts();
+                    const count = counts.experience[level as keyof typeof counts.experience] || 0;
+                    const isChecked = selectedExperienceLevels.includes(level);
+                    return (
+                      <label 
+                        key={level} 
+                        className={`p-3 border rounded-xl flex items-center justify-between text-xs font-bold cursor-pointer transition-all ${
+                          isChecked 
+                            ? 'border-[#4f46e5] bg-[#4f46e5]/5 text-[#4f46e5]' 
+                            : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3.5">
+                          <input 
+                            type="checkbox" 
+                            className="text-[#4f46e5] focus:ring-[#4f46e5] rounded border-gray-300 w-4 h-4"
+                            checked={isChecked}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedExperienceLevels([...selectedExperienceLevels, level]);
+                              } else {
+                                setSelectedExperienceLevels(selectedExperienceLevels.filter(l => l !== level));
+                              }
+                            }}
+                          />
+                          <span>{level}</span>
+                        </div>
+                        <span className="text-[10px] text-gray-400 font-extrabold">({count})</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Job Type */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-black uppercase text-gray-400 tracking-wider">Job Type</h4>
+                <div className="space-y-2">
+                  {['Full-time', 'Part-time', 'Contract', 'Internship'].map(type => {
+                    const counts = getFacetCounts();
+                    const count = counts.jobType[type as keyof typeof counts.jobType] || 0;
+                    const isChecked = selectedJobTypes.includes(type);
+                    return (
+                      <label 
+                        key={type} 
+                        className={`p-3 border rounded-xl flex items-center justify-between text-xs font-bold cursor-pointer transition-all ${
+                          isChecked 
+                            ? 'border-[#4f46e5] bg-[#4f46e5]/5 text-[#4f46e5]' 
+                            : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3.5">
+                          <input 
+                            type="checkbox" 
+                            className="text-[#4f46e5] focus:ring-[#4f46e5] rounded border-gray-300 w-4 h-4"
+                            checked={isChecked}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedJobTypes([...selectedJobTypes, type]);
+                              } else {
+                                setSelectedJobTypes(selectedJobTypes.filter(t => t !== type));
+                              }
+                            }}
+                          />
+                          <span>{type}</span>
+                        </div>
+                        <span className="text-[10px] text-gray-400 font-extrabold">({count})</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Salary Range */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-black uppercase text-gray-400 tracking-wider">Minimum Salary (Lakhs PA equivalent)</h4>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { id: 'all', label: 'Any salary' },
+                    { id: '10l', label: '₹10L+ PA' },
+                    { id: '15l', label: '₹15L+ PA' },
+                    { id: '20l', label: '₹20L+ PA' },
+                    { id: '30l', label: '₹30L+ PA' }
+                  ].map(opt => (
+                    <label 
+                      key={opt.id} 
+                      className={`p-3 border rounded-xl flex items-center gap-3.5 text-xs font-bold cursor-pointer transition-all ${
+                        selectedSalaryRange === opt.id 
+                          ? 'border-[#4f46e5] bg-[#4f46e5]/5 text-[#4f46e5]' 
+                          : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                      }`}
+                    >
+                      <input 
+                        type="radio" 
+                        name="drawer-salary" 
+                        className="text-[#4f46e5] focus:ring-[#4f46e5] rounded-full border-gray-300 w-4 h-4"
+                        checked={selectedSalaryRange === opt.id}
+                        onChange={() => setSelectedSalaryRange(opt.id)}
+                      />
+                      <span>{opt.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Easy Apply */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between p-3 border border-gray-200 rounded-xl">
+                  <div className="space-y-0.5">
+                    <h4 className="text-xs font-bold text-gray-900">Easy Apply Only</h4>
+                    <p className="text-[10px] text-gray-400 font-semibold">Show only jobs that support quick one-click application</p>
+                  </div>
+                  <button 
+                    onClick={() => setEasyApplyOnly(!easyApplyOnly)}
+                    className={`w-11 h-6 rounded-full transition-colors flex items-center p-0.5 cursor-pointer ${
+                      easyApplyOnly ? 'bg-emerald-500' : 'bg-gray-200'
+                    }`}
+                  >
+                    <span className={`w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                      easyApplyOnly ? 'translate-x-5' : 'translate-x-0'
+                    }`}></span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Companies */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-black uppercase text-gray-400 tracking-wider font-display">Companies</h4>
+                <div className="grid grid-cols-2 gap-2 max-h-56 overflow-y-auto p-1 border border-gray-100 rounded-xl font-sans">
+                  {Object.entries(getFacetCounts().company)
+                    .sort((a, b) => b[1] - a[1])
+                    .map(([companyName, count]) => {
+                      const isChecked = selectedCompanies.includes(companyName);
+                      return (
+                        <label 
+                          key={companyName} 
+                          className={`p-2.5 border rounded-xl flex items-center justify-between text-xs font-bold cursor-pointer transition-all truncate ${
+                            isChecked 
+                              ? 'border-[#4f46e5] bg-[#4f46e5]/5 text-[#4f46e5]' 
+                              : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 max-w-[120px] truncate">
+                            <input 
+                              type="checkbox" 
+                              className="text-[#4f46e5] focus:ring-[#4f46e5] rounded border-gray-300 w-3.5 h-3.5"
+                              checked={isChecked}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedCompanies([...selectedCompanies, companyName]);
+                                } else {
+                                  setSelectedCompanies(selectedCompanies.filter(c => c !== companyName));
+                                }
+                              }}
+                            />
+                            <span className="truncate">{companyName}</span>
+                          </div>
+                          <span className="text-[9px] text-gray-400 font-bold ml-1">({count})</span>
+                        </label>
+                      );
+                    })}
+                </div>
+              </div>
+            </div>
+
+            {/* Drawer Footer Actions */}
+            <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 flex items-center justify-between">
+              <button 
+                onClick={() => {
+                  setSelectedDatePosted('all');
+                  setSelectedWorkplaceTypes([]);
+                  setSelectedExperienceLevels([]);
+                  setSelectedJobTypes([]);
+                  setSelectedCompanies([]);
+                  setSelectedSalaryRange('all');
+                  setEasyApplyOnly(false);
+                }}
+                className="text-xs font-bold text-gray-500 hover:text-gray-900 cursor-pointer hover:underline uppercase tracking-wider"
+              >
+                Reset all
+              </button>
+              
+              <button 
+                onClick={() => setIsAllFiltersOpen(false)}
+                className="px-6 py-2.5 bg-[#4f46e5] hover:bg-[#4338ca] active:scale-98 text-white text-xs font-black rounded-xl cursor-pointer shadow-premium"
+              >
+                Show {filteredJobs.length} Results
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
