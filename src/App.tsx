@@ -1424,40 +1424,38 @@ export default function App() {
                     </div>
                   </div>
 
-                               {/* Job Search Core Grid */}
-                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start flex-1 min-h-0 pb-4">
-                    
-                    {/* Left Column: Jobs List */}
-                    <div className="lg:col-span-5 space-y-3.5 pr-1 pb-4 scrollbar-thin">
-                      {filteredJobs.length === 0 ? (
-                        <div className="bg-white rounded-3xl p-10 border border-gray-100 shadow-premium text-center space-y-3">
-                          <AlertCircle className="w-8 h-8 text-amber-500 mx-auto" />
-                          <h4 className="text-md font-bold font-display text-gray-900">No postings match filters</h4>
-                          <p className="text-xs text-gray-400 font-semibold leading-relaxed">
-                            Try modifying search keywords or resetting filters to check other opportunities.
-                          </p>
-                          <button 
-                            onClick={() => {
-                              setSearchQuery('');
-                              setLocationQuery('');
-                              setSelectedDatePosted('all');
-                              setSelectedWorkplaceTypes([]);
-                              setSelectedExperienceLevels([]);
-                              setSelectedJobTypes([]);
-                              setSelectedCompanies([]);
-                              setSelectedSalaryRange('all');
-                              setEasyApplyOnly(false);
-                              setSelectedCategory('All');
-                              setSortBy('recent');
-                            }}
-                            className="text-[#4f46e5] text-xs font-bold hover:underline cursor-pointer"
-                          >
-                            Reset filters
-                          </button>
-                        </div>
-                      ) : isLoadingFilters ? (
-                        // LinkedIn-style Premium Skeleton Cards
-                        Array.from({ length: 4 }).map((_, index) => (
+                  {/* Job Search Core Grid - Full-Width Balanced 2-Column Grid */}
+                  <div className="flex-1 pb-6">
+                    {filteredJobs.length === 0 ? (
+                      <div className="bg-white rounded-3xl p-12 border border-gray-100 shadow-premium text-center space-y-3 max-w-md mx-auto my-8">
+                        <AlertCircle className="w-10 h-10 text-amber-500 mx-auto" />
+                        <h4 className="text-md font-bold font-display text-gray-900">No postings match filters</h4>
+                        <p className="text-xs text-gray-400 font-semibold leading-relaxed">
+                          Try modifying search keywords or resetting filters to check other opportunities.
+                        </p>
+                        <button 
+                          onClick={() => {
+                            setSearchQuery('');
+                            setLocationQuery('');
+                            setSelectedDatePosted('all');
+                            setSelectedWorkplaceTypes([]);
+                            setSelectedExperienceLevels([]);
+                            setSelectedJobTypes([]);
+                            setSelectedCompanies([]);
+                            setSelectedSalaryRange('all');
+                            setEasyApplyOnly(false);
+                            setSelectedCategory('All');
+                            setSortBy('recent');
+                          }}
+                          className="px-5 py-2.5 bg-[#4f46e5] text-white text-xs font-bold rounded-xl hover:bg-[#3f37c9] transition-all cursor-pointer shadow-sm"
+                        >
+                          Reset filters
+                        </button>
+                      </div>
+                    ) : isLoadingFilters ? (
+                      // Skeleton Cards Grid (2-column)
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {Array.from({ length: 6 }).map((_, index) => (
                           <div key={index} className="p-5 rounded-3xl border border-gray-100 bg-white space-y-4 animate-pulse">
                             <div className="flex items-start gap-4">
                               <div className="w-11 h-11 bg-gray-200 rounded-2xl shrink-0"></div>
@@ -1476,313 +1474,99 @@ export default function App() {
                               <div className="h-3 bg-gray-200 rounded-md w-12"></div>
                             </div>
                           </div>
-                        ))
-                      ) : (
-                        filteredJobs.map((job) => {
-                          const isSelected = selectedJob && job.id === selectedJob.id;
+                        ))}
+                      </div>
+                    ) : (
+                      // 2-Column Responsive Grid of Jobs (Fills both left line & right line completely!)
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4.5">
+                        {filteredJobs.map((job) => {
                           const isSaved = savedJobIds.includes(job.id);
-                          
+                          const isApplied = applications.some(app => app.jobId === job.id);
+
                           return (
                             <div
                               key={job.id}
-                              onClick={() => setSelectedJob(job)}
-                              className={`p-5 rounded-3xl border transition-all cursor-pointer space-y-4 relative overflow-hidden group ${
-                                isSelected 
-                                  ? 'bg-white border-[#4f46e5] ring-2 ring-[#4f46e5]/10 shadow-premium shadow-glow-indigo' 
-                                  : 'bg-white border-gray-100 hover:border-gray-200 shadow-sm'
-                              }`}
+                              onClick={() => {
+                                setSelectedJob(job);
+                                setSelectedJobDetailModal(job);
+                              }}
+                              className="p-5 rounded-3xl border border-gray-150 bg-white hover:border-[#4f46e5]/40 hover:shadow-lg transition-all cursor-pointer space-y-4 flex flex-col justify-between group relative overflow-hidden"
                               id={`job-item-${job.id}`}
                             >
-                              {/* Logo, title, saved state row */}
-                              <div className="flex items-start gap-4">
-                                <div className="w-11 h-11 bg-gray-50 border border-gray-100 rounded-2xl flex items-center justify-center overflow-hidden shrink-0 shadow-inner">
-                                  <img 
-                                    alt={job.company} 
-                                    className="w-7 h-7 object-contain" 
-                                    src={job.logoUrl} 
-                                    onError={(e) => {
-                                      (e.target as HTMLImageElement).src = 'https://img.icons8.com/color/48/000000/briefcase.png';
-                                    }}
-                                  />
+                              {/* Top row: Logo, Title, Bookmark */}
+                              <div className="space-y-3">
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="flex items-center gap-3.5 min-w-0">
+                                    <div className="w-11 h-11 bg-gray-50 border border-gray-100 rounded-2xl flex items-center justify-center overflow-hidden shrink-0 shadow-inner">
+                                      <img 
+                                        alt={job.company} 
+                                        className="w-7 h-7 object-contain" 
+                                        src={job.logoUrl} 
+                                        onError={(e) => {
+                                          (e.target as HTMLImageElement).src = 'https://img.icons8.com/color/48/000000/briefcase.png';
+                                        }}
+                                      />
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                      <h3 className="text-sm font-extrabold text-gray-900 truncate group-hover:text-[#4f46e5] transition-colors">{job.title}</h3>
+                                      <p className="text-xs font-semibold text-gray-400 truncate">{job.company} • {job.location}</p>
+                                    </div>
+                                  </div>
+
+                                  <button
+                                    onClick={(e) => handleToggleBookmark(job.id, e)}
+                                    className={`p-1.5 rounded-xl border transition-all cursor-pointer ${
+                                      isSaved 
+                                        ? 'bg-[#4f46e5]/5 border-[#4f46e5]/20 text-[#4f46e5]' 
+                                        : 'bg-white border-gray-150 hover:border-gray-200 text-gray-400'
+                                    }`}
+                                  >
+                                    <Bookmark className="w-4 h-4 fill-current stroke-[2.2]" />
+                                  </button>
                                 </div>
-                                <div className="flex-1 min-w-0 text-left">
-                                  <h3 className="text-sm font-extrabold text-gray-900 truncate group-hover:text-[#4f46e5] transition-colors">{job.title}</h3>
-                                  <p className="text-xs font-semibold text-gray-400 truncate">{job.company} • {job.location}</p>
+
+                                {/* Job Specs Badges */}
+                                <div className="flex flex-wrap gap-1.5 text-[9px] font-bold text-gray-500 uppercase tracking-wide">
+                                  <span className="px-2 py-1 bg-gray-50 border border-gray-150 rounded-lg">{job.workType}</span>
+                                  <span className="px-2 py-1 bg-gray-50 border border-gray-150 rounded-lg">{job.jobType}</span>
+                                  <span className="px-2 py-1 bg-gray-50 border border-gray-150 rounded-lg">{job.experienceRequired}</span>
+                                  <span className="px-2 py-1 bg-indigo-50/60 text-[#4f46e5] border border-indigo-100 rounded-lg font-extrabold">{job.salaryRange}</span>
                                 </div>
-                                <button
-                                  onClick={(e) => handleToggleBookmark(job.id, e)}
-                                  className={`p-1.5 rounded-xl border transition-all cursor-pointer ${
-                                    isSaved 
-                                      ? 'bg-[#4f46e5]/5 border-[#4f46e5]/20 text-[#4f46e5]' 
-                                      : 'bg-white border-gray-150 hover:border-gray-200 text-gray-400'
-                                  }`}
-                                >
-                                  <Bookmark className="w-4 h-4 fill-current stroke-[2.2]" />
-                                </button>
                               </div>
- 
-                             {/* Job stats inline chips */}
-                             <div className="flex flex-wrap gap-1.5 text-[9px] font-bold text-gray-500 uppercase tracking-wide">
-                               <span className="px-2 py-1 bg-gray-50 border border-gray-150 rounded-lg">{job.workType}</span>
-                               <span className="px-2 py-1 bg-gray-50 border border-gray-150 rounded-lg">{job.jobType}</span>
-                               <span className="px-2 py-1 bg-gray-50 border border-gray-150 rounded-lg">{job.experienceRequired}</span>
-                             </div>
- 
-                             {/* Dynamic AI Match score badge */}
-                             {job.aiMatchPercent && (
-                               <div className="flex items-center justify-between pt-3 border-t border-gray-100">
-                                 <div className="inline-flex items-center gap-1 bg-[#4f46e5]/5 border border-[#4f46e5]/10 text-[#4f46e5] text-[10px] font-extrabold px-2.5 py-1 rounded-full">
-                                   <Sparkles className="w-3.5 h-3.5" />
-                                   <span>{job.aiMatchPercent}% Match</span>
-                                 </div>
-                                 <span className="text-[10px] font-bold text-gray-400 flex items-center gap-1">
-                                   <Clock className="w-3 h-3" /> {job.postedTime}
-                                 </span>
-                               </div>
-                             )}
-                           </div>
-                         );
-                       })
-                     )}
-                   </div>
- 
-                    {/* Right Column: Detailed Pane (100% Viewport Sticky Pinned) */}
-                    <div className="lg:col-span-7 lg:sticky lg:top-6 lg:self-start lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto pb-4 scrollbar-thin">
-                     {selectedJob ? (
-                       <div className="bg-white rounded-3xl p-6 border border-gray-150 shadow-sm space-y-6" id="job-detail-panel">
-                         
-                         {/* Header block with apply and bookmark */}
-                         <div className="flex justify-between items-start gap-4">
-                           <div className="flex items-center gap-4">
-                             <div className="w-14 h-14 bg-gray-50 border border-gray-100 rounded-3xl flex items-center justify-center overflow-hidden shrink-0 shadow-inner">
-                               <img 
-                                 alt={selectedJob.company} 
-                                 className="w-10 h-10 object-contain" 
-                                 src={selectedJob.logoUrl} 
-                                 onError={(e) => {
-                                   (e.target as HTMLImageElement).src = 'https://img.icons8.com/color/48/000000/briefcase.png';
-                                 }}
-                               />
-                             </div>
-                             <div>
-                               <h2 className="text-lg font-extrabold text-gray-900 leading-tight">{selectedJob.title}</h2>
-                               <p className="text-sm font-semibold text-[#4f46e5] mt-1">{selectedJob.company}</p>
-                               <p className="text-xs font-semibold text-gray-400 mt-0.5">{selectedJob.location} • {selectedJob.postedTime}</p>
-                             </div>
-                           </div>
- 
-                           <div className="flex gap-2">
-                             <button
-                               onClick={(e) => handleToggleBookmark(selectedJob.id, e)}
-                               className={`p-3 rounded-2xl border transition-all cursor-pointer ${
-                                 savedJobIds.includes(selectedJob.id) 
-                                   ? 'bg-[#4f46e5]/5 border-[#4f46e5]/20 text-[#4f46e5]' 
-                                   : 'bg-white border-gray-150 hover:border-gray-200 text-gray-400'
-                               }`}
-                             >
-                               <Bookmark className="w-5 h-5 fill-current stroke-[2.2]" />
-                             </button>
- 
-                             {/* Applied/Apply CTA */}
-                             {applications.some(app => app.jobId === selectedJob.id) ? (
-                               <button
-                                 disabled
-                                 className="px-6 py-3 bg-green-50 border border-green-200 text-green-700 rounded-2xl font-bold text-sm flex items-center gap-1.5"
-                               >
-                                 <CheckCircle2 className="w-4.5 h-4.5 stroke-[2.5]" />
-                                 Applied
-                               </button>
-                             ) : (
-                               <button
-                                 onClick={() => handleApplyJob(selectedJob)}
-                                 className="px-6 py-3 bg-[#4f46e5] text-white hover:bg-[#3f37c9] rounded-2xl font-bold text-sm hover:shadow-lg hover:shadow-[#4f46e5]/15 transition-all flex items-center gap-2 cursor-pointer active:scale-[0.98]"
-                                 id="btn-apply-job"
-                               >
-                                 {selectedJob.applyUrl?.includes('linkedin.com') ? 'Apply via LinkedIn' : 
-                                  selectedJob.applyUrl?.includes('indeed.com') ? 'Apply via Indeed' :
-                                  selectedJob.applyUrl?.includes('google.com') ? 'Apply via Google' :
-                                  selectedJob.applyUrl?.includes('microsoft.com') ? 'Apply via Microsoft' :
-                                  selectedJob.applyUrl?.includes('stripe.com') ? 'Apply via Stripe' :
-                                  'Apply on Company Site'}
-                                 <ArrowRight className="w-4 h-4" />
-                               </button>
-                             )}
-                           </div>
-                         </div>
- 
-                         {/* Core features listing */}
-                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-4 bg-gray-50/70 border border-gray-150 rounded-2xl">
-                           <div>
-                             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Salary Budget</p>
-                             <p className="text-xs font-extrabold text-gray-800 mt-1">{selectedJob.salaryRange}</p>
-                           </div>
-                           <div>
-                             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Experience</p>
-                             <p className="text-xs font-extrabold text-gray-800 mt-1">{selectedJob.experienceRequired}</p>
-                           </div>
-                           <div>
-                             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Work environment</p>
-                             <p className="text-xs font-extrabold text-[#4f46e5] mt-1">{selectedJob.workType}</p>
-                           </div>
-                           <div>
-                             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Contract Type</p>
-                             <p className="text-xs font-extrabold text-gray-800 mt-1">{selectedJob.jobType}</p>
-                           </div>
-                         </div>
- 
-                         {/* Gemini Alignment Explanation Panel */}
-                         {selectedJob.aiMatchPercent && (
-                           <div className="bg-[#4f46e5]/5 border border-[#4f46e5]/10 p-5 rounded-3xl space-y-3 relative overflow-hidden">
-                             {/* Accent graphics background glow */}
-                             <div className="absolute top-0 right-0 w-32 h-32 bg-[#4f46e5]/10 rounded-full blur-2xl"></div>
-                             
-                             <div className="flex items-center justify-between relative z-10">
-                               <div className="inline-flex items-center gap-1.5 bg-[#4f46e5]/10 border border-[#4f46e5]/20 text-[#4f46e5] text-[10px] font-extrabold px-3 py-1 rounded-full uppercase tracking-wider">
-                                 <Sparkles className="w-3.5 h-3.5" />
-                                 Gemini Match alignment: {selectedJob.aiMatchPercent}%
-                               </div>
-                               <span className="text-[10px] text-[#4f46e5] font-bold flex items-center gap-1">
-                                 <Award className="w-3.5 h-3.5" /> Verified fit
-                               </span>
-                             </div>
- 
-                             <p className="text-xs font-semibold text-gray-700 leading-relaxed relative z-10">
-                               {selectedJob.aiMatchExplanation || `This Software Engineering role matches your core experience perfectly based on your registered skills: ${userProfile.skills.slice(0, 4).join(', ')}. Your profile aligns closely with the company's technology stack.`}
-                             </p>
-                           </div>
-                         )}
- 
-                         {/* About Company */}
-                         <div className="space-y-2.5">
-                           <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider">About the company</h4>
-                           <p className="text-xs text-gray-500 font-semibold leading-relaxed">
-                             {selectedJob.companyAbout}
-                           </p>
-                         </div>
- 
-                         {/* Description */}
-                         <div className="space-y-2.5">
-                           <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Job description</h4>
-                           <p className="text-xs text-gray-500 font-semibold leading-relaxed">
-                             {selectedJob.description}
-                           </p>
-                         </div>
- 
-                         {/* Requirements list */}
-                         <div className="space-y-3">
-                           <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Requirements</h4>
-                           <ul className="space-y-2.5">
-                             {selectedJob.requirements.map((req, idx) => (
-                               <li key={idx} className="flex gap-2.5 items-start">
-                                 <div className="w-1.5 h-1.5 rounded-full bg-[#4f46e5] shrink-0 mt-1.5"></div>
-                                 <span className="text-xs text-gray-600 font-semibold leading-relaxed">{req}</span>
-                               </li>
-                             ))}
-                           </ul>
-                         </div>
- 
-                         {/* Benefits list */}
-                         <div className="space-y-3">
-                           <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Benefits</h4>
-                           <ul className="space-y-2.5">
-                             {selectedJob.benefits.map((ben, idx) => (
-                               <li key={idx} className="flex gap-2.5 items-start">
-                                 <div className="w-4 h-4 bg-green-500/10 rounded-full flex items-center justify-center text-green-600 shrink-0 mt-0.5">
-                                 <Check className="w-2.5 h-2.5 stroke-[3]" />
-                                 </div>
-                                 <span className="text-xs text-gray-600 font-semibold leading-relaxed">{ben}</span>
-                               </li>
-                             ))}
-                           </ul>
-                         </div>
- 
-                         {/* Technical Stack Chips */}
-                         <div className="space-y-3 pt-2">
-                           <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Technical Stack</h4>
-                           <div className="flex flex-wrap gap-1.5">
-                             {selectedJob.skills.map((skill) => (
-                               <span 
-                                 key={skill}
-                                 className="px-3 py-1.5 bg-gray-50 border border-gray-150 rounded-xl text-xs font-bold text-gray-600"
-                               >
-                                 {skill}
-                               </span>
-                             ))}
-                           </div>
-                         </div>
- 
-                         {/* Company Snapshot Card */}
-                         <div className="p-5 bg-gradient-to-r from-gray-50 to-indigo-50/20 border border-gray-150 rounded-2xl space-y-3">
-                           <div className="flex items-center justify-between">
-                             <div className="flex items-center gap-3">
-                               <div className="w-10 h-10 bg-white border border-gray-100 rounded-xl flex items-center justify-center overflow-hidden shrink-0 shadow-xs">
-                                 <img alt={selectedJob.company} className="w-7 h-7 object-contain" src={selectedJob.logoUrl} />
-                               </div>
-                               <div>
-                                 <h4 className="text-xs font-black text-gray-900">{selectedJob.company}</h4>
-                                 <p className="text-[10px] text-gray-400 font-bold">Tech & Information Technology • 1,000+ employees</p>
-                               </div>
-                             </div>
-                             <button 
-                               onClick={() => window.open(selectedJob.applyUrl || '#', '_blank')} 
-                               className="text-xs font-bold text-[#4f46e5] hover:underline cursor-pointer flex items-center gap-1"
-                             >
-                               Company page <ArrowRight className="w-3 h-3" />
-                             </button>
-                           </div>
-                         </div>
- 
-                         {/* Recommended / Similar Jobs Section (Eliminates empty space) */}
-                         <div className="space-y-3 pt-3 border-t border-gray-100">
-                           <div className="flex items-center justify-between">
-                             <h4 className="text-xs font-extrabold text-gray-900 uppercase tracking-wider font-display flex items-center gap-1.5">
-                               <Sparkles className="w-3.5 h-3.5 text-[#4f46e5]" />
-                               Similar Opportunities You Might Like
-                             </h4>
-                             <span className="text-[10px] font-bold text-gray-400">Based on active role</span>
-                           </div>
-                           
-                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                             {jobs
-                               .filter(j => j.id !== selectedJob.id && (j.category === selectedJob.category || j.skills.some(s => selectedJob.skills.includes(s))))
-                               .slice(0, 4)
-                               .map(relJob => (
-                                 <div 
-                                   key={relJob.id}
-                                   onClick={() => setSelectedJob(relJob)}
-                                   className="p-3.5 bg-white border border-gray-150 hover:border-[#4f46e5]/40 hover:shadow-md rounded-2xl transition-all cursor-pointer space-y-2 group"
-                                 >
-                                   <div className="flex items-center gap-2.5">
-                                     <div className="w-8 h-8 bg-gray-50 border border-gray-100 rounded-lg flex items-center justify-center shrink-0">
-                                       <img alt={relJob.company} className="w-5 h-5 object-contain" src={relJob.logoUrl} />
-                                     </div>
-                                     <div className="min-w-0 flex-1">
-                                       <h5 className="text-xs font-bold text-gray-900 truncate group-hover:text-[#4f46e5] transition-colors">{relJob.title}</h5>
-                                       <p className="text-[10px] text-gray-400 font-semibold truncate">{relJob.company} • {relJob.location}</p>
-                                     </div>
-                                   </div>
-                                   <div className="flex items-center justify-between text-[9px] font-bold pt-1 border-t border-gray-100 text-gray-500">
-                                     <span className="text-[#4f46e5] font-extrabold">{relJob.salaryRange}</span>
-                                     <span>{relJob.workType}</span>
-                                   </div>
-                                 </div>
-                               ))}
-                           </div>
-                         </div>
- 
-                       </div>
-                     ) : (
-                       <div className="bg-white rounded-3xl p-10 border border-gray-150 text-center space-y-4 h-96 flex flex-col items-center justify-center">
-                         <Briefcase className="w-10 h-10 text-gray-300" />
-                         <h3 className="text-lg font-bold font-display text-gray-900">Select a Job</h3>
-                         <p className="text-xs text-gray-400 font-semibold max-w-xs leading-relaxed">
-                           Click on any opportunity card in the listings list to review complete details, requirements, and AI alignment explanations.
-                         </p>
-                       </div>
-                     )}
-                   </div>
-                 </div>          </div>
-            )}
+
+                              {/* Bottom Row: AI Match & Action Button */}
+                              <div className="pt-3 border-t border-gray-100 flex items-center justify-between gap-2">
+                                {job.aiMatchPercent ? (
+                                  <div className="inline-flex items-center gap-1 bg-[#4f46e5]/5 border border-[#4f46e5]/10 text-[#4f46e5] text-[10px] font-extrabold px-2.5 py-1 rounded-full">
+                                    <Sparkles className="w-3.5 h-3.5" />
+                                    <span>{job.aiMatchPercent}% Match</span>
+                                  </div>
+                                ) : (
+                                  <span className="text-[10px] font-bold text-gray-400 flex items-center gap-1">
+                                    <Clock className="w-3 h-3" /> {job.postedTime}
+                                  </span>
+                                )}
+
+                                <div className="flex items-center gap-2">
+                                  {isApplied ? (
+                                    <span className="px-3 py-1.5 bg-green-50 text-green-700 border border-green-200 rounded-xl text-[10px] font-bold flex items-center gap-1">
+                                      <Check className="w-3 h-3 stroke-[3]" /> Applied
+                                    </span>
+                                  ) : (
+                                    <button className="px-3.5 py-1.5 bg-gray-900 group-hover:bg-[#4f46e5] text-white text-xs font-extrabold rounded-xl transition-all shadow-xs flex items-center gap-1">
+                                      View Details <ChevronRight className="w-3.5 h-3.5 opacity-80" />
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
             {/* Salaries Analysis View */}
             {activeDashboardTab === 'Salaries' && (
@@ -2200,6 +1984,168 @@ export default function App() {
               >
                 Show {filteredJobs.length} Results
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Selected Job Detail Modal Overlay */}
+      {selectedJobDetailModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 select-none">
+          <div 
+            className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" 
+            onClick={() => setSelectedJobDetailModal(null)}
+          ></div>
+          
+          <div className="relative bg-white w-full max-w-3xl max-h-[90vh] rounded-3xl shadow-2xl flex flex-col z-10 overflow-hidden animate-scale-up border border-gray-150">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 bg-gray-50/50">
+              <div className="flex items-center gap-4 min-w-0">
+                <div className="w-12 h-12 bg-white border border-gray-100 rounded-2xl flex items-center justify-center overflow-hidden shrink-0 shadow-xs">
+                  <img 
+                    alt={selectedJobDetailModal.company} 
+                    className="w-8 h-8 object-contain" 
+                    src={selectedJobDetailModal.logoUrl} 
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = 'https://img.icons8.com/color/48/000000/briefcase.png';
+                    }}
+                  />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="text-base font-extrabold text-gray-900 leading-tight truncate">{selectedJobDetailModal.title}</h3>
+                  <p className="text-xs font-semibold text-[#4f46e5] mt-0.5">{selectedJobDetailModal.company} • <span className="text-gray-400">{selectedJobDetailModal.location}</span></p>
+                </div>
+              </div>
+
+              <button 
+                onClick={() => setSelectedJobDetailModal(null)} 
+                className="p-2 text-gray-400 hover:text-gray-700 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Scrollable Content */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-thin">
+              {/* Specs Grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-4 bg-gray-50/70 border border-gray-150 rounded-2xl">
+                <div>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Salary Budget</p>
+                  <p className="text-xs font-extrabold text-gray-800 mt-1">{selectedJobDetailModal.salaryRange}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Experience</p>
+                  <p className="text-xs font-extrabold text-gray-800 mt-1">{selectedJobDetailModal.experienceRequired}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Workplace</p>
+                  <p className="text-xs font-extrabold text-[#4f46e5] mt-1">{selectedJobDetailModal.workType}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Contract Type</p>
+                  <p className="text-xs font-extrabold text-gray-800 mt-1">{selectedJobDetailModal.jobType}</p>
+                </div>
+              </div>
+
+              {/* Gemini Alignment Explanation */}
+              {selectedJobDetailModal.aiMatchPercent && (
+                <div className="bg-[#4f46e5]/5 border border-[#4f46e5]/10 p-4.5 rounded-2xl space-y-2 relative overflow-hidden">
+                  <div className="flex items-center justify-between">
+                    <span className="inline-flex items-center gap-1.5 bg-[#4f46e5]/10 text-[#4f46e5] text-[10px] font-extrabold px-3 py-1 rounded-full uppercase tracking-wider">
+                      <Sparkles className="w-3.5 h-3.5" />
+                      Gemini Match Alignment: {selectedJobDetailModal.aiMatchPercent}%
+                    </span>
+                    <span className="text-[10px] text-[#4f46e5] font-bold flex items-center gap-1">
+                      <Award className="w-3.5 h-3.5" /> Verified fit
+                    </span>
+                  </div>
+                  <p className="text-xs font-semibold text-gray-700 leading-relaxed">
+                    {selectedJobDetailModal.aiMatchExplanation || `This Software Engineering role matches your core experience perfectly based on your registered skills: ${userProfile.skills.slice(0, 4).join(', ')}. Your profile aligns closely with the company's technology stack.`}
+                  </p>
+                </div>
+              )}
+
+              {/* Company About */}
+              <div className="space-y-2">
+                <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider">About the company</h4>
+                <p className="text-xs text-gray-600 font-semibold leading-relaxed">{selectedJobDetailModal.companyAbout}</p>
+              </div>
+
+              {/* Job Description */}
+              <div className="space-y-2">
+                <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Job description</h4>
+                <p className="text-xs text-gray-600 font-semibold leading-relaxed">{selectedJobDetailModal.description}</p>
+              </div>
+
+              {/* Requirements */}
+              <div className="space-y-2.5">
+                <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Requirements</h4>
+                <ul className="space-y-2">
+                  {selectedJobDetailModal.requirements.map((req, idx) => (
+                    <li key={idx} className="flex gap-2.5 items-start">
+                      <div className="w-1.5 h-1.5 rounded-full bg-[#4f46e5] shrink-0 mt-1.5"></div>
+                      <span className="text-xs text-gray-600 font-semibold leading-relaxed">{req}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {/* Benefits */}
+              <div className="space-y-2.5">
+                <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Benefits</h4>
+                <ul className="space-y-2">
+                  {selectedJobDetailModal.benefits.map((ben, idx) => (
+                    <li key={idx} className="flex gap-2.5 items-start">
+                      <div className="w-4 h-4 bg-green-500/10 rounded-full flex items-center justify-center text-green-600 shrink-0 mt-0.5">
+                        <Check className="w-2.5 h-2.5 stroke-[3]" />
+                      </div>
+                      <span className="text-xs text-gray-600 font-semibold leading-relaxed">{ben}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {/* Tech Stack */}
+              <div className="space-y-2 pt-1">
+                <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Technical Stack</h4>
+                <div className="flex flex-wrap gap-1.5">
+                  {selectedJobDetailModal.skills.map((skill) => (
+                    <span key={skill} className="px-3 py-1.5 bg-gray-50 border border-gray-150 rounded-xl text-xs font-bold text-gray-600">
+                      {skill}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer CTA */}
+            <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 flex items-center justify-between">
+              <button 
+                onClick={(e) => handleToggleBookmark(selectedJobDetailModal.id, e)}
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  savedJobIds.includes(selectedJobDetailModal.id)
+                    ? 'bg-[#4f46e5]/10 border border-[#4f46e5]/30 text-[#4f46e5]'
+                    : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-100'
+                }`}
+              >
+                {savedJobIds.includes(selectedJobDetailModal.id) ? 'Saved' : 'Save Job'}
+              </button>
+
+              {applications.some(app => app.jobId === selectedJobDetailModal.id) ? (
+                <button disabled className="px-6 py-2.5 bg-green-50 text-green-700 border border-green-200 rounded-xl text-xs font-bold flex items-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4" /> Already Applied
+                </button>
+              ) : (
+                <button 
+                  onClick={() => {
+                    handleApplyJob(selectedJobDetailModal);
+                    setSelectedJobDetailModal(null);
+                  }}
+                  className="px-6 py-2.5 bg-[#4f46e5] text-white hover:bg-[#3f37c9] rounded-xl text-xs font-extrabold shadow-md flex items-center gap-2 cursor-pointer active:scale-98"
+                >
+                  Apply Now <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
           </div>
         </div>
