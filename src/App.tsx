@@ -840,9 +840,9 @@ export default function App() {
       {activeScreen === 'Dashboard' && (
         <div className="flex-1 flex flex-col lg:flex-row lg:h-screen lg:overflow-hidden bg-[#f8f9fa]">
           
-          {/* Main Navigation Sidebar (Left Column) */}
-          <aside className="w-full lg:w-64 bg-white border-r border-gray-100 flex flex-col justify-between shrink-0 lg:h-screen lg:overflow-hidden">
-            <div className="p-6 space-y-8">
+          {/* Main Navigation Sidebar (Left Column - Fixed & Premium) */}
+          <aside className="w-full lg:w-64 bg-white border-r border-gray-150 flex flex-col justify-between shrink-0 lg:h-screen lg:sticky lg:top-0 overflow-hidden select-none z-30 shadow-xs">
+            <div className="p-5 space-y-5">
               {/* Logo */}
               <button 
                 onClick={() => setActiveScreen('Landing')}
@@ -855,12 +855,12 @@ export default function App() {
               </button>
 
               {/* Navigation Actions Menu */}
-              <nav className="space-y-1.5">
-                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest px-3 mb-2.5">Menu</p>
+              <nav className="space-y-1">
+                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest px-3 mb-2">Menu</p>
                 
                 <button
                   onClick={() => setActiveDashboardTab('FindJobs')}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                     activeDashboardTab === 'FindJobs'
                       ? 'bg-[#4f46e5]/5 text-[#4f46e5]'
                       : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
@@ -873,7 +873,7 @@ export default function App() {
 
                 <button
                   onClick={() => setActiveDashboardTab('Salaries')}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                     activeDashboardTab === 'Salaries'
                       ? 'bg-[#4f46e5]/5 text-[#4f46e5]'
                       : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
@@ -886,7 +886,7 @@ export default function App() {
 
                 <button
                   onClick={() => setActiveDashboardTab('AIReview')}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                     activeDashboardTab === 'AIReview'
                       ? 'bg-[#4f46e5]/5 text-[#4f46e5]'
                       : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
@@ -899,7 +899,7 @@ export default function App() {
 
                 <button
                   onClick={() => setActiveDashboardTab('Resume')}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                     activeDashboardTab === 'Resume'
                       ? 'bg-[#4f46e5]/5 text-[#4f46e5]'
                       : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
@@ -912,7 +912,7 @@ export default function App() {
 
                 <button
                   onClick={() => setActiveDashboardTab('Applications')}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                     activeDashboardTab === 'Applications'
                       ? 'bg-[#4f46e5]/5 text-[#4f46e5]'
                       : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
@@ -925,7 +925,7 @@ export default function App() {
 
                 <button
                   onClick={() => setActiveDashboardTab('Saved')}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                     activeDashboardTab === 'Saved'
                       ? 'bg-[#4f46e5]/5 text-[#4f46e5]'
                       : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
@@ -939,16 +939,16 @@ export default function App() {
             </div>
 
             {/* User Profile Block at bottom */}
-            <div className="p-6 border-t border-gray-100 space-y-4">
+            <div className="p-5 border-t border-gray-100 space-y-3.5 bg-gray-50/40">
               <div className="flex items-center gap-3">
                 <div className="relative shrink-0">
                   <img 
                     alt={userProfile.name} 
-                    className="w-10 h-10 rounded-full object-cover border border-gray-100 shadow-inner"
+                    className="w-9 h-9 rounded-full object-cover border border-gray-100 shadow-inner"
                     src={userProfile.avatarUrl} 
                   />
-                  <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-green-500 rounded-full border-2 border-white flex items-center justify-center shadow-sm">
-                    <span className="w-1.5 h-1.5 bg-white rounded-full"></span>
+                  <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 rounded-full border-2 border-white flex items-center justify-center shadow-sm">
+                    <span className="w-1 h-1 bg-white rounded-full"></span>
                   </div>
                 </div>
                 <div className="min-w-0">
@@ -958,12 +958,12 @@ export default function App() {
               </div>
 
               {/* Profile completeness progress bar */}
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <div className="flex justify-between items-center text-[9px] font-bold">
                   <span className="text-gray-400 uppercase tracking-wider font-extrabold">Profile Status</span>
                   <span className="text-[#4f46e5] font-black">{userProfile.profileCompleteness}%</span>
                 </div>
-                <div className="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden border border-gray-100/50">
+                <div className="w-full bg-gray-200/60 h-1.5 rounded-full overflow-hidden border border-gray-100/50">
                   <div 
                     className="bg-gradient-to-r from-violet-600 to-indigo-600 h-full rounded-full transition-all duration-500"
                     style={{ width: `${userProfile.profileCompleteness}%` }}
@@ -982,7 +982,7 @@ export default function App() {
               {/* Log out button */}
               <button
                 onClick={handleLogout}
-                className="w-full flex items-center justify-center gap-2 px-3 py-2.5 bg-gray-50 hover:bg-red-50 border border-gray-100 rounded-xl text-[11px] font-bold text-gray-500 hover:text-red-600 transition-colors cursor-pointer active:scale-98"
+                className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-white hover:bg-red-50 border border-gray-200 rounded-xl text-[11px] font-bold text-gray-500 hover:text-red-600 transition-colors cursor-pointer active:scale-98 shadow-xs"
               >
                 <LogOut className="w-3.5 h-3.5" />
                 Sign out
