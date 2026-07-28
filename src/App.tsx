@@ -1687,7 +1687,7 @@ export default function App() {
                              {selectedJob.benefits.map((ben, idx) => (
                                <li key={idx} className="flex gap-2.5 items-start">
                                  <div className="w-4 h-4 bg-green-500/10 rounded-full flex items-center justify-center text-green-600 shrink-0 mt-0.5">
-                                   <Check className="w-2.5 h-2.5 stroke-[3]" />
+                                 <Check className="w-2.5 h-2.5 stroke-[3]" />
                                  </div>
                                  <span className="text-xs text-gray-600 font-semibold leading-relaxed">{ben}</span>
                                </li>
@@ -1707,6 +1707,65 @@ export default function App() {
                                  {skill}
                                </span>
                              ))}
+                           </div>
+                         </div>
+ 
+                         {/* Company Snapshot Card */}
+                         <div className="p-5 bg-gradient-to-r from-gray-50 to-indigo-50/20 border border-gray-150 rounded-2xl space-y-3">
+                           <div className="flex items-center justify-between">
+                             <div className="flex items-center gap-3">
+                               <div className="w-10 h-10 bg-white border border-gray-100 rounded-xl flex items-center justify-center overflow-hidden shrink-0 shadow-xs">
+                                 <img alt={selectedJob.company} className="w-7 h-7 object-contain" src={selectedJob.logoUrl} />
+                               </div>
+                               <div>
+                                 <h4 className="text-xs font-black text-gray-900">{selectedJob.company}</h4>
+                                 <p className="text-[10px] text-gray-400 font-bold">Tech & Information Technology • 1,000+ employees</p>
+                               </div>
+                             </div>
+                             <button 
+                               onClick={() => window.open(selectedJob.applyUrl || '#', '_blank')} 
+                               className="text-xs font-bold text-[#4f46e5] hover:underline cursor-pointer flex items-center gap-1"
+                             >
+                               Company page <ArrowRight className="w-3 h-3" />
+                             </button>
+                           </div>
+                         </div>
+ 
+                         {/* Recommended / Similar Jobs Section (Eliminates empty space) */}
+                         <div className="space-y-3 pt-3 border-t border-gray-100">
+                           <div className="flex items-center justify-between">
+                             <h4 className="text-xs font-extrabold text-gray-900 uppercase tracking-wider font-display flex items-center gap-1.5">
+                               <Sparkles className="w-3.5 h-3.5 text-[#4f46e5]" />
+                               Similar Opportunities You Might Like
+                             </h4>
+                             <span className="text-[10px] font-bold text-gray-400">Based on active role</span>
+                           </div>
+                           
+                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                             {jobs
+                               .filter(j => j.id !== selectedJob.id && (j.category === selectedJob.category || j.skills.some(s => selectedJob.skills.includes(s))))
+                               .slice(0, 4)
+                               .map(relJob => (
+                                 <div 
+                                   key={relJob.id}
+                                   onClick={() => setSelectedJob(relJob)}
+                                   className="p-3.5 bg-white border border-gray-150 hover:border-[#4f46e5]/40 hover:shadow-md rounded-2xl transition-all cursor-pointer space-y-2 group"
+                                 >
+                                   <div className="flex items-center gap-2.5">
+                                     <div className="w-8 h-8 bg-gray-50 border border-gray-100 rounded-lg flex items-center justify-center shrink-0">
+                                       <img alt={relJob.company} className="w-5 h-5 object-contain" src={relJob.logoUrl} />
+                                     </div>
+                                     <div className="min-w-0 flex-1">
+                                       <h5 className="text-xs font-bold text-gray-900 truncate group-hover:text-[#4f46e5] transition-colors">{relJob.title}</h5>
+                                       <p className="text-[10px] text-gray-400 font-semibold truncate">{relJob.company} • {relJob.location}</p>
+                                     </div>
+                                   </div>
+                                   <div className="flex items-center justify-between text-[9px] font-bold pt-1 border-t border-gray-100 text-gray-500">
+                                     <span className="text-[#4f46e5] font-extrabold">{relJob.salaryRange}</span>
+                                     <span>{relJob.workType}</span>
+                                   </div>
+                                 </div>
+                               ))}
                            </div>
                          </div>
  
