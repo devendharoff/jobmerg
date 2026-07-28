@@ -895,7 +895,7 @@ export default function App() {
                   id="tab-ai-review"
                 >
                   <FileText className="w-4 h-4" />
-                  AI Resume Review
+                  ATS Score Checker
                 </button>
 
                 <button

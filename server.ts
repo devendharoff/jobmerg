@@ -256,29 +256,30 @@ app.post("/api/resume-review", async (req, res) => {
 
       return res.json({
         overallScore,
-        summary: `Your resume is well-structured and displays strong technical competencies. Based on local analysis, you are particularly competitive for software engineering and designer positions. You have strong foundations in core industry standards, but incorporating more quantifiable metrics of impact would enhance your resume's conversion rate.`,
+        summary: `Your resume has been processed through our Applicant Tracking System (ATS) parser. The formatting demonstrates high header parsing accuracy and strong technical keyword density. Aligning specific action verbs with targeted job descriptions will maximize your interview callback rate.`,
         strengths: [
-          "Clear hierarchy and clean professional format.",
-          "Good demonstration of foundational tools and libraries.",
-          "Solid academic pedigree or practical experience matches."
+          "Standardized section headings (Experience, Skills, Education) for 100% ATS parser readability.",
+          "Strong keyword density across core software engineering technologies.",
+          "Valid contact header information and clear chronological sequence."
         ],
         improvements: [
-          "Incorporate more quantifiable achievements (e.g. 'reduced load time by 30%').",
-          "Ensure secondary skills like cloud infrastructure or containerization are explicitly highlighted.",
-          "Add a brief summary or core objective section at the top of your resume."
+          "Incorporate more quantifiable metrics (e.g. 'boosted performance by 35%').",
+          "Ensure secondary tools like Docker, Git, or AWS are explicitly indexed in your skills section.",
+          "Format bullet points with standard action verbs to pass recruiter ATS filters."
         ],
         tips: [
-          "Rewrite your bullet points using the Google X-Y-Z formula: Accomplished [X] as measured by [Y], by doing [Z].",
-          "Include links to live project demos or GitHub portfolios in your header.",
-          "Align technical stack terms exactly with job specifications to pass automated ATS screenings."
+          "Apply the Google X-Y-Z formula to bullet points: Accomplished [X] as measured by [Y], by doing [Z].",
+          "Avoid multi-column tables or graphics that can confuse older ATS parsing scripts.",
+          "Match technical stack terms exactly as spelled in job requirements."
         ],
         jobMatches: matchedJobs
       });
     }
 
     // Call actual Gemini API
-    const systemPrompt = `You are an elite career advisor and resume parser.
-Review the provided resume text and evaluate how well it matches each of the following target roles:
+    const systemPrompt = `You are an elite Applicant Tracking System (ATS) parsing & scoring engine.
+Review the provided resume text and calculate an ATS Compatibility Score (from 0 to 100) based on ATS readability, keyword matching, contact header formatting, and quantifiable metric density.
+Also evaluate match fit for target roles:
 ${JSON.stringify(REFERENCE_JOBS, null, 2)}
 
 Provide a structured JSON output with the following format:
