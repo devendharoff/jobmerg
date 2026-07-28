@@ -991,11 +991,11 @@ export default function App() {
           </aside>
 
           {/* Active Work Pane (Right / Center Column) */}
-          <main className="flex-1 p-6 md:p-8 lg:overflow-hidden max-w-7xl w-full lg:h-full flex flex-col lg:ml-64">
+          <main className="flex-1 p-6 md:p-8 max-w-7xl w-full flex flex-col lg:ml-64">
             
             {/* Find Jobs View */}
             {activeDashboardTab === 'FindJobs' && (
-              <div className="space-y-6 flex-1 flex flex-col lg:overflow-hidden h-full">
+              <div className="space-y-6 flex-1 flex flex-col min-h-0">
                 
                 {/* Search and Filters Strip */}
                  <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-premium space-y-4">
@@ -1424,10 +1424,10 @@ export default function App() {
                   </div>
 
                                {/* Job Search Core Grid */}
-                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch flex-1 min-h-0 lg:overflow-hidden pb-4">
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start flex-1 min-h-0 pb-4">
                     
                     {/* Left Column: Jobs List */}
-                    <div className="lg:col-span-5 space-y-3.5 lg:h-full lg:overflow-y-auto pr-1 pb-4 scrollbar-thin">
+                    <div className="lg:col-span-5 space-y-3.5 pr-1 pb-4 scrollbar-thin">
                       {filteredJobs.length === 0 ? (
                         <div className="bg-white rounded-3xl p-10 border border-gray-100 shadow-premium text-center space-y-3">
                           <AlertCircle className="w-8 h-8 text-amber-500 mx-auto" />
@@ -1545,8 +1545,8 @@ export default function App() {
                      )}
                    </div>
  
-                   {/* Right Column: Detailed Pane */}
-                   <div className="lg:col-span-7 lg:h-full lg:overflow-y-auto pb-4">
+                    {/* Right Column: Detailed Pane (100% Viewport Sticky Pinned) */}
+                    <div className="lg:col-span-7 lg:sticky lg:top-6 lg:self-start lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto pb-4 scrollbar-thin">
                      {selectedJob ? (
                        <div className="bg-white rounded-3xl p-6 border border-gray-150 shadow-sm space-y-6" id="job-detail-panel">
                          
