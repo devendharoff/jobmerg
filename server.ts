@@ -63,6 +63,29 @@ const REFERENCE_JOBS = [
   { id: 'canva-grad', title: 'Junior UI/UX Designer', company: 'Canva', skills: ['Figma', 'UI Design', 'Design Systems', 'Typography'], category: 'Graduates' }
 ];
 
+// Helper function to extract valid JSON block from Python stdout (ignoring logger lines)
+function extractJSONFromStdout(stdout: string): any {
+  const trimmed = stdout.trim();
+  try {
+    return JSON.parse(trimmed);
+  } catch (e) {}
+
+  const lines = trimmed.split('\n').map(l => l.trim()).filter(Boolean);
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i].startsWith('{')) {
+      for (let j = lines.length - 1; j >= i; j--) {
+        if (lines[j].endsWith('}')) {
+          const candidate = lines.slice(i, j + 1).join('\n');
+          try {
+            return JSON.parse(candidate);
+          } catch (err) {}
+        }
+      }
+    }
+  }
+  throw new Error("No valid JSON output block found in Python stdout. Raw output: " + stdout.slice(0, 300));
+}
+
 // Resume Review and Job Match endpoint
 app.post("/api/resume-review", async (req, res) => {
   try {
@@ -72,14 +95,13 @@ app.post("/api/resume-review", async (req, res) => {
       return res.status(400).json({ error: "Missing resumeText or resumeFile parameter" });
     }
 
-    // Check if we are using the Hiring Agent Python pipeline (when a PDF file is uploaded)
+    // Attempt Python Hiring Agent Pipeline first if PDF is uploaded
     if (resumeFile) {
       const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
       const cleanFileName = (fileName || 'resume.pdf').replace(/[^a-zA-Z0-9.\-_]/g, '');
       const tempFileName = `temp-${uniqueSuffix}-${cleanFileName}`;
       const tempFilePath = path.join(process.cwd(), tempFileName);
       
-      // Save base64 upload to temp PDF file
       fs.writeFileSync(tempFilePath, Buffer.from(resumeFile, 'base64'));
 
       try {
@@ -87,7 +109,6 @@ app.post("/api/resume-review", async (req, res) => {
         const scriptPath = path.join(process.cwd(), "hiring-agent-main", "hiring-agent-main", "score.py");
         const command = `"${pythonPath}" "${scriptPath}" "${tempFilePath}" --role software_engineering_intern --json`;
         
-        // Pass parent env to child process
         const env = { 
           ...process.env, 
           DEFAULT_MODEL: "gemini-2.0-flash",
@@ -98,21 +119,9 @@ app.post("/api/resume-review", async (req, res) => {
           env,
           cwd: path.join(process.cwd(), "hiring-agent-main", "hiring-agent-main")
         });
-        
-        if (stderr && !stdout) {
-          throw new Error("Python Pipeline Error: " + stderr);
-        }
 
-        // Robustly locate and extract the JSON object block from stdout
-        const jsonStartIndex = stdout.indexOf('{');
-        const jsonEndIndex = stdout.lastIndexOf('}');
-        if (jsonStartIndex === -1 || jsonEndIndex === -1 || jsonEndIndex < jsonStartIndex) {
-          throw new Error("No valid JSON output found from the pipeline. Raw output: " + stdout);
-        }
-        const jsonString = stdout.substring(jsonStartIndex, jsonEndIndex + 1);
-        const resultData = JSON.parse(jsonString);
+        const resultData = extractJSONFromStdout(stdout);
 
-        // Calculate overall score
         let overallScore = 0;
         if (resultData.scores) {
           for (const key in resultData.scores) {
@@ -123,7 +132,6 @@ app.post("/api/resume-review", async (req, res) => {
         if (resultData.deductions) overallScore -= resultData.deductions.total;
         overallScore = Math.max(0, Math.min(100, Math.round(overallScore)));
 
-        // Compile a clean summary from category evidences
         let summary = "";
         if (resultData.scores) {
           const evidenceList = Object.keys(resultData.scores)
@@ -137,11 +145,9 @@ app.post("/api/resume-review", async (req, res) => {
           summary = `The resume achieved an overall ATS quality score of ${overallScore}/100 based on the software engineering intern rubric.`;
         }
 
-        // Get key strengths and improvements
         const strengths = resultData.key_strengths || ["Well-formatted profile structure."];
         const improvements = resultData.areas_for_improvement || ["Could highlight open-source contributions further."];
         
-        // Generate constructive tips based on score findings
         const tips = [
           "Rewrite your bullet points using the Google X-Y-Z formula: Accomplished [X] as measured by [Y], by doing [Z].",
           "Ensure secondary skills like cloud infrastructure or containerization are explicitly highlighted."
@@ -153,7 +159,6 @@ app.post("/api/resume-review", async (req, res) => {
           tips.push("Document your personal projects in Github readmes to display structural code execution capabilities.");
         }
 
-        // Clean cache file name used by Python script
         const cacheFileName = `resumecache_${tempFileName.replace('.pdf', '')}.json`;
         const cacheFilePath = path.join(process.cwd(), "hiring-agent-main", "hiring-agent-main", "cache", cacheFileName);
         
@@ -184,7 +189,6 @@ app.post("/api/resume-review", async (req, res) => {
           }
         }
 
-        // Compute alignment matching with reference jobs directory
         const matchedJobs = REFERENCE_JOBS.map(job => {
           let basePercent = 60;
           const overlap = job.skills.filter(s => 
@@ -202,14 +206,11 @@ app.post("/api/resume-review", async (req, res) => {
           };
         });
 
-        // Clean up temp files
         try {
           if (fs.existsSync(tempFilePath)) {
             fs.unlinkSync(tempFilePath);
           }
-        } catch (unlinkErr) {
-          console.error("Temp file cleanup warning:", unlinkErr);
-        }
+        } catch (unlinkErr) {}
 
         return res.json({
           overallScore,
@@ -221,13 +222,12 @@ app.post("/api/resume-review", async (req, res) => {
         });
 
       } catch (pipelineErr: any) {
-        // Clean up temp files in case of errors
+        console.warn("Python Pipeline failed or unparseable, falling back to direct Gemini API scan:", pipelineErr.message);
         try {
           if (fs.existsSync(tempFilePath)) {
             fs.unlinkSync(tempFilePath);
           }
         } catch (unlinkErr) {}
-        throw pipelineErr;
       }
     }
 
@@ -238,9 +238,8 @@ app.post("/api/resume-review", async (req, res) => {
       const overallScore = Math.floor(Math.random() * 20) + 70; // 70 to 90
       const matchedJobs = REFERENCE_JOBS.map(job => {
         let basePercent = 60;
-        // Simple overlap logic
         const overlap = job.skills.filter(s => 
-          resumeText.toLowerCase().includes(s.toLowerCase()) || 
+          (resumeText && resumeText.toLowerCase().includes(s.toLowerCase())) || 
           (userSkills && userSkills.some((us: string) => us.toLowerCase() === s.toLowerCase()))
         ).length;
         
@@ -276,9 +275,9 @@ app.post("/api/resume-review", async (req, res) => {
       });
     }
 
-    // Call actual Gemini API
+    // Call actual Gemini API (gemini-2.5-flash)
     const systemPrompt = `You are an elite Applicant Tracking System (ATS) parsing & scoring engine.
-Review the provided resume text and calculate an ATS Compatibility Score (from 0 to 100) based on ATS readability, keyword matching, contact header formatting, and quantifiable metric density.
+Review the provided resume text/file and calculate an ATS Compatibility Score (from 0 to 100) based on ATS readability, keyword matching, contact header formatting, and quantifiable metric density.
 Also evaluate match fit for target roles:
 ${JSON.stringify(REFERENCE_JOBS, null, 2)}
 
@@ -300,16 +299,28 @@ Provide a structured JSON output with the following format:
 
 Only return a valid JSON object matching this schema. Avoid markdown wrap wrappers except valid json code block. Ensure every jobId in reference matches is present.`;
 
-    const userPrompt = `Resume Content:
-${resumeText}
+    let contents: any = [];
+    if (resumeFile) {
+      contents.push({
+        inlineData: {
+          data: resumeFile,
+          mimeType: "application/pdf"
+        }
+      });
+    }
+    
+    const userPromptText = `Resume Content:
+${resumeText || "Resume document uploaded as PDF attachment."}
 
 Additional User Information:
 Skills selected: ${JSON.stringify(userSkills)}
 Years of experience: ${experienceYears || "Not specified"}`;
 
+    contents.push(userPromptText);
+
     const response = await ai.models.generateContent({
-      model: "gemini-3.5-flash",
-      contents: userPrompt,
+      model: "gemini-2.5-flash",
+      contents,
       config: {
         systemInstruction: systemPrompt,
         responseMimeType: "application/json",
