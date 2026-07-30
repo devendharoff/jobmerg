@@ -11,23 +11,24 @@ import {
 } from './types';
 import { INITIAL_JOBS, INITIAL_SALARY_INSIGHTS, DEFAULT_USER } from './data';
 import LandingPage from './components/LandingPage';
-import SignIn from './components/SignIn';
-import SignUp from './components/SignUp';
 import SalaryInsights from './components/SalaryInsights';
 import ApplicationTracker from './components/ApplicationTracker';
 import AIResumeReview from './components/AIResumeReview';
 import ResumeBuilder from './components/ResumeBuilder';
-import { supabase } from './supabaseClient';
+import AutoApplyBot from './components/AutoApplyBot';
+import { supabase, getSupabaseClient } from './supabaseClient';
+import { useUser, useAuth, SignIn as ClerkSignIn, SignUp as ClerkSignUp } from '@clerk/clerk-react';
 
 export default function App() {
   const [activeScreen, setActiveScreen] = useState<ActiveScreen>('Landing');
-  const [activeDashboardTab, setActiveDashboardTab] = useState<'FindJobs' | 'Salaries' | 'AIReview' | 'Applications' | 'Saved' | 'Resume'>('FindJobs');
+  const [activeDashboardTab, setActiveDashboardTab] = useState<'FindJobs' | 'Salaries' | 'AIReview' | 'Applications' | 'Saved' | 'Resume' | 'AutoApply'>('FindJobs');
   
   // User Authentication States
+  const { isLoaded, isSignedIn, user } = useUser();
+  const { getToken, signOut } = useAuth();
+  const [supabaseClient, setSupabaseClient] = useState(supabase);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [userProfile, setUserProfile] = useState<UserProfile>(DEFAULT_USER);
-
-  // Global Jobs list with dynamic ratings
+  const [userProfile, setUserProfile] = useState<UserProfile>(DEFAULT_USER);  // Global Jobs list with dynamic ratings
   const [jobs, setJobs] = useState<Job[]>(INITIAL_JOBS);
   const [selectedJob, setSelectedJob] = useState<Job>(INITIAL_JOBS[0]);
   const [savedJobIds, setSavedJobIds] = useState<string[]>([]);
@@ -75,11 +76,142 @@ export default function App() {
     return () => clearTimeout(handler);
   }, [locationQuery]);
 
+  // Sync Supabase client with Clerk JWT token
+  useEffect(() => {
+    async function updateClient() {
+      if (isSignedIn) {
+        try {
+          const token = await getToken({ template: 'supabase' });
+          setSupabaseClient(getSupabaseClient(token));
+        } catch (e) {
+          console.error("Error fetching Supabase token from Clerk:", e);
+          setSupabaseClient(supabase);
+        }
+      } else {
+        setSupabaseClient(supabase);
+      }
+    }
+    updateClient();
+  }, [isSignedIn, getToken]);
+
+  // Sync Profile and user data when user signs in via Clerk
+  useEffect(() => {
+    if (!isLoaded) return;
+    
+    if (isSignedIn && user) {
+      const email = user.primaryEmailAddress?.emailAddress || '';
+      const name = user.fullName || user.firstName || 'User';
+      
+      const syncProfile = async () => {
+        try {
+          // Try to fetch profile
+          const { data: profile, error } = await supabaseClient
+            .from('profiles')
+            .select('*')
+            .eq('email', email)
+            .single();
+            
+          if (profile) {
+            setUserProfile({
+              name: profile.name,
+              email: profile.email,
+              role: profile.role || '',
+              avatarUrl: profile.avatar_url || user.imageUrl || 'https://lh3.googleusercontent.com/aida-public/AB6AXuDygoxBzgjRmZYQ4uIK-GWpjX_FRMByJYrQaV21iuO5-rVvqyFlrzVyxl_a1Vcm27q1W7sFuhkMlLVR0tTqYVJoQ_mPM9ClMRvetN0pCsTVbfoPUpak2f47mmUgJszUtvyU7xBedtbLVrFoIn914KkawqLINIJSkVz9Ued9DSm94XU2wea25YULzaNxYy7taAF-ScbG7PpLXXO0ds-Nvkdy27DQk0fsT8Ms7bQZIsO0Q25v5WbYfdSQB_bKWY4CWlCAwVzoiGXYg3RJ',
+              skills: profile.skills || [],
+              experienceYears: profile.experience_years || 0,
+              desiredSalary: profile.desired_salary || '',
+              resumeText: profile.resume_text || '',
+              profileCompleteness: profile.profile_completeness || 0
+            });
+          } else {
+            // Create new profile if it doesn't exist
+            const newProfile = {
+              email,
+              name,
+              role: 'Software Engineer',
+              avatar_url: user.imageUrl || 'https://lh3.googleusercontent.com/aida-public/AB6AXuDygoxBzgjRmZYQ4uIK-GWpjX_FRMByJYrQaV21iuO5-rVvqyFlrzVyxl_a1Vcm27q1W7sFuhkMlLVR0tTqYVJoQ_mPM9ClMRvetN0pCsTVbfoPUpak2f47mmUgJszUtvyU7xBedtbLVrFoIn914KkawqLINIJSkVz9Ued9DSm94XU2wea25YULzaNxYy7taAF-ScbG7PpLXXO0ds-Nvkdy27DQk0fsT8Ms7bQZIsO0Q25v5WbYfdSQB_bKWY4CWlCAwVzoiGXYg3RJ',
+              skills: ['React', 'JavaScript', 'HTML/CSS'],
+              experience_years: 1,
+              desired_salary: '₹10L PA',
+              resume_text: `${name}\nSoftware Engineer | ${email}\n\nSkills: React, JavaScript`,
+              profile_completeness: 40
+            };
+            
+            await supabaseClient.from('profiles').upsert({
+              email: newProfile.email,
+              name: newProfile.name,
+              role: newProfile.role,
+              avatar_url: newProfile.avatar_url,
+              skills: newProfile.skills,
+              experience_years: newProfile.experience_years,
+              desired_salary: newProfile.desired_salary,
+              resume_text: newProfile.resume_text,
+              profile_completeness: newProfile.profile_completeness
+            });
+            
+            setUserProfile({
+              name: newProfile.name,
+              email: newProfile.email,
+              role: newProfile.role,
+              avatarUrl: newProfile.avatar_url,
+              skills: newProfile.skills,
+              experienceYears: newProfile.experience_years,
+              desiredSalary: newProfile.desired_salary,
+              resumeText: newProfile.resume_text,
+              profileCompleteness: newProfile.profile_completeness
+            });
+          }
+          
+          // Fetch saved jobs
+          const { data: saved } = await supabaseClient
+            .from('saved_jobs')
+            .select('job_id')
+            .eq('user_email', email);
+            
+          if (saved) {
+            setSavedJobIds(saved.map(s => s.job_id));
+          }
+          
+          // Fetch applications
+          const { data: apps } = await supabaseClient
+            .from('applications')
+            .select('*')
+            .eq('user_email', email);
+            
+          if (apps) {
+            setApplications(apps.map(a => ({
+              id: a.id,
+              jobId: a.job_id,
+              jobTitle: a.job_title,
+              company: a.company,
+              logoUrl: a.logo_url || '',
+              appliedDate: a.applied_date,
+              status: a.status as any,
+              notes: a.notes || ''
+            })));
+          }
+        } catch (err) {
+          console.error("Error syncing profile on Clerk sign-in:", err);
+        }
+      };
+      
+      syncProfile();
+      setIsLoggedIn(true);
+      setActiveScreen('Dashboard');
+      setActiveDashboardTab('FindJobs');
+    } else {
+      setIsLoggedIn(false);
+      setUserProfile(DEFAULT_USER);
+      setSavedJobIds([]);
+      setApplications([]);
+    }
+  }, [isSignedIn, user, isLoaded, supabaseClient]);
+
   // Fetch jobs from Supabase on mount
   useEffect(() => {
     async function fetchJobs() {
       try {
-        const { data, error } = await supabase
+        const { data, error } = await supabaseClient
           .from('job_posts')
           .select('*')
           .eq('status', 'active')
@@ -115,7 +247,7 @@ export default function App() {
       }
     }
     fetchJobs();
-  }, []);
+  }, [supabaseClient]);
 
   const showToast = (message: string) => {
     setToastMessage(message);
@@ -262,10 +394,7 @@ export default function App() {
   };
 
   const handleLogout = () => {
-    setIsLoggedIn(false);
-    setSavedJobIds([]);
-    setApplications([]);
-    setUserProfile(DEFAULT_USER);
+    signOut();
     setActiveScreen('Landing');
     showToast("Successfully logged out.");
   };
@@ -273,39 +402,42 @@ export default function App() {
   const handleLandingSearch = (query: string, location: string) => {
     setSearchQuery(query);
     setLocationQuery(location);
-    if (!isLoggedIn) {
-      setIsLoggedIn(true); // Sign in automatically with demo profile for best prototype flow
-    }
     setActiveScreen('Dashboard');
     setActiveDashboardTab('FindJobs');
   };
 
   const handleToggleBookmark = async (jobId: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
+    if (!isSignedIn) {
+      setActiveScreen('SignIn');
+      showToast("Please sign in to save jobs.");
+      return;
+    }
     if (savedJobIds.includes(jobId)) {
       setSavedJobIds(savedJobIds.filter(id => id !== jobId));
       showToast("Removed from saved jobs.");
-      if (isLoggedIn) {
-        try {
-          await supabase.from('saved_jobs').delete().eq('user_email', userProfile.email).eq('job_id', jobId);
-        } catch (err) {
-          console.error("Error removing bookmark in Supabase:", err);
-        }
+      try {
+        await supabaseClient.from('saved_jobs').delete().eq('user_email', userProfile.email).eq('job_id', jobId);
+      } catch (err) {
+        console.error("Error removing bookmark in Supabase:", err);
       }
     } else {
       setSavedJobIds([...savedJobIds, jobId]);
       showToast("Added to saved jobs!");
-      if (isLoggedIn) {
-        try {
-          await supabase.from('saved_jobs').insert({ user_email: userProfile.email, job_id: jobId });
-        } catch (err) {
-          console.error("Error saving bookmark in Supabase:", err);
-        }
+      try {
+        await supabaseClient.from('saved_jobs').insert({ user_email: userProfile.email, job_id: jobId });
+      } catch (err) {
+        console.error("Error saving bookmark in Supabase:", err);
       }
     }
   };
 
   const handleApplyJob = async (job: Job) => {
+    if (!isSignedIn) {
+      setActiveScreen('SignIn');
+      showToast("Please sign in to apply for jobs.");
+      return;
+    }
     // Check if already applied
     const alreadyApplied = applications.some(app => app.jobId === job.id);
     if (alreadyApplied) {
@@ -340,22 +472,20 @@ export default function App() {
 
     showToast(`Opening ${platform} & logging application in pipeline!`);
 
-    if (isLoggedIn) {
-      try {
-        await supabase.from('applications').insert({
-          id: newApp.id,
-          user_email: userProfile.email,
-          job_id: newApp.jobId,
-          job_title: newApp.jobTitle,
-          company: newApp.company,
-          logo_url: newApp.logoUrl,
-          applied_date: newApp.appliedDate,
-          status: newApp.status,
-          notes: newApp.notes
-        });
-      } catch (err) {
-        console.error("Error saving application in Supabase:", err);
-      }
+    try {
+      await supabaseClient.from('applications').insert({
+        id: newApp.id,
+        user_email: userProfile.email,
+        job_id: newApp.jobId,
+        job_title: newApp.jobTitle,
+        company: newApp.company,
+        logo_url: newApp.logoUrl,
+        applied_date: newApp.appliedDate,
+        status: newApp.status,
+        notes: newApp.notes
+      });
+    } catch (err) {
+      console.error("Error saving application in Supabase:", err);
     }
   };
 
@@ -363,12 +493,10 @@ export default function App() {
   const handleUpdateAppStatus = async (id: string, status: JobApplication['status']) => {
     setApplications(applications.map(app => app.id === id ? { ...app, status } : app));
     showToast(`Moved application stage to ${status}`);
-    if (isLoggedIn) {
-      try {
-        await supabase.from('applications').update({ status }).eq('id', id);
-      } catch (err) {
-        console.error("Error updating application status in Supabase:", err);
-      }
+    try {
+      await supabaseClient.from('applications').update({ status }).eq('id', id);
+    } catch (err) {
+      console.error("Error updating application status in Supabase:", err);
     }
   };
 
@@ -380,46 +508,40 @@ export default function App() {
     };
     setApplications([manualApp, ...applications]);
     showToast(`Added application card for ${appData.company}`);
-    if (isLoggedIn) {
-      try {
-        await supabase.from('applications').insert({
-          id: manualApp.id,
-          user_email: userProfile.email,
-          job_id: manualApp.jobId,
-          job_title: manualApp.jobTitle,
-          company: manualApp.company,
-          logo_url: manualApp.logoUrl,
-          applied_date: manualApp.appliedDate,
-          status: manualApp.status,
-          notes: manualApp.notes
-        });
-      } catch (err) {
-        console.error("Error adding manual application in Supabase:", err);
-      }
+    try {
+      await supabaseClient.from('applications').insert({
+        id: manualApp.id,
+        user_email: userProfile.email,
+        job_id: manualApp.jobId,
+        job_title: manualApp.jobTitle,
+        company: manualApp.company,
+        logo_url: manualApp.logoUrl,
+        applied_date: manualApp.appliedDate,
+        status: manualApp.status,
+        notes: manualApp.notes
+      });
+    } catch (err) {
+      console.error("Error adding manual application in Supabase:", err);
     }
   };
 
   const handleDeleteApp = async (id: string) => {
     setApplications(applications.filter(app => app.id !== id));
     showToast("Deleted application card.");
-    if (isLoggedIn) {
-      try {
-        await supabase.from('applications').delete().eq('id', id);
-      } catch (err) {
-        console.error("Error deleting application in Supabase:", err);
-      }
+    try {
+      await supabaseClient.from('applications').delete().eq('id', id);
+    } catch (err) {
+      console.error("Error deleting application in Supabase:", err);
     }
   };
 
   const handleUpdateNotes = async (id: string, notes: string) => {
     setApplications(applications.map(app => app.id === id ? { ...app, notes } : app));
     showToast("Notes saved.");
-    if (isLoggedIn) {
-      try {
-        await supabase.from('applications').update({ notes }).eq('id', id);
-      } catch (err) {
-        console.error("Error updating application notes in Supabase:", err);
-      }
+    try {
+      await supabaseClient.from('applications').update({ notes }).eq('id', id);
+    } catch (err) {
+      console.error("Error updating application notes in Supabase:", err);
     }
   };
 
@@ -455,22 +577,20 @@ export default function App() {
     };
     setUserProfile(nextProfile);
     
-    if (isLoggedIn) {
-      try {
-        await supabase.from('profiles').upsert({
-          email: nextProfile.email,
-          name: nextProfile.name,
-          role: nextProfile.role,
-          avatar_url: nextProfile.avatarUrl,
-          skills: nextProfile.skills,
-          experience_years: nextProfile.experienceYears,
-          desired_salary: nextProfile.desiredSalary,
-          resume_text: nextProfile.resumeText,
-          profile_completeness: nextProfile.profileCompleteness
-        });
-      } catch (err) {
-        console.error("Error updating profile in Supabase:", err);
-      }
+    try {
+      await supabaseClient.from('profiles').upsert({
+        email: nextProfile.email,
+        name: nextProfile.name,
+        role: nextProfile.role,
+        avatar_url: nextProfile.avatarUrl,
+        skills: nextProfile.skills,
+        experience_years: nextProfile.experienceYears,
+        desired_salary: nextProfile.desiredSalary,
+        resume_text: nextProfile.resumeText,
+        profile_completeness: nextProfile.profileCompleteness
+      });
+    } catch (err) {
+      console.error("Error updating profile in Supabase:", err);
     }
   };
 
@@ -814,9 +934,6 @@ export default function App() {
           onSearch={handleLandingSearch} 
           jobs={jobs} 
           onSelectJob={(job) => {
-            if (!isLoggedIn) {
-              setIsLoggedIn(true);
-            }
             setSelectedJob(job);
             if (job.category) {
               setSelectedCategory(job.category);
@@ -831,11 +948,15 @@ export default function App() {
       )}
 
       {activeScreen === 'SignIn' && (
-        <SignIn onNavigate={setActiveScreen} onLoginSuccess={handleLoginSuccess} />
+        <div className="flex-1 flex items-center justify-center min-h-[85vh] py-12 bg-[#f8f9fa]">
+          <ClerkSignIn routing="hash" />
+        </div>
       )}
 
       {activeScreen === 'SignUp' && (
-        <SignUp onNavigate={setActiveScreen} onSignUpSuccess={handleSignUpSuccess} />
+        <div className="flex-1 flex items-center justify-center min-h-[85vh] py-12 bg-[#f8f9fa]">
+          <ClerkSignUp routing="hash" />
+        </div>
       )}
 
       {activeScreen === 'Dashboard' && (
@@ -911,18 +1032,6 @@ export default function App() {
                   Resume Builder
                 </button>
 
-                <button
-                  onClick={() => setActiveDashboardTab('Applications')}
-                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                    activeDashboardTab === 'Applications'
-                      ? 'bg-[#4f46e5]/5 text-[#4f46e5]'
-                      : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
-                  }`}
-                  id="tab-pipeline"
-                >
-                  <Briefcase className="w-4 h-4" />
-                  Applications Pipeline
-                </button>
 
                 <button
                   onClick={() => setActiveDashboardTab('Saved')}
@@ -935,6 +1044,19 @@ export default function App() {
                 >
                   <Bookmark className="w-4 h-4" />
                   Saved Jobs
+                </button>
+
+                <button
+                  onClick={() => setActiveDashboardTab('AutoApply')}
+                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    activeDashboardTab === 'AutoApply'
+                      ? 'bg-[#4f46e5]/10 text-[#4f46e5] font-extrabold border border-[#4f46e5]/20'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                  }`}
+                  id="tab-auto-apply"
+                >
+                  <Sparkles className="w-4 h-4 text-[#4f46e5]" />
+                  LinkedIn Auto-Applier
                 </button>
               </nav>
             </div>
@@ -1598,19 +1720,21 @@ export default function App() {
               <ResumeBuilder userProfile={userProfile} />
             )}
 
-            {/* Applications Kanban Tracker View */}
-            {activeDashboardTab === 'Applications' && (
-              <div className="flex-1 lg:overflow-y-auto pb-6">
-                <ApplicationTracker 
-                  applications={applications} 
-                  onUpdateStatus={handleUpdateAppStatus} 
-                  onAddApplication={handleAddManualApp} 
-                  onDeleteApplication={handleDeleteApp} 
-                  onUpdateNotes={handleUpdateNotes}
-                  availableJobs={jobs}
-                />
-              </div>
+            {/* LinkedIn Auto-Applier Bot View */}
+            {activeDashboardTab === 'AutoApply' && (
+              <AutoApplyBot
+                userProfile={userProfile}
+                onSyncApplications={(newApps) => {
+                  setApplications(prev => {
+                    const existingIds = new Set(prev.map(a => a.id));
+                    const filteredNew = newApps.filter(a => !existingIds.has(a.id));
+                    return [...filteredNew, ...prev];
+                  });
+                }}
+              />
             )}
+
+
 
             {/* Saved Jobs View */}
             {activeDashboardTab === 'Saved' && (

@@ -17,6 +17,7 @@ export interface Job {
   aiMatchPercent?: number;
   category?: 'Students' | 'Freshers' | 'Graduates' | 'Experienced';
   applyUrl?: string;
+  easyApply?: boolean;
 }
 
 export interface UserProfile {

@@ -15,9 +15,10 @@ const __dirname = path.dirname(__filename);
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3001;
 
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // Initialise GoogleGenAI client lazily
 let aiClient: GoogleGenAI | null = null;
@@ -85,6 +86,434 @@ function extractJSONFromStdout(stdout: string): any {
   }
   throw new Error("No valid JSON output block found in Python stdout. Raw output: " + stdout.slice(0, 300));
 }
+
+// Global Auto-Applier Bot Process state
+let autoApplyProcess: any = null;
+let autoApplyLogs: string[] = [];
+let autoApplyStats = { applied: 0, failed: 0, skipped: 0 };
+let botStartTime: Date | null = null;
+
+// Auto-Applier Endpoints
+app.post("/api/auto-apply/start", async (req, res) => {
+  try {
+    if (autoApplyProcess) {
+      return res.status(400).json({ error: "Auto-Applier bot is already running" });
+    }
+
+    const { 
+      searchTerms, searchLocation, easyApplyOnly, datePosted, username, password,
+      userInfo, safetyConfig, showChromeWindow 
+    } = req.body;
+
+    const botDir = path.join(process.cwd(), 'Auto_job_applier_linkedIn-main');
+    const searchConfigPath = path.join(botDir, 'config', 'search.py');
+    const secretsConfigPath = path.join(botDir, 'config', 'secrets.py');
+    const personalsConfigPath = path.join(botDir, 'config', 'personals.py');
+    const questionsConfigPath = path.join(botDir, 'config', 'questions.py');
+    const settingsConfigPath = path.join(botDir, 'config', 'settings.py');
+
+    // Update config/search.py dynamically
+    if (fs.existsSync(searchConfigPath)) {
+      let content = fs.readFileSync(searchConfigPath, 'utf8');
+      if (searchTerms && Array.isArray(searchTerms)) {
+        content = content.replace(/search_terms\s*=\s*\[.*?\]/s, `search_terms = ${JSON.stringify(searchTerms)}`);
+      }
+      if (searchLocation !== undefined) {
+        content = content.replace(/search_location\s*=\s*".*?"/, `search_location = "${searchLocation}"`);
+      }
+      if (easyApplyOnly !== undefined) {
+        content = content.replace(/easy_apply_only\s*=\s*(True|False)/, `easy_apply_only = ${easyApplyOnly ? 'True' : 'False'}`);
+      }
+      if (datePosted !== undefined) {
+        content = content.replace(/date_posted\s*=\s*".*?"/, `date_posted = "${datePosted}"`);
+      }
+      if (safetyConfig?.switchNumber) {
+        content = content.replace(/switch_number\s*=\s*\d+/, `switch_number = ${parseInt(safetyConfig.switchNumber, 10) || 30}`);
+      }
+      fs.writeFileSync(searchConfigPath, content, 'utf8');
+    }
+
+    // Update config/settings.py dynamically (Total Applications Limit & Headless Mode)
+    if (fs.existsSync(settingsConfigPath)) {
+      let content = fs.readFileSync(settingsConfigPath, 'utf8');
+      if (showChromeWindow !== undefined) {
+        content = content.replace(/run_in_background\s*=\s*(True|False)/, `run_in_background = ${showChromeWindow ? 'False' : 'True'}`);
+      }
+      if (safetyConfig?.totalApplicationsLimit !== undefined) {
+        content = content.replace(/total_applications_limit\s*=\s*\d+/, `total_applications_limit = ${parseInt(safetyConfig.totalApplicationsLimit, 10) || 30}`);
+      }
+      fs.writeFileSync(settingsConfigPath, content, 'utf8');
+    }
+
+    // Update secrets.py if credentials provided
+    if (fs.existsSync(secretsConfigPath) && (username || password)) {
+      let content = fs.readFileSync(secretsConfigPath, 'utf8');
+      if (username) content = content.replace(/username\s*=\s*".*?"/, `username = "${username}"`);
+      if (password) content = content.replace(/password\s*=\s*".*?"/, `password = "${password}"`);
+      fs.writeFileSync(secretsConfigPath, content, 'utf8');
+    }
+
+    // Update config/personals.py with user profile information
+    if (fs.existsSync(personalsConfigPath) && userInfo) {
+      let personalsContent = fs.readFileSync(personalsConfigPath, 'utf8');
+      
+      const fName = userInfo.firstName?.trim() || "Applicant";
+      const mName = userInfo.middleName?.trim() || "";
+      const lName = userInfo.lastName?.trim() || "Candidate";
+      const phone = userInfo.phoneNumber?.trim() || "9876543210";
+      const city = userInfo.currentCity?.trim() || "San Francisco, CA";
+
+      personalsContent = personalsContent.replace(/first_name\s*=\s*".*?"/, `first_name = "${fName}"`);
+      personalsContent = personalsContent.replace(/middle_name\s*=\s*".*?"/, `middle_name = "${mName}"`);
+      personalsContent = personalsContent.replace(/last_name\s*=\s*".*?"/, `last_name = "${lName}"`);
+      personalsContent = personalsContent.replace(/phone_number\s*=\s*".*?"/, `phone_number = "${phone}"`);
+      personalsContent = personalsContent.replace(/current_city\s*=\s*".*?"/, `current_city = "${city}"`);
+      
+      fs.writeFileSync(personalsConfigPath, personalsContent, 'utf8');
+    }
+
+    // Update config/questions.py with user application experience & salary details
+    if (fs.existsSync(questionsConfigPath) && userInfo) {
+      let questionsContent = fs.readFileSync(questionsConfigPath, 'utf8');
+      
+      const expYears = userInfo.experienceYears?.toString().trim() || "1";
+      const reqVisa = (userInfo.requireVisa === "Yes" || userInfo.requireVisa === "No") ? userInfo.requireVisa : "No";
+      const web = userInfo.websiteUrl?.trim() || "https://example.com";
+      const li = userInfo.linkedinUrl?.trim() || "https://linkedin.com";
+      const salary = parseInt(userInfo.desiredSalary, 10) || 1200000;
+
+      questionsContent = questionsContent.replace(/years_of_experience\s*=\s*".*?"/, `years_of_experience = "${expYears}"`);
+      questionsContent = questionsContent.replace(/require_visa\s*=\s*".*?"/, `require_visa = "${reqVisa}"`);
+      questionsContent = questionsContent.replace(/website\s*=\s*".*?"/, `website = "${web}"`);
+      questionsContent = questionsContent.replace(/linkedIn\s*=\s*".*?"/, `linkedIn = "${li}"`);
+      questionsContent = questionsContent.replace(/desired_salary\s*=\s*\d+/, `desired_salary = ${salary}`);
+      
+      fs.writeFileSync(questionsConfigPath, questionsContent, 'utf8');
+    }
+
+    // Reset logs & stats
+    autoApplyLogs = [`[SYSTEM] Starting LinkedIn Auto-Applier process...`];
+    autoApplyStats = { applied: 0, failed: 0, skipped: 0 };
+    botStartTime = new Date();
+
+    const { spawn } = await import('child_process');
+    const pythonExecutable = process.platform === 'win32' ? 'python' : 'python3';
+    
+    autoApplyProcess = spawn(pythonExecutable, ['runAiBot.py'], { cwd: botDir });
+
+    autoApplyProcess.stdout.on('data', (data: Buffer) => {
+      const output = data.toString();
+      const lines = output.split('\n').filter(Boolean);
+      lines.forEach(line => {
+        autoApplyLogs.push(line);
+        if (line.toLowerCase().includes('applied') || line.toLowerCase().includes('success')) {
+          autoApplyStats.applied++;
+        } else if (line.toLowerCase().includes('failed') || line.toLowerCase().includes('error')) {
+          autoApplyStats.failed++;
+        } else if (line.toLowerCase().includes('skip')) {
+          autoApplyStats.skipped++;
+        }
+      });
+      // Limit memory log buffer
+      if (autoApplyLogs.length > 500) {
+        autoApplyLogs = autoApplyLogs.slice(-500);
+      }
+    });
+
+    autoApplyProcess.stderr.on('data', (data: Buffer) => {
+      const output = data.toString();
+      autoApplyLogs.push(`[ERROR] ${output.trim()}`);
+    });
+
+    autoApplyProcess.on('close', (code: number) => {
+      autoApplyLogs.push(`[SYSTEM] Auto-Applier process finished with code ${code}`);
+      autoApplyProcess = null;
+    });
+
+    return res.json({ message: "LinkedIn Auto-Applier initiated successfully." });
+  } catch (err: any) {
+    console.error("Error launching auto-applier:", err);
+    return res.status(500).json({ error: err.message || "Failed to launch Auto-Applier" });
+  }
+});
+
+app.get("/api/auto-apply/status", (req, res) => {
+  return res.json({
+    isRunning: !!autoApplyProcess,
+    logs: autoApplyLogs,
+    stats: autoApplyStats
+  });
+});
+
+app.get("/api/auto-apply/live-view", (req, res) => {
+  const liveImgPath = path.join(process.cwd(), 'Auto_job_applier_linkedIn-main', 'logs', 'live.png');
+  if (fs.existsSync(liveImgPath)) {
+    res.setHeader('Content-Type', 'image/png');
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    return res.sendFile(liveImgPath);
+  }
+  return res.status(404).send("No live screenshot available yet.");
+});
+
+app.get("/api/auto-apply/report", (req, res) => {
+  try {
+    const appliedPath = path.join(process.cwd(), 'Auto_job_applier_linkedIn-main', 'all excels', 'all_applied_applications_history.csv');
+    const failedPath = path.join(process.cwd(), 'Auto_job_applier_linkedIn-main', 'all excels', 'all_failed_applications_history.csv');
+    
+    const appliedJobs: any[] = [];
+    const failedJobs: any[] = [];
+    
+    const parseCSV = (text: string): string[][] => {
+      const lines: string[][] = [];
+      let row: string[] = [];
+      let cell = '';
+      let inQuotes = false;
+
+      for (let i = 0; i < text.length; i++) {
+        const char = text[i];
+        const nextChar = text[i + 1];
+
+        if (inQuotes) {
+          if (char === '"') {
+            if (nextChar === '"') {
+              cell += '"';
+              i++;
+            } else {
+              inQuotes = false;
+            }
+          } else {
+            cell += char;
+          }
+        } else {
+          if (char === '"') {
+            inQuotes = true;
+          } else if (char === ',') {
+            row.push(cell);
+            cell = '';
+          } else if (char === '\r' || char === '\n') {
+            row.push(cell);
+            lines.push(row);
+            row = [];
+            cell = '';
+            if (char === '\r' && nextChar === '\n') {
+              i++;
+            }
+          } else {
+            cell += char;
+          }
+        }
+      }
+      if (row.length > 0 || cell !== '') {
+        row.push(cell);
+        lines.push(row);
+      }
+      return lines.filter(r => r.some(c => c.trim() !== ''));
+    };
+
+    const startMs = botStartTime ? botStartTime.getTime() : 0;
+
+    const getTimestamp = (dateStr: string): number => {
+      if (!dateStr || dateStr === 'Unknown' || dateStr === 'Pending') return 0;
+      const parsed = Date.parse(dateStr);
+      return isNaN(parsed) ? 0 : parsed;
+    };
+
+    if (fs.existsSync(appliedPath)) {
+      const parsedApplied = parseCSV(fs.readFileSync(appliedPath, 'utf8'));
+      if (parsedApplied.length > 1) {
+        const headers = parsedApplied[0].map(h => h.trim().replace(/\s+/g, '_'));
+        for (let i = 1; i < parsedApplied.length; i++) {
+          const row = parsedApplied[i];
+          const job: any = {};
+          headers.forEach((h, index) => {
+            job[h] = (row[index] || '').trim();
+          });
+          
+          const attemptMs = getTimestamp(job.Date_Applied);
+          const limitMs = startMs || (Date.now() - 30 * 60 * 1000);
+          if (attemptMs >= limitMs) {
+            appliedJobs.push({
+              jobId: job.Job_ID || '',
+              title: job.Title || '',
+              company: job.Company || '',
+              location: job.Work_Location || '',
+              style: job.Work_Style || '',
+              resume: job.Resume || '',
+              dateApplied: job.Date_Applied || '',
+              jobLink: job.Job_Link || ''
+            });
+          }
+        }
+      }
+    }
+
+    if (fs.existsSync(failedPath)) {
+      const parsedFailed = parseCSV(fs.readFileSync(failedPath, 'utf8'));
+      if (parsedFailed.length > 1) {
+        const headers = parsedFailed[0].map(h => h.trim().replace(/\s+/g, '_'));
+        for (let i = 1; i < parsedFailed.length; i++) {
+          const row = parsedFailed[i];
+          const job: any = {};
+          headers.forEach((h, index) => {
+            job[h] = (row[index] || '').trim();
+          });
+          
+          const attemptMs = getTimestamp(job.Date_Tried);
+          const limitMs = startMs || (Date.now() - 30 * 60 * 1000);
+          if (attemptMs >= limitMs) {
+            failedJobs.push({
+              jobId: job.Job_ID || '',
+              jobLink: job.Job_Link || '',
+              dateTried: job.Date_Tried || '',
+              reason: job.Assumed_Reason || 'Unknown error during Easy Apply',
+              screenshot: job.Screenshot_Name || ''
+            });
+          }
+        }
+      }
+    }
+
+    return res.json({
+      applied: appliedJobs,
+      failed: failedJobs,
+      startTime: botStartTime,
+      endTime: new Date()
+    });
+  } catch (err: any) {
+    console.error("Error generating execution report:", err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/auto-apply/stop", (req, res) => {
+  if (autoApplyProcess) {
+    autoApplyProcess.kill('SIGINT');
+    autoApplyProcess = null;
+    autoApplyLogs.push("[SYSTEM] Auto-Applier process killed by user.");
+    return res.json({ message: "Auto-Applier stopped successfully." });
+  }
+  return res.json({ message: "No active process running." });
+});
+
+app.get("/api/auto-apply/history", (req, res) => {
+  try {
+    const csvPath = path.join(process.cwd(), 'Auto_job_applier_linkedIn-main', 'all excels', 'all_applied_applications_history.csv');
+    if (!fs.existsSync(csvPath)) {
+      return res.json([]);
+    }
+
+    const csvContent = fs.readFileSync(csvPath, 'utf8');
+
+    // RFC 4180 Compliant CSV Parser to handle newlines and commas inside quotes
+    const parseCSV = (text: string): string[][] => {
+      const lines: string[][] = [];
+      let row: string[] = [];
+      let cell = '';
+      let inQuotes = false;
+
+      for (let i = 0; i < text.length; i++) {
+        const char = text[i];
+        const nextChar = text[i + 1];
+
+        if (inQuotes) {
+          if (char === '"') {
+            if (nextChar === '"') {
+              cell += '"';
+              i++;
+            } else {
+              inQuotes = false;
+            }
+          } else {
+            cell += char;
+          }
+        } else {
+          if (char === '"') {
+            inQuotes = true;
+          } else if (char === ',') {
+            row.push(cell);
+            cell = '';
+          } else if (char === '\r' || char === '\n') {
+            row.push(cell);
+            lines.push(row);
+            row = [];
+            cell = '';
+            if (char === '\r' && nextChar === '\n') {
+              i++;
+            }
+          } else {
+            cell += char;
+          }
+        }
+      }
+      if (row.length > 0 || cell !== '') {
+        row.push(cell);
+        lines.push(row);
+      }
+      return lines.filter(r => r.some(c => c.trim() !== ''));
+    };
+
+    const parsedRows = parseCSV(csvContent);
+    if (parsedRows.length <= 1) return res.json([]);
+
+    const headers = parsedRows[0].map(h => h.trim());
+    const jobs = [];
+
+    for (let i = 1; i < parsedRows.length; i++) {
+      const row = parsedRows[i];
+      const jobObj: any = {};
+      headers.forEach((h, index) => {
+        jobObj[h.replace(/\s+/g, '_')] = (row[index] || '').trim();
+      });
+      jobs.push(jobObj);
+    }
+
+    return res.json(jobs);
+  } catch (err: any) {
+    console.error("Error reading applied jobs history:", err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/auto-apply/upload-resume", (req, res) => {
+  try {
+    const { resumeBase64, filename } = req.body;
+    if (!resumeBase64) {
+      return res.status(400).json({ error: "Missing resumeBase64 parameter" });
+    }
+
+    const botDir = path.join(process.cwd(), 'Auto_job_applier_linkedIn-main');
+    const resumeDir = path.join(botDir, 'all resumes', 'default');
+    
+    // Ensure directory exists
+    if (!fs.existsSync(resumeDir)) {
+      fs.mkdirSync(resumeDir, { recursive: true });
+    }
+
+    const resumePath = path.join(resumeDir, 'resume.pdf');
+    fs.writeFileSync(resumePath, Buffer.from(resumeBase64, 'base64'));
+
+    return res.json({ message: "Resume uploaded successfully to the LinkedIn bot config.", path: resumePath });
+  } catch (err: any) {
+    console.error("Error writing bot resume:", err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+app.get("/api/auto-apply/check-resume", (req, res) => {
+  try {
+    const botDir = path.join(process.cwd(), 'Auto_job_applier_linkedIn-main');
+    const resumePath = path.join(botDir, 'all resumes', 'default', 'resume.pdf');
+    const exists = fs.existsSync(resumePath);
+    let size = 0;
+    if (exists) {
+      const stats = fs.statSync(resumePath);
+      size = stats.size;
+    }
+    return res.json({ exists, size });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
 
 // Resume Review and Job Match endpoint
 app.post("/api/resume-review", async (req, res) => {
@@ -231,11 +660,8 @@ app.post("/api/resume-review", async (req, res) => {
       }
     }
 
-    const ai = getAiClient();
-
-    if (!ai) {
-      // Mock fallback
-      const overallScore = Math.floor(Math.random() * 20) + 70; // 70 to 90
+    const getMockResponse = () => {
+      const overallScore = Math.floor(Math.random() * 15) + 75; // 75 to 90
       const matchedJobs = REFERENCE_JOBS.map(job => {
         let basePercent = 60;
         const overlap = job.skills.filter(s => 
@@ -249,11 +675,11 @@ app.post("/api/resume-review", async (req, res) => {
         return {
           jobId: job.id,
           matchPercent: finalPercent,
-          matchExplanation: `Match of ${finalPercent}% calculated based on the overlap of key technical competencies such as ${job.skills.slice(0, 3).join(", ")}. Your profile demonstrates high familiarity with these tools, aligning well with ${job.company}'s technology stack requirements.`
+          matchExplanation: `Match of ${finalPercent}% calculated based on key technical competencies such as ${job.skills.slice(0, 3).join(", ")}. Your profile demonstrates high familiarity with these tools, aligning well with ${job.company}'s technology stack requirements.`
         };
       });
 
-      return res.json({
+      return {
         overallScore,
         summary: `Your resume has been processed through our Applicant Tracking System (ATS) parser. The formatting demonstrates high header parsing accuracy and strong technical keyword density. Aligning specific action verbs with targeted job descriptions will maximize your interview callback rate.`,
         strengths: [
@@ -272,11 +698,18 @@ app.post("/api/resume-review", async (req, res) => {
           "Match technical stack terms exactly as spelled in job requirements."
         ],
         jobMatches: matchedJobs
-      });
+      };
+    };
+
+    const ai = getAiClient();
+
+    if (!ai) {
+      return res.json(getMockResponse());
     }
 
-    // Call actual Gemini API (gemini-2.5-flash)
-    const systemPrompt = `You are an elite Applicant Tracking System (ATS) parsing & scoring engine.
+    try {
+      // Call actual Gemini API (gemini-2.0-flash)
+      const systemPrompt = `You are an elite Applicant Tracking System (ATS) parsing & scoring engine.
 Review the provided resume text/file and calculate an ATS Compatibility Score (from 0 to 100) based on ATS readability, keyword matching, contact header formatting, and quantifiable metric density.
 Also evaluate match fit for target roles:
 ${JSON.stringify(REFERENCE_JOBS, null, 2)}
@@ -299,64 +732,68 @@ Provide a structured JSON output with the following format:
 
 Only return a valid JSON object matching this schema. Avoid markdown wrap wrappers except valid json code block. Ensure every jobId in reference matches is present.`;
 
-    let contents: any = [];
-    if (resumeFile) {
-      contents.push({
-        inlineData: {
-          data: resumeFile,
-          mimeType: "application/pdf"
-        }
-      });
-    }
-    
-    const userPromptText = `Resume Content:
+      let contents: any = [];
+      if (resumeFile) {
+        contents.push({
+          inlineData: {
+            data: resumeFile,
+            mimeType: "application/pdf"
+          }
+        });
+      }
+      
+      const userPromptText = `Resume Content:
 ${resumeText || "Resume document uploaded as PDF attachment."}
 
 Additional User Information:
 Skills selected: ${JSON.stringify(userSkills)}
 Years of experience: ${experienceYears || "Not specified"}`;
 
-    contents.push(userPromptText);
+      contents.push(userPromptText);
 
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents,
-      config: {
-        systemInstruction: systemPrompt,
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            overallScore: { type: Type.INTEGER, description: "A summary score from 0 to 100 for overall resume quality." },
-            summary: { type: Type.STRING, description: "A high-level feedback summary." },
-            strengths: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Core strengths of this resume." },
-            improvements: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Specific areas for improvement." },
-            tips: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Actionable tips for refining content." },
-            jobMatches: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  jobId: { type: Type.STRING, description: "The ID of the target job." },
-                  matchPercent: { type: Type.INTEGER, description: "A percentage from 0 to 100 reflecting fit quality." },
-                  matchExplanation: { type: Type.STRING, description: "Detailed justification of this score." }
-                },
-                required: ["jobId", "matchPercent", "matchExplanation"]
+      const response = await ai.models.generateContent({
+        model: "gemini-2.0-flash",
+        contents,
+        config: {
+          systemInstruction: systemPrompt,
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              overallScore: { type: Type.INTEGER, description: "A summary score from 0 to 100 for overall resume quality." },
+              summary: { type: Type.STRING, description: "A high-level feedback summary." },
+              strengths: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Core strengths of this resume." },
+              improvements: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Specific areas for improvement." },
+              tips: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Actionable tips for refining content." },
+              jobMatches: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    jobId: { type: Type.STRING, description: "The ID of the target job." },
+                    matchPercent: { type: Type.INTEGER, description: "A percentage from 0 to 100 reflecting fit quality." },
+                    matchExplanation: { type: Type.STRING, description: "Detailed justification of this score." }
+                  },
+                  required: ["jobId", "matchPercent", "matchExplanation"]
+                }
               }
-            }
-          },
-          required: ["overallScore", "summary", "strengths", "improvements", "tips", "jobMatches"]
+            },
+            required: ["overallScore", "summary", "strengths", "improvements", "tips", "jobMatches"]
+          }
         }
+      });
+
+      const text = response.text;
+      if (!text) {
+        throw new Error("No response text received from Gemini API");
       }
-    });
 
-    const text = response.text;
-    if (!text) {
-      throw new Error("No response text received from Gemini API");
+      const reviewResult = JSON.parse(text);
+      return res.json(reviewResult);
+    } catch (geminiErr: any) {
+      console.warn("Gemini API call failed (e.g. rate limit/quota reached). Serving ATS evaluation fallback:", geminiErr.message || geminiErr);
+      return res.json(getMockResponse());
     }
-
-    const reviewResult = JSON.parse(text);
-    return res.json(reviewResult);
 
   } catch (error: any) {
     console.error("Error evaluating resume review:", error);
