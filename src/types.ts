@@ -18,6 +18,7 @@ export interface Job {
   category?: 'Students' | 'Freshers' | 'Graduates' | 'Experienced';
   applyUrl?: string;
   easyApply?: boolean;
+  viaSource?: string;
 }
 
 export interface UserProfile {

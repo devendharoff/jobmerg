@@ -4,7 +4,7 @@ import {
   Briefcase, Award, ArrowRight, Check, CheckCircle2, DollarSign, 
   Compass, BarChart3, FileText, User, LogOut, ChevronRight, HelpCircle, 
   X, AlertCircle, BookmarkCheck, Heart, UserCheck, ShieldCheck, Clock,
-  ChevronDown
+  ChevronDown, ExternalLink
 } from 'lucide-react';
 import { 
   ActiveScreen, Job, UserProfile, JobApplication, SalaryInsight 
@@ -18,6 +18,41 @@ import ResumeBuilder from './components/ResumeBuilder';
 import AutoApplyBot from './components/AutoApplyBot';
 import { supabase, getSupabaseClient } from './supabaseClient';
 import { useUser, useAuth, SignIn as ClerkSignIn, SignUp as ClerkSignUp } from '@clerk/clerk-react';
+
+export function getPlatformInfo(job: Job) {
+  const url = (job.applyUrl || '').toLowerCase();
+  const via = (job.viaSource || job.companyAbout || '').toLowerCase();
+
+  if (via.includes('linkedin') || url.includes('linkedin')) {
+    return { name: 'LinkedIn', badgeBg: 'bg-blue-50 text-blue-700 border-blue-200', btnText: 'Apply on LinkedIn' };
+  }
+  if (via.includes('glassdoor') || url.includes('glassdoor')) {
+    return { name: 'Glassdoor', badgeBg: 'bg-emerald-50 text-emerald-700 border-emerald-200', btnText: 'Apply on Glassdoor' };
+  }
+  if (via.includes('unstop') || url.includes('unstop')) {
+    return { name: 'Unstop', badgeBg: 'bg-purple-50 text-purple-700 border-purple-200', btnText: 'Apply on Unstop' };
+  }
+  if (via.includes('naukri') || url.includes('naukri')) {
+    return { name: 'Naukri.com', badgeBg: 'bg-sky-50 text-sky-700 border-sky-200', btnText: 'Apply on Naukri.com' };
+  }
+  if (via.includes('indeed') || url.includes('indeed')) {
+    return { name: 'Indeed', badgeBg: 'bg-indigo-50 text-indigo-700 border-indigo-200', btnText: 'Apply on Indeed' };
+  }
+  if (via.includes('google') || url.includes('google')) {
+    return { name: 'Google Jobs', badgeBg: 'bg-red-50 text-red-700 border-red-200', btnText: 'Apply via Google Jobs' };
+  }
+  if (url.includes('lever.co') || url.includes('greenhouse.io') || url.includes('workable.com')) {
+    return { name: 'Company Careers', badgeBg: 'bg-teal-50 text-teal-700 border-teal-200', btnText: 'Apply on Company Careers' };
+  }
+
+  const match = via.match(/via\s+([a-zA-Z0-9\.\s]+)/i);
+  if (match && match[1]) {
+    const cleanName = match[1].trim();
+    return { name: cleanName, badgeBg: 'bg-amber-50 text-amber-800 border-amber-200', btnText: `Apply on ${cleanName}` };
+  }
+
+  return { name: 'Company Portal', badgeBg: 'bg-gray-100 text-gray-800 border-gray-200', btnText: 'Apply on Company Portal' };
+}
 
 export default function App() {
   const [activeScreen, setActiveScreen] = useState<ActiveScreen>('Landing');
@@ -236,7 +271,9 @@ export default function App() {
             companyAbout: dbJob.company_about || `${dbJob.company} is a leading innovator in technology services.`,
             requirements: dbJob.requirements || [],
             benefits: dbJob.benefits || [],
-            category: dbJob.category || 'Experienced'
+            category: dbJob.category || 'Experienced',
+            applyUrl: dbJob.original_url || '',
+            viaSource: dbJob.via || (dbJob.company_about?.includes('via ') ? dbJob.company_about.match(/via [^.)]+/)?.[0] : undefined)
           }));
 
           setJobs(mappedJobs);
@@ -1649,6 +1686,9 @@ export default function App() {
 
                                 {/* Job Specs Badges */}
                                 <div className="flex flex-wrap gap-1.5 text-[9px] font-bold text-gray-500 uppercase tracking-wide">
+                                  <span className={`px-2 py-1 border rounded-lg font-black ${getPlatformInfo(job).badgeBg}`}>
+                                    via {getPlatformInfo(job).name}
+                                  </span>
                                   <span className="px-2 py-1 bg-gray-50 border border-gray-150 rounded-lg">{job.workType}</span>
                                   <span className="px-2 py-1 bg-gray-50 border border-gray-150 rounded-lg">{job.jobType}</span>
                                   <span className="px-2 py-1 bg-gray-50 border border-gray-150 rounded-lg">{job.experienceRequired}</span>
@@ -2189,6 +2229,27 @@ export default function App() {
                 </div>
               )}
 
+              {/* Target Application Platform Destination Banner */}
+              {(() => {
+                const platform = getPlatformInfo(selectedJobDetailModal);
+                return (
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-gray-50/90 border border-gray-200 rounded-2xl gap-3">
+                    <div className="flex items-center gap-3">
+                      <span className={`px-3 py-1 rounded-xl text-xs font-black uppercase tracking-wider border ${platform.badgeBg}`}>
+                        {platform.name}
+                      </span>
+                      <div>
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Application Destination</p>
+                        <p className="text-xs font-extrabold text-gray-900">You will be redirected to apply on <b className="text-[#4f46e5]">{platform.name}</b></p>
+                      </div>
+                    </div>
+                    <span className="inline-flex items-center gap-1.5 text-[10px] font-extrabold text-[#4f46e5] uppercase tracking-wider bg-[#4f46e5]/5 border border-[#4f46e5]/10 px-3 py-1.5 rounded-xl shrink-0 self-start sm:self-auto">
+                      <ExternalLink className="w-3.5 h-3.5" /> Direct Application Link
+                    </span>
+                  </div>
+                );
+              })()}
+
               {/* Company About */}
               <div className="space-y-2">
                 <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider">About the company</h4>
@@ -2267,7 +2328,7 @@ export default function App() {
                   }}
                   className="px-6 py-2.5 bg-[#4f46e5] text-white hover:bg-[#3f37c9] rounded-xl text-xs font-extrabold shadow-md flex items-center gap-2 cursor-pointer active:scale-98"
                 >
-                  Apply Now <ArrowRight className="w-3.5 h-3.5" />
+                  <span>{getPlatformInfo(selectedJobDetailModal).btnText}</span> <ExternalLink className="w-3.5 h-3.5" />
                 </button>
               )}
             </div>
