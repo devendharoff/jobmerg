@@ -4,7 +4,7 @@ import {
   Briefcase, Award, ArrowRight, Check, CheckCircle2, DollarSign, 
   Compass, BarChart3, FileText, User, LogOut, ChevronRight, HelpCircle, 
   X, AlertCircle, BookmarkCheck, Heart, UserCheck, ShieldCheck, Clock,
-  ChevronDown, ExternalLink
+  ChevronDown, ExternalLink, PanelLeftClose, PanelLeftOpen, Sidebar
 } from 'lucide-react';
 import { 
   ActiveScreen, Job, UserProfile, JobApplication, SalaryInsight 
@@ -57,6 +57,7 @@ export function getPlatformInfo(job: Job) {
 export default function App() {
   const [activeScreen, setActiveScreen] = useState<ActiveScreen>('Landing');
   const [activeDashboardTab, setActiveDashboardTab] = useState<'FindJobs' | 'Salaries' | 'AIReview' | 'Applications' | 'Saved' | 'Resume' | 'AutoApply'>('FindJobs');
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   
   // User Authentication States
   const { isLoaded, isSignedIn, user } = useUser();
@@ -999,19 +1000,33 @@ export default function App() {
       {activeScreen === 'Dashboard' && (
         <div className="flex-1 flex flex-col lg:flex-row lg:h-screen lg:overflow-hidden bg-[#f8f9fa]">
           
-          {/* Main Navigation Sidebar (Left Column - 100% Viewport Fixed) */}
-          <aside className="w-full lg:w-64 bg-white border-r border-gray-150 flex flex-col justify-between shrink-0 lg:h-screen lg:fixed lg:top-0 lg:bottom-0 lg:left-0 overflow-hidden select-none z-30 shadow-xs">
+          {/* Main Navigation Sidebar (Left Column - Collapsible) */}
+          <aside className={`w-full bg-white border-r border-gray-150 flex flex-col justify-between shrink-0 lg:h-screen lg:fixed lg:top-0 lg:bottom-0 lg:left-0 select-none z-30 shadow-xs transition-all duration-300 ${
+            isSidebarCollapsed 
+              ? 'lg:w-0 -translate-x-full lg:translate-x-0 opacity-0 pointer-events-none hidden' 
+              : 'lg:w-64 translate-x-0 opacity-100'
+          }`}>
             <div className="p-5 space-y-5">
-              {/* Logo */}
-              <button 
-                onClick={() => setActiveScreen('Landing')}
-                className="flex items-center gap-2 focus:outline-none cursor-pointer self-start group"
-              >
-                <div className="w-8 h-8 bg-[#4f46e5] rounded-xl flex items-center justify-center shadow-md shadow-[#4f46e5]/10 group-hover:scale-105 transition-transform">
-                  <Sparkles className="text-white w-4.5 h-4.5" />
-                </div>
-                <span className="font-extrabold text-xl text-gray-900 tracking-tight font-display font-black">JobMerge</span>
-              </button>
+              {/* Logo & Sidebar Hide Button */}
+              <div className="flex items-center justify-between">
+                <button 
+                  onClick={() => setActiveScreen('Landing')}
+                  className="flex items-center gap-2 focus:outline-none cursor-pointer group"
+                >
+                  <div className="w-8 h-8 bg-[#4f46e5] rounded-xl flex items-center justify-center shadow-md shadow-[#4f46e5]/10 group-hover:scale-105 transition-transform">
+                    <Sparkles className="text-white w-4.5 h-4.5" />
+                  </div>
+                  <span className="font-extrabold text-xl text-gray-900 tracking-tight font-display font-black">JobMerge</span>
+                </button>
+
+                <button 
+                  onClick={() => setIsSidebarCollapsed(true)}
+                  className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-xl transition-colors cursor-pointer"
+                  title="Hide Navigation Sidebar"
+                >
+                  <PanelLeftClose className="w-4.5 h-4.5" />
+                </button>
+              </div>
 
               {/* Navigation Actions Menu */}
               <nav className="space-y-1">
@@ -1068,7 +1083,6 @@ export default function App() {
                   <BookOpen className="w-4 h-4" />
                   Resume Builder
                 </button>
-
 
                 <button
                   onClick={() => setActiveDashboardTab('Saved')}
@@ -1151,7 +1165,21 @@ export default function App() {
           </aside>
 
           {/* Active Work Pane (Right / Center Column) */}
-          <main className="flex-1 p-6 md:p-8 max-w-7xl w-full flex flex-col lg:ml-64">
+          <main className={`flex-1 p-6 md:p-8 max-w-7xl w-full flex flex-col transition-all duration-300 ${isSidebarCollapsed ? 'lg:ml-0' : 'lg:ml-64'}`}>
+            
+            {/* Show Sidebar Toggle Pill Bar when Sidebar is Hidden */}
+            {isSidebarCollapsed && (
+              <div className="mb-4 flex items-center justify-between bg-white p-3 border border-gray-150 rounded-2xl shadow-xs animate-fade-in">
+                <button 
+                  onClick={() => setIsSidebarCollapsed(false)}
+                  className="flex items-center gap-2 px-3.5 py-1.5 bg-[#4f46e5]/5 hover:bg-[#4f46e5]/10 border border-[#4f46e5]/20 text-[#4f46e5] text-xs font-black rounded-xl transition-all cursor-pointer shadow-xs active:scale-98"
+                >
+                  <PanelLeftOpen className="w-4 h-4" />
+                  <span>Show Navigation Sidebar</span>
+                </button>
+                <span className="text-[10px] font-extrabold text-gray-400 uppercase tracking-wider">Dashboard View • Full Width Focus</span>
+              </div>
+            )}
             
             {/* Find Jobs View */}
             {activeDashboardTab === 'FindJobs' && (
