@@ -4,7 +4,9 @@ import {
   Briefcase, Award, ArrowRight, Check, CheckCircle2, DollarSign, 
   Compass, BarChart3, FileText, User, LogOut, ChevronRight, HelpCircle, 
   X, AlertCircle, BookmarkCheck, Heart, UserCheck, ShieldCheck, Clock,
-  ChevronDown, ExternalLink, PanelLeftClose, PanelLeftOpen, Sidebar
+  ChevronDown, ExternalLink, PanelLeftClose, PanelLeftOpen, Sidebar,
+  Bell, Mic, TrendingUp, Zap, Target, LayoutDashboard, ChevronLeft,
+  MoreHorizontal, MessageSquare, Video, Filter, Grid, List
 } from 'lucide-react';
 import { 
   ActiveScreen, Job, UserProfile, JobApplication, SalaryInsight 
@@ -20,6 +22,77 @@ const ApplicationTracker = lazy(() => import('./components/ApplicationTracker'))
 const AIResumeReview = lazy(() => import('./components/AIResumeReview'));
 const ResumeBuilder = lazy(() => import('./components/ResumeBuilder'));
 const AutoApplyBot = lazy(() => import('./components/AutoApplyBot'));
+
+function CircularProgress({ percentage, size = 48, strokeWidth = 4 }: { percentage: number; size?: number; strokeWidth?: number }) {
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (percentage / 100) * circumference;
+  
+  return (
+    <div className="relative flex items-center justify-center shrink-0" style={{ width: size, height: size }}>
+      <svg className="transform -rotate-90" width={size} height={size}>
+        <circle cx={size / 2} cy={size / 2} r={radius} className="stroke-gray-150" strokeWidth={strokeWidth} fill="transparent" />
+        <circle 
+          cx={size / 2} 
+          cy={size / 2} 
+          r={radius} 
+          className="stroke-emerald-500 transition-all duration-700 ease-out" 
+          strokeWidth={strokeWidth} 
+          strokeDasharray={circumference} 
+          strokeDashoffset={offset} 
+          strokeLinecap="round" 
+          fill="transparent" 
+        />
+      </svg>
+      <div className="absolute flex flex-col items-center justify-center text-center">
+        <span className="text-[11px] font-black text-gray-900 leading-none font-display">{percentage}%</span>
+        <span className="text-[7px] font-extrabold text-gray-400 uppercase tracking-tight mt-0.5">Match</span>
+      </div>
+    </div>
+  );
+}
+
+function MiniSparkline({ color = "#10b981", data = [10, 15, 8, 22, 18, 30] }: { color?: string; data?: number[] }) {
+  const max = Math.max(...data);
+  const min = Math.min(...data);
+  const points = data.map((val, idx) => {
+    const x = (idx / (data.length - 1)) * 56;
+    const y = 20 - ((val - min) / (max - min || 1)) * 14;
+    return `${x},${y}`;
+  }).join(' ');
+
+  return (
+    <svg width="56" height="22" className="overflow-visible shrink-0">
+      <polyline fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" points={points} />
+    </svg>
+  );
+}
+
+function ProfileGaugeRing({ score = 91 }: { score?: number }) {
+  const size = 120;
+  const strokeWidth = 10;
+  const radius = (size - strokeWidth) / 2;
+  const circumference = Math.PI * radius;
+  const offset = circumference - (score / 100) * circumference;
+
+  return (
+    <div className="relative flex flex-col items-center justify-center py-2">
+      <div className="relative" style={{ width: size, height: size / 2 + 12 }}>
+        <svg className="overflow-visible" width={size} height={size}>
+          <path d={`M ${strokeWidth/2} ${size/2} A ${radius} ${radius} 0 0 1 ${size - strokeWidth/2} ${size/2}`} className="stroke-indigo-100" strokeWidth={strokeWidth} fill="none" strokeLinecap="round" />
+          <path d={`M ${strokeWidth/2} ${size/2} A ${radius} ${radius} 0 0 1 ${size - strokeWidth/2} ${size/2}`} className="stroke-[#4f46e5] transition-all duration-1000" strokeWidth={strokeWidth} strokeDasharray={circumference} strokeDashoffset={offset} fill="none" strokeLinecap="round" />
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-end pb-0.5">
+          <span className="text-2xl font-black text-gray-900 tracking-tight font-display">{score}%</span>
+          <span className="text-[9px] font-extrabold text-gray-400 uppercase tracking-wider">Resume Score</span>
+        </div>
+      </div>
+      <span className="mt-2.5 px-3 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-[10px] font-black uppercase tracking-wider">
+        Excellent
+      </span>
+    </div>
+  );
+}
 
 export function getPlatformInfo(job: Job) {
   const url = (job.applyUrl || '').toLowerCase();
@@ -1023,763 +1096,700 @@ export default function App() {
       {activeScreen === 'Dashboard' && (
         <div className="flex-1 flex flex-col lg:flex-row lg:h-screen lg:overflow-hidden bg-[#f8f9fa]">
           
-          {/* Main Navigation Sidebar (Left Column - Collapsible) */}
-          <aside className={`w-full bg-white border-r border-gray-150 flex flex-col justify-between shrink-0 lg:h-screen lg:fixed lg:top-0 lg:bottom-0 lg:left-0 select-none z-30 shadow-xs transition-all duration-300 ${
+          {/* Main Navigation Sidebar (Left Column - Collapsible Dock / Expanded Mode) */}
+          <aside className={`bg-white border-r border-gray-150 flex flex-col justify-between shrink-0 lg:h-screen lg:fixed lg:top-0 lg:bottom-0 lg:left-0 select-none z-30 shadow-xs transition-all duration-300 ${
             isSidebarCollapsed 
-              ? 'lg:w-0 -translate-x-full lg:translate-x-0 opacity-0 pointer-events-none hidden' 
-              : 'lg:w-64 translate-x-0 opacity-100'
+              ? 'w-full lg:w-16 items-center py-5' 
+              : 'w-full lg:w-64 p-5'
           }`}>
-            <div className="p-5 space-y-5">
-              {/* Logo & Sidebar Hide Button */}
-              <div className="flex items-center justify-between">
-                <button 
-                  onClick={() => setActiveScreen('Landing')}
-                  className="flex items-center gap-2 focus:outline-none cursor-pointer group"
-                >
-                  <div className="w-8 h-8 bg-[#4f46e5] rounded-xl flex items-center justify-center shadow-md shadow-[#4f46e5]/10 group-hover:scale-105 transition-transform">
-                    <Sparkles className="text-white w-4.5 h-4.5" />
-                  </div>
-                  <span className="font-extrabold text-xl text-gray-900 tracking-tight font-display font-black">JobMerge</span>
-                </button>
+            {isSidebarCollapsed ? (
+              /* COLLAPSED DOCK SIDEBAR MODE (Image 1 preference) */
+              <div className="flex flex-col items-center justify-between h-full w-full">
+                <div className="space-y-6 flex flex-col items-center">
+                  {/* Top Logo Icon */}
+                  <button 
+                    onClick={() => setActiveScreen('Landing')}
+                    className="w-10 h-10 bg-[#4f46e5] rounded-2xl flex items-center justify-center shadow-md shadow-[#4f46e5]/20 hover:scale-105 transition-transform cursor-pointer"
+                    title="JobMerge Home"
+                  >
+                    <Sparkles className="text-white w-5 h-5" />
+                  </button>
 
-                <button 
-                  onClick={() => setIsSidebarCollapsed(true)}
-                  className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-xl transition-colors cursor-pointer"
-                  title="Hide Navigation Sidebar"
-                >
-                  <PanelLeftClose className="w-4.5 h-4.5" />
-                </button>
-              </div>
+                  {/* Vertical Dock Nav Stack */}
+                  <nav className="space-y-3.5 flex flex-col items-center">
+                    <button
+                      onClick={() => setActiveDashboardTab('FindJobs')}
+                      className={`p-2.5 rounded-2xl transition-all cursor-pointer relative ${
+                        activeDashboardTab === 'FindJobs'
+                          ? 'bg-[#4f46e5]/10 text-[#4f46e5] shadow-xs'
+                          : 'text-gray-400 hover:text-gray-800 hover:bg-gray-50'
+                      }`}
+                      title="Dashboard"
+                    >
+                      <Compass className="w-5 h-5" />
+                    </button>
 
-              {/* Navigation Actions Menu */}
-              <nav className="space-y-1">
-                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest px-3 mb-2">Menu</p>
-                
-                <button
-                  onClick={() => setActiveDashboardTab('FindJobs')}
-                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                    activeDashboardTab === 'FindJobs'
-                      ? 'bg-[#4f46e5]/5 text-[#4f46e5]'
-                      : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
-                  }`}
-                  id="tab-find-jobs"
-                >
-                  <Compass className="w-4 h-4" />
-                  Find Jobs
-                </button>
+                    <button
+                      onClick={() => setActiveDashboardTab('Applications')}
+                      className={`p-2.5 rounded-2xl transition-all cursor-pointer relative ${
+                        activeDashboardTab === 'Applications'
+                          ? 'bg-[#4f46e5]/10 text-[#4f46e5] shadow-xs'
+                          : 'text-gray-400 hover:text-gray-800 hover:bg-gray-50'
+                      }`}
+                      title="Applications"
+                    >
+                      <Briefcase className="w-5 h-5" />
+                      <span className="absolute -top-1 -right-1 bg-[#4f46e5] text-white text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center">12</span>
+                    </button>
 
-                <button
-                  onClick={() => setActiveDashboardTab('Salaries')}
-                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                    activeDashboardTab === 'Salaries'
-                      ? 'bg-[#4f46e5]/5 text-[#4f46e5]'
-                      : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
-                  }`}
-                  id="tab-salary"
-                >
-                  <BarChart3 className="w-4 h-4" />
-                  Salary Insights
-                </button>
+                    <button
+                      onClick={() => setActiveDashboardTab('Saved')}
+                      className={`p-2.5 rounded-2xl transition-all cursor-pointer relative ${
+                        activeDashboardTab === 'Saved'
+                          ? 'bg-[#4f46e5]/10 text-[#4f46e5] shadow-xs'
+                          : 'text-gray-400 hover:text-gray-800 hover:bg-gray-50'
+                      }`}
+                      title="Saved Jobs"
+                    >
+                      <Bookmark className="w-5 h-5" />
+                      <span className="absolute -top-1 -right-1 bg-indigo-500 text-white text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center">28</span>
+                    </button>
 
-                <button
-                  onClick={() => setActiveDashboardTab('AIReview')}
-                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                    activeDashboardTab === 'AIReview'
-                      ? 'bg-[#4f46e5]/5 text-[#4f46e5]'
-                      : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
-                  }`}
-                  id="tab-ai-review"
-                >
-                  <FileText className="w-4 h-4" />
-                  ATS Score Checker
-                </button>
+                    <button
+                      onClick={() => setActiveDashboardTab('AutoApply')}
+                      className={`p-2.5 rounded-2xl transition-all cursor-pointer relative ${
+                        activeDashboardTab === 'AutoApply'
+                          ? 'bg-[#4f46e5]/10 text-[#4f46e5] shadow-xs'
+                          : 'text-gray-400 hover:text-gray-800 hover:bg-gray-50'
+                      }`}
+                      title="LinkedIn Auto-Applier"
+                    >
+                      <Sparkles className="w-5 h-5 text-[#4f46e5]" />
+                    </button>
 
-                <button
-                  onClick={() => setActiveDashboardTab('Resume')}
-                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                    activeDashboardTab === 'Resume'
-                      ? 'bg-[#4f46e5]/5 text-[#4f46e5]'
-                      : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
-                  }`}
-                  id="tab-resume-builder"
-                >
-                  <BookOpen className="w-4 h-4" />
-                  Resume Builder
-                </button>
+                    <button
+                      onClick={() => setActiveDashboardTab('AIReview')}
+                      className={`p-2.5 rounded-2xl transition-all cursor-pointer relative ${
+                        activeDashboardTab === 'AIReview'
+                          ? 'bg-[#4f46e5]/10 text-[#4f46e5] shadow-xs'
+                          : 'text-gray-400 hover:text-gray-800 hover:bg-gray-50'
+                      }`}
+                      title="ATS Score Checker"
+                    >
+                      <FileText className="w-5 h-5" />
+                    </button>
 
-                <button
-                  onClick={() => setActiveDashboardTab('Saved')}
-                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                    activeDashboardTab === 'Saved'
-                      ? 'bg-[#4f46e5]/5 text-[#4f46e5]'
-                      : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
-                  }`}
-                  id="tab-saved"
-                >
-                  <Bookmark className="w-4 h-4" />
-                  Saved Jobs
-                </button>
+                    <button
+                      onClick={() => setActiveDashboardTab('Resume')}
+                      className={`p-2.5 rounded-2xl transition-all cursor-pointer relative ${
+                        activeDashboardTab === 'Resume'
+                          ? 'bg-[#4f46e5]/10 text-[#4f46e5] shadow-xs'
+                          : 'text-gray-400 hover:text-gray-800 hover:bg-gray-50'
+                      }`}
+                      title="Resume Builder"
+                    >
+                      <BookOpen className="w-5 h-5" />
+                    </button>
 
-                <button
-                  onClick={() => setActiveDashboardTab('AutoApply')}
-                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                    activeDashboardTab === 'AutoApply'
-                      ? 'bg-[#4f46e5]/10 text-[#4f46e5] font-extrabold border border-[#4f46e5]/20'
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                  }`}
-                  id="tab-auto-apply"
-                >
-                  <Sparkles className="w-4 h-4 text-[#4f46e5]" />
-                  LinkedIn Auto-Applier
-                </button>
-              </nav>
-            </div>
+                    <button
+                      onClick={() => setActiveDashboardTab('Salaries')}
+                      className={`p-2.5 rounded-2xl transition-all cursor-pointer relative ${
+                        activeDashboardTab === 'Salaries'
+                          ? 'bg-[#4f46e5]/10 text-[#4f46e5] shadow-xs'
+                          : 'text-gray-400 hover:text-gray-800 hover:bg-gray-50'
+                      }`}
+                      title="Salary Insights"
+                    >
+                      <BarChart3 className="w-5 h-5" />
+                    </button>
+                  </nav>
+                </div>
 
-            {/* User Profile Block at bottom */}
-            <div className="p-5 border-t border-gray-100 space-y-3.5 bg-gray-50/40">
-              <div className="flex items-center gap-3">
-                <div className="relative shrink-0">
+                {/* Bottom Dock Controls */}
+                <div className="flex flex-col items-center space-y-4">
                   <img 
                     alt={userProfile.name} 
-                    className="w-9 h-9 rounded-full object-cover border border-gray-100 shadow-inner"
+                    className="w-8 h-8 rounded-full object-cover border border-gray-200 shadow-sm"
                     src={userProfile.avatarUrl} 
                   />
-                  <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 rounded-full border-2 border-white flex items-center justify-center shadow-sm">
-                    <span className="w-1 h-1 bg-white rounded-full"></span>
+                  {/* Expand Sidebar Button (Chevron Right / >) */}
+                  <button
+                    onClick={() => setIsSidebarCollapsed(false)}
+                    className="w-8 h-8 bg-gray-100 hover:bg-[#4f46e5] text-gray-500 hover:text-white rounded-full flex items-center justify-center transition-colors cursor-pointer shadow-xs"
+                    title="Expand Full Sidebar"
+                  >
+                    <ChevronRight className="w-4.5 h-4.5" />
+                  </button>
+                </div>
+              </div>
+            ) : (
+              /* EXPANDED SIDEBAR MODE (Image 2 preference) */
+              <div className="flex flex-col justify-between h-full space-y-6">
+                <div className="space-y-6 overflow-y-auto pr-1 scrollbar-none">
+                  {/* Logo Header */}
+                  <div className="flex items-center justify-between">
+                    <button 
+                      onClick={() => setActiveScreen('Landing')}
+                      className="flex items-center gap-2.5 focus:outline-none cursor-pointer group"
+                    >
+                      <div className="w-9 h-9 bg-[#4f46e5] rounded-2xl flex items-center justify-center shadow-md shadow-[#4f46e5]/15 group-hover:scale-105 transition-transform">
+                        <Sparkles className="text-white w-5 h-5" />
+                      </div>
+                      <span className="font-extrabold text-xl text-gray-900 tracking-tight font-display">JobMerge</span>
+                    </button>
+
+                    <button 
+                      onClick={() => setIsSidebarCollapsed(true)}
+                      className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-xl transition-colors cursor-pointer"
+                      title="Collapse Dock Sidebar"
+                    >
+                      <ChevronLeft className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  {/* OVERVIEW Section */}
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-3 mb-2">Overview</p>
+                    
+                    <button
+                      onClick={() => setActiveDashboardTab('FindJobs')}
+                      className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
+                        activeDashboardTab === 'FindJobs'
+                          ? 'bg-[#4f46e5]/10 text-[#4f46e5] font-extrabold shadow-xs'
+                          : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <LayoutDashboard className="w-4 h-4" />
+                        <span>Dashboard</span>
+                      </div>
+                    </button>
+
+                    <button
+                      onClick={() => setActiveDashboardTab('FindJobs')}
+                      className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
+                        activeDashboardTab === 'FindJobs'
+                          ? 'text-[#4f46e5] font-extrabold'
+                          : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <Search className="w-4 h-4" />
+                        <span>Find Jobs</span>
+                      </div>
+                    </button>
+
+                    <button
+                      onClick={() => setActiveDashboardTab('Applications')}
+                      className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
+                        activeDashboardTab === 'Applications'
+                          ? 'bg-[#4f46e5]/10 text-[#4f46e5] font-extrabold'
+                          : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <Briefcase className="w-4 h-4" />
+                        <span>Applications</span>
+                      </div>
+                      <span className="px-2 py-0.5 bg-indigo-50 text-[#4f46e5] border border-indigo-100 rounded-full text-[10px] font-black">12</span>
+                    </button>
+
+                    <button
+                      onClick={() => setActiveDashboardTab('Saved')}
+                      className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
+                        activeDashboardTab === 'Saved'
+                          ? 'bg-[#4f46e5]/10 text-[#4f46e5] font-extrabold'
+                          : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <Bookmark className="w-4 h-4" />
+                        <span>Saved Jobs</span>
+                      </div>
+                      <span className="px-2 py-0.5 bg-indigo-50 text-[#4f46e5] border border-indigo-100 rounded-full text-[10px] font-black">28</span>
+                    </button>
+
+                    <button
+                      onClick={() => setActiveDashboardTab('AutoApply')}
+                      className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
+                        activeDashboardTab === 'AutoApply'
+                          ? 'bg-[#4f46e5]/10 text-[#4f46e5] font-extrabold border border-[#4f46e5]/20'
+                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <Sparkles className="w-4 h-4 text-[#4f46e5]" />
+                        <span>Auto Apply</span>
+                      </div>
+                    </button>
+
+                    <button
+                      onClick={() => setActiveDashboardTab('AIReview')}
+                      className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
+                        activeDashboardTab === 'AIReview'
+                          ? 'bg-[#4f46e5]/10 text-[#4f46e5] font-extrabold'
+                          : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <FileText className="w-4 h-4" />
+                        <span>ATS Score Checker</span>
+                      </div>
+                    </button>
+
+                    <button
+                      onClick={() => setActiveDashboardTab('Resume')}
+                      className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
+                        activeDashboardTab === 'Resume'
+                          ? 'bg-[#4f46e5]/10 text-[#4f46e5] font-extrabold'
+                          : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <BookOpen className="w-4 h-4" />
+                        <span>Resume Builder</span>
+                      </div>
+                    </button>
+
+                    <button
+                      onClick={() => setActiveDashboardTab('Salaries')}
+                      className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
+                        activeDashboardTab === 'Salaries'
+                          ? 'bg-[#4f46e5]/10 text-[#4f46e5] font-extrabold'
+                          : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <BarChart3 className="w-4 h-4" />
+                        <span>Salary Insights</span>
+                      </div>
+                    </button>
+                  </div>
+
+                  {/* TOOLS Section */}
+                  <div className="space-y-1 pt-2">
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-3 mb-2">Tools</p>
+                    
+                    <button
+                      onClick={() => setActiveDashboardTab('Applications')}
+                      className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-2xl text-xs font-bold text-gray-500 hover:text-gray-900 hover:bg-gray-50 transition-all cursor-pointer"
+                    >
+                      <Briefcase className="w-4 h-4" />
+                      <span>Job Tracker</span>
+                    </button>
+
+                    <button
+                      onClick={() => setActiveDashboardTab('Salaries')}
+                      className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-2xl text-xs font-bold text-gray-500 hover:text-gray-900 hover:bg-gray-50 transition-all cursor-pointer"
+                    >
+                      <Compass className="w-4 h-4" />
+                      <span>Career Paths</span>
+                    </button>
+                  </div>
+
+                  {/* Upgrade to Pro Card */}
+                  <div className="p-4 rounded-3xl bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-100/60 space-y-3">
+                    <div className="w-8 h-8 bg-[#4f46e5] rounded-xl flex items-center justify-center text-white shadow-xs">
+                      <Sparkles className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-black text-gray-900">Upgrade to Pro</h4>
+                      <p className="text-[10px] text-gray-500 font-semibold leading-relaxed mt-0.5">Unlock advanced features and get hired faster.</p>
+                    </div>
+                    <button className="w-full py-2 bg-[#4f46e5] hover:bg-[#3f37c9] text-white rounded-xl text-xs font-extrabold shadow-sm transition-all cursor-pointer">
+                      Upgrade Now
+                    </button>
                   </div>
                 </div>
-                <div className="min-w-0">
-                  <p className="text-xs font-black text-gray-900 truncate">{userProfile.name}</p>
-                  <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider truncate">{userProfile.role}</p>
-                </div>
-              </div>
 
-              {/* Profile completeness progress bar */}
-              <div className="space-y-1.5">
-                <div className="flex justify-between items-center text-[9px] font-bold">
-                  <span className="text-gray-400 uppercase tracking-wider font-extrabold">Profile Status</span>
-                  <span className="text-[#4f46e5] font-black">{userProfile.profileCompleteness}%</span>
-                </div>
-                <div className="w-full bg-gray-200/60 h-1.5 rounded-full overflow-hidden border border-gray-100/50">
-                  <div 
-                    className="bg-gradient-to-r from-violet-600 to-indigo-600 h-full rounded-full transition-all duration-500"
-                    style={{ width: `${userProfile.profileCompleteness}%` }}
-                  ></div>
-                </div>
-                {userProfile.profileCompleteness < 100 && (
+                {/* Footer User Profile Block */}
+                <div className="pt-4 border-t border-gray-100 flex items-center justify-between">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="relative shrink-0">
+                      <img 
+                        alt={userProfile.name} 
+                        className="w-9 h-9 rounded-full object-cover border border-gray-200 shadow-inner"
+                        src={userProfile.avatarUrl} 
+                      />
+                      <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1">
+                        <p className="text-xs font-black text-gray-900 truncate">{userProfile.name}</p>
+                        <CheckCircle2 className="w-3 h-3 text-[#4f46e5] shrink-0" />
+                      </div>
+                      <p className="text-[10px] text-gray-400 font-bold truncate">{userProfile.role}</p>
+                    </div>
+                  </div>
+
                   <button 
-                    onClick={() => setActiveDashboardTab('AIReview')}
-                    className="text-[9px] font-bold text-[#4f46e5] hover:underline flex items-center gap-0.5 cursor-pointer font-extrabold uppercase tracking-wide"
+                    onClick={handleLogout}
+                    className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors cursor-pointer"
+                    title="Sign Out"
                   >
-                    Complete with AI scanner <ChevronRight className="w-3 h-3" />
+                    <LogOut className="w-4 h-4" />
                   </button>
-                )}
-              </div>
-
-              {/* Log out button */}
-              <button
-                onClick={handleLogout}
-                className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-white hover:bg-red-50 border border-gray-200 rounded-xl text-[11px] font-bold text-gray-500 hover:text-red-600 transition-colors cursor-pointer active:scale-98 shadow-xs"
-              >
-                <LogOut className="w-3.5 h-3.5" />
-                Sign out
-              </button>
-            </div>
-          </aside>
-
-          {/* Active Work Pane (Right / Center Column) */}
-          <main className={`flex-1 p-6 md:p-8 max-w-7xl w-full flex flex-col transition-all duration-300 ${isSidebarCollapsed ? 'lg:ml-0' : 'lg:ml-64'}`}>
-            
-            {/* Show Sidebar Toggle Pill Bar when Sidebar is Hidden */}
-            {isSidebarCollapsed && (
-              <div className="mb-4 flex items-center justify-between bg-white p-3 border border-gray-150 rounded-2xl shadow-xs animate-fade-in">
-                <button 
-                  onClick={() => setIsSidebarCollapsed(false)}
-                  className="flex items-center gap-2 px-3.5 py-1.5 bg-[#4f46e5]/5 hover:bg-[#4f46e5]/10 border border-[#4f46e5]/20 text-[#4f46e5] text-xs font-black rounded-xl transition-all cursor-pointer shadow-xs active:scale-98"
-                >
-                  <PanelLeftOpen className="w-4 h-4" />
-                  <span>Show Navigation Sidebar</span>
-                </button>
-                <span className="text-[10px] font-extrabold text-gray-400 uppercase tracking-wider">Dashboard View • Full Width Focus</span>
+                </div>
               </div>
             )}
+          </aside>
+
+          {/* Main Workspace Area */}
+          <main className={`flex-1 p-6 lg:p-8 max-w-[1600px] w-full flex flex-col space-y-6 transition-all duration-300 lg:overflow-y-auto ${
+            isSidebarCollapsed ? 'lg:ml-16' : 'lg:ml-64'
+          }`}>
             
-            {/* Find Jobs View */}
+            {/* Top Navigation Header Bar */}
+            <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-gray-150/60">
+              <div>
+                <h1 className="text-2xl font-black text-gray-900 tracking-tight font-display flex items-center gap-2">
+                  <span>Good Evening, {userProfile.name.split(' ')[0]}</span> 👋
+                </h1>
+                <p className="text-xs font-bold text-gray-400 mt-0.5">Let's find the right opportunity for your next big move.</p>
+              </div>
+
+              <div className="flex items-center gap-3 self-end md:self-auto">
+                {/* Search Bar */}
+                <div className="relative w-64 md:w-80 flex items-center bg-white border border-gray-200 rounded-full px-4 py-2 shadow-xs focus-within:border-[#4f46e5] transition-all">
+                  <Search className="w-4 h-4 text-gray-400 shrink-0" />
+                  <input 
+                    type="text" 
+                    placeholder="Search jobs, skills, companies..." 
+                    className="w-full bg-transparent border-none text-xs font-semibold focus:outline-none px-2 text-gray-800 placeholder-gray-400"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                  <Sparkles className="w-4 h-4 text-[#4f46e5] shrink-0 cursor-pointer" />
+                </div>
+
+                {/* Notification Bell Button */}
+                <button className="relative p-2.5 bg-white border border-gray-200 hover:border-gray-300 rounded-full text-gray-600 shadow-xs cursor-pointer">
+                  <Bell className="w-4 h-4" />
+                  <span className="absolute top-0 right-0 w-4 h-4 bg-purple-600 text-white text-[9px] font-black rounded-full flex items-center justify-center border border-white">3</span>
+                </button>
+
+                {/* Profile Pill Dropdown */}
+                <div className="flex items-center gap-2.5 bg-white border border-gray-200 rounded-full p-1.5 pr-3 shadow-xs">
+                  <img alt={userProfile.name} className="w-7 h-7 rounded-full object-cover" src={userProfile.avatarUrl} />
+                  <div className="hidden sm:block text-left">
+                    <p className="text-[11px] font-black text-gray-900 leading-tight">{userProfile.name}</p>
+                    <p className="text-[9px] font-bold text-gray-400 leading-tight">{userProfile.role}</p>
+                  </div>
+                  <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
+                </div>
+              </div>
+            </header>
+
+            {/* Find Jobs View Main Feed */}
             {activeDashboardTab === 'FindJobs' && (
-              <div className="space-y-6 flex-1 flex flex-col min-h-0">
+              <div className="space-y-6 flex-1 flex flex-col">
                 
-                {/* Search and Filters Strip */}
-                 <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-premium space-y-4">
-                   <div className="flex flex-col md:flex-row gap-3">
-                     {/* Keywords Search */}
-                     <div className="flex-1 flex items-center gap-2.5 bg-gray-50/50 border border-gray-100 rounded-2xl px-4 py-2.5 focus-within:bg-white focus-within:border-[#4f46e5]/30 focus-within:ring-2 focus-within:ring-[#4f46e5]/5 transition-all">
-                       <Search className="text-gray-400 w-4 h-4 shrink-0" />
-                       <input 
-                         type="text"
-                         placeholder="Job title, technical keyword or company name..."
-                         className="w-full bg-transparent border-none text-[13px] font-semibold focus:outline-none focus:ring-0 placeholder-gray-400 text-gray-800"
-                         value={searchQuery}
-                         onChange={(e) => setSearchQuery(e.target.value)}
-                       />
-                       {searchQuery && (
-                         <button onClick={() => setSearchQuery('')} className="text-gray-400 hover:text-gray-600 cursor-pointer">
-                           <X className="w-3.5 h-3.5" />
-                         </button>
-                       )}
-                     </div>
+                {/* 4 Analytics KPI Stat Cards Row */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="bg-white p-4.5 rounded-3xl border border-gray-150 shadow-xs flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-indigo-50 text-[#4f46e5] border border-indigo-100 rounded-2xl flex items-center justify-center shrink-0">
+                        <Briefcase className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h3 className="text-xl font-black text-gray-900 font-display leading-tight">{jobs.length}</h3>
+                        <p className="text-[11px] font-bold text-gray-400">Jobs Match</p>
+                        <span className="text-[10px] font-black text-emerald-600">+18 new today</span>
+                      </div>
+                    </div>
+                    <MiniSparkline color="#4f46e5" data={[12, 18, 15, 25, 22, 34]} />
+                  </div>
 
-                     {/* Location Input */}
-                     <div className="md:w-64 flex items-center gap-2.5 bg-gray-50/50 border border-gray-100 rounded-2xl px-4 py-2.5 focus-within:bg-white focus-within:border-[#4f46e5]/30 focus-within:ring-2 focus-within:ring-[#4f46e5]/5 transition-all">
-                       <MapPin className="text-gray-400 w-4 h-4 shrink-0" />
-                       <input 
-                         type="text"
-                         placeholder="Location (city or Remote)"
-                         className="w-full bg-transparent border-none text-[13px] font-semibold focus:outline-none focus:ring-0 placeholder-gray-400 text-gray-800"
-                         value={locationQuery}
-                         onChange={(e) => setLocationQuery(e.target.value)}
-                       />
-                       {locationQuery && (
-                         <button onClick={() => setLocationQuery('')} className="text-gray-400 hover:text-gray-600 cursor-pointer">
-                           <X className="w-3.5 h-3.5" />
-                         </button>
-                       )}
-                     </div>
-                   </div>
+                  <div className="bg-white p-4.5 rounded-3xl border border-gray-150 shadow-xs flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-2xl flex items-center justify-center shrink-0">
+                        <FileText className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h3 className="text-xl font-black text-gray-900 font-display leading-tight">12</h3>
+                        <p className="text-[11px] font-bold text-gray-400">Applications</p>
+                        <span className="text-[10px] font-black text-emerald-600">+3 today</span>
+                      </div>
+                    </div>
+                    <MiniSparkline color="#10b981" data={[8, 10, 14, 12, 20, 28]} />
+                  </div>
 
-                   {/* Category Tabs Selector */}
-                   <div className="flex flex-wrap gap-1.5 pb-2 border-b border-gray-100">
-                     {([
-                       { id: 'All', label: 'All Jobs', icon: Briefcase },
-                       { id: 'Students', label: 'Students', icon: Award },
-                       { id: 'Freshers', label: 'Freshers', icon: Sparkles },
-                       { id: 'Graduates', label: 'Graduates', icon: Compass },
-                       { id: 'Experienced', label: 'Experienced', icon: ShieldCheck }
-                     ] as const).map((cat) => {
-                       const Icon = cat.icon;
-                       const isActive = selectedCategory === cat.id;
-                       return (
-                         <button
-                           key={cat.id}
-                           onClick={() => setSelectedCategory(cat.id)}
-                           className={`px-4 py-2 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer flex items-center gap-1.5 ${
-                             isActive
-                               ? 'bg-[#3f37c9] text-white shadow-md shadow-[#4f46e5]/15'
-                               : 'bg-gray-50 hover:bg-gray-100 text-gray-500 border border-gray-100'
-                           }`}
-                         >
-                           <Icon className="w-3.5 h-3.5" />
-                           {cat.label}
-                         </button>
-                       );
-                     })}
-                   </div>
+                  <div className="bg-white p-4.5 rounded-3xl border border-gray-150 shadow-xs flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-amber-50 text-amber-600 border border-amber-100 rounded-2xl flex items-center justify-center shrink-0">
+                        <Award className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h3 className="text-xl font-black text-gray-900 font-display leading-tight">{userProfile.profileCompleteness}%</h3>
+                        <p className="text-[11px] font-bold text-gray-400">Resume Score</p>
+                        <span className="text-[10px] font-black text-emerald-600">Excellent</span>
+                      </div>
+                    </div>
+                    <MiniSparkline color="#f59e0b" data={[70, 75, 82, 85, 89, 91]} />
+                  </div>
 
-                    {/* Filter Selectors (LinkedIn-Style Horizontal Bar) */}
-                    <div className="space-y-3 pt-1">
-                      <div className="relative flex flex-wrap gap-2 items-center z-20">
-                        {/* Date Posted Pill */}
-                        <div className="relative">
-                          <button 
-                            onClick={() => setActiveDropdown(activeDropdown === 'date' ? null : 'date')}
-                            className={`px-3.5 py-1.5 rounded-full border text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                              selectedDatePosted !== 'all' 
-                                ? 'bg-[#3f37c9]/5 border-[#3f37c9]/30 text-[#3f37c9] shadow-sm font-extrabold'
-                                : 'bg-white hover:bg-gray-50 border-gray-200 text-gray-600'
-                            }`}
-                          >
-                            <span>Date Posted</span>
-                            <ChevronDown className="w-3.5 h-3.5 opacity-60" />
-                          </button>
-                          {activeDropdown === 'date' && (
-                            <>
-                              <div className="fixed inset-0 z-30" onClick={() => setActiveDropdown(null)}></div>
-                              <div className="absolute left-0 mt-2 bg-white border border-gray-150 rounded-2xl shadow-xl p-4 w-56 z-40 animate-fade-in space-y-3">
-                                <h4 className="text-[11px] font-black uppercase text-gray-400 tracking-wider">Show results posted within:</h4>
-                                <div className="space-y-2">
-                                  {[
-                                    { id: 'all', label: 'Any time' },
-                                    { id: '24h', label: 'Past 24 hours' },
-                                    { id: 'week', label: 'Past week' },
-                                    { id: 'month', label: 'Past month' }
-                                  ].map(opt => (
-                                    <label key={opt.id} className="flex items-center gap-2.5 text-xs text-gray-700 font-semibold cursor-pointer">
-                                      <input 
-                                        type="radio" 
-                                        name="date-posted" 
-                                        className="text-[#4f46e5] focus:ring-[#4f46e5] rounded-full border-gray-300 w-3.5 h-3.5"
-                                        checked={selectedDatePosted === opt.id}
-                                        onChange={() => {
-                                          setSelectedDatePosted(opt.id);
-                                          setActiveDropdown(null);
-                                        }}
-                                      />
-                                      <span>{opt.label}</span>
-                                    </label>
-                                  ))}
-                                </div>
-                              </div>
-                            </>
-                          )}
-                        </div>
+                  <div className="bg-white p-4.5 rounded-3xl border border-gray-150 shadow-xs flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-sky-50 text-sky-600 border border-sky-100 rounded-2xl flex items-center justify-center shrink-0">
+                        <Sparkles className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h3 className="text-xl font-black text-gray-900 font-display leading-tight">8</h3>
+                        <p className="text-[11px] font-bold text-gray-400">AI Suggestions</p>
+                        <span className="text-[10px] font-black text-sky-600">High Match</span>
+                      </div>
+                    </div>
+                    <MiniSparkline color="#0284c7" data={[3, 5, 4, 7, 6, 8]} />
+                  </div>
+                </div>
 
-                        {/* Workplace Type Pill */}
-                        <div className="relative">
-                          <button 
-                            onClick={() => setActiveDropdown(activeDropdown === 'workplace' ? null : 'workplace')}
-                            className={`px-3.5 py-1.5 rounded-full border text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                              selectedWorkplaceTypes.length > 0
-                                ? 'bg-[#3f37c9]/5 border-[#3f37c9]/30 text-[#3f37c9] shadow-sm font-extrabold'
-                                : 'bg-white hover:bg-gray-50 border-gray-200 text-gray-600'
-                            }`}
-                          >
-                            <span>Workplace type {selectedWorkplaceTypes.length > 0 && `(${selectedWorkplaceTypes.length})`}</span>
-                            <ChevronDown className="w-3.5 h-3.5 opacity-60" />
-                          </button>
-                          {activeDropdown === 'workplace' && (
-                            <>
-                              <div className="fixed inset-0 z-30" onClick={() => setActiveDropdown(null)}></div>
-                              <div className="absolute left-0 mt-2 bg-white border border-gray-150 rounded-2xl shadow-xl p-4 w-60 z-40 animate-fade-in space-y-3">
-                                <h4 className="text-[11px] font-black uppercase text-gray-400 tracking-wider">Select options:</h4>
-                                <div className="space-y-2">
-                                  {['On-site', 'Hybrid', 'Remote'].map(type => {
-                                    const counts = getFacetCounts();
-                                    const count = counts.workplace[type as keyof typeof counts.workplace] || 0;
-                                    return (
-                                      <label key={type} className="flex items-center justify-between text-xs text-gray-700 font-semibold cursor-pointer">
-                                        <div className="flex items-center gap-2.5">
-                                          <input 
-                                            type="checkbox" 
-                                            className="text-[#4f46e5] focus:ring-[#4f46e5] rounded border-gray-300 w-3.5 h-3.5"
-                                            checked={selectedWorkplaceTypes.includes(type)}
-                                            onChange={(e) => {
-                                              if (e.target.checked) {
-                                                setSelectedWorkplaceTypes([...selectedWorkplaceTypes, type]);
-                                              } else {
-                                                setSelectedWorkplaceTypes(selectedWorkplaceTypes.filter(t => t !== type));
-                                              }
-                                            }}
-                                          />
-                                          <span>{type}</span>
-                                        </div>
-                                        <span className="text-[10px] text-gray-400 font-bold">({count})</span>
-                                      </label>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-                            </>
-                          )}
-                        </div>
+                {/* Royal Purple Hero Gradient Banner */}
+                <div className="relative bg-gradient-to-r from-[#4f46e5] via-[#4338ca] to-[#3730a3] rounded-3xl p-7 text-white overflow-hidden shadow-lg shadow-indigo-500/10 flex flex-col md:flex-row items-center justify-between gap-6">
+                  <div className="space-y-2 relative z-10 max-w-xl text-center md:text-left">
+                    <h2 className="text-2xl md:text-3xl font-black tracking-tight font-display leading-snug">
+                      Find the right opportunity for your next career move
+                    </h2>
+                    <p className="text-xs md:text-sm font-medium text-indigo-100">Smart matches, curated for you</p>
+                    <div className="pt-2">
+                      <button 
+                        onClick={() => setActiveDashboardTab('FindJobs')}
+                        className="px-6 py-2.5 bg-gray-900 hover:bg-black text-white text-xs font-black rounded-xl shadow-md flex items-center gap-2 transition-all cursor-pointer active:scale-95 inline-flex"
+                      >
+                        <span>Explore Jobs</span>
+                        <ArrowRight className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
 
-                        {/* Experience Level Pill */}
-                        <div className="relative">
-                          <button 
-                            onClick={() => setActiveDropdown(activeDropdown === 'experience' ? null : 'experience')}
-                            className={`px-3.5 py-1.5 rounded-full border text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                              selectedExperienceLevels.length > 0
-                                ? 'bg-[#3f37c9]/5 border-[#3f37c9]/30 text-[#3f37c9] shadow-sm font-extrabold'
-                                : 'bg-white hover:bg-gray-50 border-gray-200 text-gray-600'
-                            }`}
-                          >
-                            <span>Experience level {selectedExperienceLevels.length > 0 && `(${selectedExperienceLevels.length})`}</span>
-                            <ChevronDown className="w-3.5 h-3.5 opacity-60" />
-                          </button>
-                          {activeDropdown === 'experience' && (
-                            <>
-                              <div className="fixed inset-0 z-30" onClick={() => setActiveDropdown(null)}></div>
-                              <div className="absolute left-0 mt-2 bg-white border border-gray-150 rounded-2xl shadow-xl p-4 w-60 z-40 animate-fade-in space-y-3">
-                                <h4 className="text-[11px] font-black uppercase text-gray-400 tracking-wider">Select levels:</h4>
-                                <div className="space-y-2">
-                                  {['Internship', 'Entry level', 'Associate', 'Mid-Senior', 'Executive'].map(level => {
-                                    const counts = getFacetCounts();
-                                    const count = counts.experience[level as keyof typeof counts.experience] || 0;
-                                    return (
-                                      <label key={level} className="flex items-center justify-between text-xs text-gray-700 font-semibold cursor-pointer">
-                                        <div className="flex items-center gap-2.5">
-                                          <input 
-                                            type="checkbox" 
-                                            className="text-[#4f46e5] focus:ring-[#4f46e5] rounded border-gray-300 w-3.5 h-3.5"
-                                            checked={selectedExperienceLevels.includes(level)}
-                                            onChange={(e) => {
-                                              if (e.target.checked) {
-                                                setSelectedExperienceLevels([...selectedExperienceLevels, level]);
-                                              } else {
-                                                setSelectedExperienceLevels(selectedExperienceLevels.filter(l => l !== level));
-                                              }
-                                            }}
-                                          />
-                                          <span>{level}</span>
-                                        </div>
-                                        <span className="text-[10px] text-gray-400 font-bold">({count})</span>
-                                      </label>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-                            </>
-                          )}
-                        </div>
+                  <div className="relative shrink-0 w-56 h-32 hidden sm:flex items-center justify-center">
+                    <div className="absolute w-44 h-28 bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 shadow-2xl p-4 flex flex-col items-center justify-center space-y-2 transform rotate-2">
+                      <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+                        <User className="w-5 h-5 text-white" />
+                      </div>
+                      <div className="flex gap-1 text-amber-300 text-xs">
+                        ★★★★★
+                      </div>
+                    </div>
+                  </div>
+                </div>
 
-                        {/* Job Type Pill */}
-                        <div className="relative">
-                          <button 
-                            onClick={() => setActiveDropdown(activeDropdown === 'jobtype' ? null : 'jobtype')}
-                            className={`px-3.5 py-1.5 rounded-full border text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                              selectedJobTypes.length > 0
-                                ? 'bg-[#3f37c9]/5 border-[#3f37c9]/30 text-[#3f37c9] shadow-sm font-extrabold'
-                                : 'bg-white hover:bg-gray-50 border-gray-200 text-gray-600'
-                            }`}
-                          >
-                            <span>Job type {selectedJobTypes.length > 0 && `(${selectedJobTypes.length})`}</span>
-                            <ChevronDown className="w-3.5 h-3.5 opacity-60" />
-                          </button>
-                          {activeDropdown === 'jobtype' && (
-                            <>
-                              <div className="fixed inset-0 z-30" onClick={() => setActiveDropdown(null)}></div>
-                              <div className="absolute left-0 mt-2 bg-white border border-gray-150 rounded-2xl shadow-xl p-4 w-60 z-40 animate-fade-in space-y-3">
-                                <h4 className="text-[11px] font-black uppercase text-gray-400 tracking-wider">Select types:</h4>
-                                <div className="space-y-2">
-                                  {['Full-time', 'Part-time', 'Contract', 'Internship'].map(type => {
-                                    const counts = getFacetCounts();
-                                    const count = counts.jobType[type as keyof typeof counts.jobType] || 0;
-                                    return (
-                                      <label key={type} className="flex items-center justify-between text-xs text-gray-700 font-semibold cursor-pointer">
-                                        <div className="flex items-center gap-2.5">
-                                          <input 
-                                            type="checkbox" 
-                                            className="text-[#4f46e5] focus:ring-[#4f46e5] rounded border-gray-300 w-3.5 h-3.5"
-                                            checked={selectedJobTypes.includes(type)}
-                                            onChange={(e) => {
-                                              if (e.target.checked) {
-                                                setSelectedJobTypes([...selectedJobTypes, type]);
-                                              } else {
-                                                setSelectedJobTypes(selectedJobTypes.filter(t => t !== type));
-                                              }
-                                            }}
-                                          />
-                                          <span>{type}</span>
-                                        </div>
-                                        <span className="text-[10px] text-gray-400 font-bold">({count})</span>
-                                      </label>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-                            </>
-                          )}
-                        </div>
+                {/* Search and Filters Toolbar */}
+                <div className="bg-white rounded-3xl p-5 border border-gray-150 shadow-xs space-y-4">
+                  <div className="flex flex-col md:flex-row gap-3">
+                    <div className="flex-1 flex items-center gap-2.5 bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 focus-within:bg-white focus-within:border-[#4f46e5] focus-within:ring-2 focus-within:ring-[#4f46e5]/10 transition-all">
+                      <Search className="w-4 h-4 text-gray-400 shrink-0" />
+                      <input 
+                        type="text" 
+                        placeholder="Search by title, skills, company or keywords..." 
+                        className="w-full bg-transparent border-none text-xs font-semibold focus:outline-none text-gray-800 placeholder-gray-400"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                      />
+                      <Mic className="w-4 h-4 text-gray-400 shrink-0 cursor-pointer" />
+                    </div>
 
-                        {/* Easy Apply Toggle Button */}
-                        <button
-                          onClick={() => setEasyApplyOnly(!easyApplyOnly)}
-                          className={`px-3.5 py-1.5 rounded-full border text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                            easyApplyOnly
-                              ? 'bg-emerald-50 border-emerald-300 text-emerald-700 shadow-sm font-extrabold'
-                              : 'bg-white hover:bg-gray-50 border-gray-200 text-gray-600'
+                    <button className="px-6 py-2.5 bg-[#4f46e5] hover:bg-[#3f37c9] text-white text-xs font-extrabold rounded-2xl shadow-md transition-all cursor-pointer">
+                      Search
+                    </button>
+
+                    <button 
+                      onClick={() => setIsAllFiltersOpen(!isAllFiltersOpen)}
+                      className="px-4 py-2.5 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 text-xs font-bold rounded-2xl flex items-center gap-2 cursor-pointer shadow-xs"
+                    >
+                      <SlidersHorizontal className="w-4 h-4" />
+                      <span>Advanced</span>
+                      <ChevronDown className="w-3.5 h-3.5 opacity-60" />
+                    </button>
+                  </div>
+
+                  {/* Filter Tabs & Easy Apply */}
+                  <div className="flex flex-wrap gap-2 items-center justify-between text-xs font-bold pt-1 border-t border-gray-100">
+                    <div className="flex items-center gap-2">
+                      <button 
+                        onClick={() => setEasyApplyOnly(!easyApplyOnly)}
+                        className={`px-3.5 py-1.5 rounded-full border text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                          easyApplyOnly ? 'bg-indigo-50 border-indigo-200 text-[#4f46e5] font-black' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                        }`}
+                      >
+                        <Zap className="w-3.5 h-3.5 text-[#4f46e5]" />
+                        <span>Easy Apply</span>
+                      </button>
+                    </div>
+
+                    {/* Category Selection Tabs */}
+                    <div className="flex items-center gap-1 bg-gray-100/80 p-1 rounded-2xl overflow-x-auto">
+                      {['Recommended', 'Recent Jobs', 'Saved Jobs', 'Applied Jobs'].map(tab => (
+                        <button 
+                          key={tab}
+                          onClick={() => setActiveFilterCategory(tab)}
+                          className={`px-3.5 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer shrink-0 ${
+                            activeFilterCategory === tab ? 'bg-[#4f46e5] text-white shadow-xs' : 'text-gray-500 hover:text-gray-900'
                           }`}
                         >
-                          <Sparkles className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                          <span>Easy Apply</span>
+                          {tab}
                         </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
 
-                        {/* Company Selector Pill */}
-                        <div className="relative">
-                          <button 
-                            onClick={() => setActiveDropdown(activeDropdown === 'company' ? null : 'company')}
-                            className={`px-3.5 py-1.5 rounded-full border text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                              selectedCompanies.length > 0
-                                ? 'bg-[#3f37c9]/5 border-[#3f37c9]/30 text-[#3f37c9] shadow-sm font-extrabold'
-                                : 'bg-white hover:bg-gray-50 border-gray-200 text-gray-600'
-                            }`}
-                          >
-                            <span>Company {selectedCompanies.length > 0 && `(${selectedCompanies.length})`}</span>
-                            <ChevronDown className="w-3.5 h-3.5 opacity-60" />
-                          </button>
-                          {activeDropdown === 'company' && (
-                            <>
-                              <div className="fixed inset-0 z-30" onClick={() => setActiveDropdown(null)}></div>
-                              <div className="absolute left-0 mt-2 bg-white border border-gray-150 rounded-2xl shadow-xl p-4 w-64 z-40 animate-fade-in space-y-3 max-h-72 overflow-y-auto">
-                                <h4 className="text-[11px] font-black uppercase text-gray-400 tracking-wider">Select companies:</h4>
-                                <div className="space-y-2">
-                                  {Object.entries(getFacetCounts().company)
-                                    .sort((a, b) => b[1] - a[1])
-                                    .slice(0, 10)
-                                    .map(([companyName, count]) => (
-                                      <label key={companyName} className="flex items-center justify-between text-xs text-gray-700 font-semibold cursor-pointer">
-                                        <div className="flex items-center gap-2.5">
-                                          <input 
-                                            type="checkbox" 
-                                            className="text-[#4f46e5] focus:ring-[#4f46e5] rounded border-gray-300 w-3.5 h-3.5"
-                                            checked={selectedCompanies.includes(companyName)}
-                                            onChange={(e) => {
-                                              if (e.target.checked) {
-                                                setSelectedCompanies([...selectedCompanies, companyName]);
-                                              } else {
-                                                setSelectedCompanies(selectedCompanies.filter(c => c !== companyName));
-                                              }
-                                            }}
-                                          />
-                                          <span className="truncate max-w-[140px]">{companyName}</span>
-                                        </div>
-                                        <span className="text-[10px] text-gray-400 font-bold">({count})</span>
-                                      </label>
-                                    ))}
+                {/* Main 2-Column Feed & Right Sidebar Column Layout */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  {/* Left 2 Columns: Job Cards Feed */}
+                  <div className="lg:col-span-2 space-y-4">
+                    {filteredJobs.length === 0 ? (
+                      <div className="bg-white rounded-3xl p-10 border border-gray-150 text-center space-y-3">
+                        <AlertCircle className="w-10 h-10 text-amber-500 mx-auto" />
+                        <h4 className="text-md font-bold font-display text-gray-900">No jobs found matching criteria</h4>
+                        <p className="text-xs text-gray-400 font-semibold max-w-xs mx-auto">Try resetting filters to explore all available job opportunities.</p>
+                      </div>
+                    ) : (
+                      filteredJobs.map((job, idx) => {
+                        const matchPct = job.aiMatchPercent || (95 - idx * 3);
+                        return (
+                          <div key={job.id} className="bg-white p-5 rounded-3xl border border-gray-150 shadow-xs hover:shadow-md transition-all space-y-4 relative group">
+                            <div className="flex items-start justify-between gap-4">
+                              <div className="flex items-start gap-4">
+                                <div className="w-12 h-12 bg-gray-50 border border-gray-100 rounded-2xl flex items-center justify-center overflow-hidden shrink-0 shadow-inner">
+                                  <img alt={job.company} className="w-8 h-8 object-contain" src={job.logoUrl} />
+                                </div>
+                                <div>
+                                  <div className="flex items-center gap-2">
+                                    <h3 className="text-base font-black text-gray-900 font-display group-hover:text-[#4f46e5] transition-colors">{job.title}</h3>
+                                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase border ${getPlatformInfo(job).badgeBg}`}>
+                                      via {getPlatformInfo(job).name}
+                                    </span>
+                                  </div>
+                                  <p className="text-xs text-gray-500 font-semibold mt-0.5">
+                                    {job.company} • {job.location} • {job.workType}
+                                  </p>
+                                  <div className="flex flex-wrap gap-2 text-[10px] font-bold text-gray-600 mt-2.5">
+                                    <span className="px-2.5 py-1 bg-gray-50 border border-gray-150 rounded-lg">{job.salaryRange}</span>
+                                    <span className="px-2.5 py-1 bg-gray-50 border border-gray-150 rounded-lg">{job.jobType}</span>
+                                    <span className="px-2.5 py-1 bg-gray-50 border border-gray-150 rounded-lg">{job.experienceRequired}</span>
+                                    <span className="px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg font-black">⚡ Easy Apply</span>
+                                  </div>
                                 </div>
                               </div>
-                            </>
-                          )}
-                        </div>
 
-                        {/* All Filters Button */}
-                        <button
-                          onClick={() => setIsAllFiltersOpen(true)}
-                          className="ml-auto px-4 py-1.5 rounded-full bg-gray-900 hover:bg-gray-800 text-white text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm hover:shadow active:scale-95"
-                        >
-                          <SlidersHorizontal className="w-3.5 h-3.5" />
-                          <span>All Filters</span>
-                        </button>
+                              {/* Circular Match Score Gauge Ring */}
+                              <CircularProgress percentage={matchPct} />
+                            </div>
+
+                            <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+                              <span className="text-[10px] font-bold text-gray-400">Posted {job.postedTime}</span>
+                              <div className="flex items-center gap-2">
+                                <button 
+                                  onClick={(e) => handleToggleBookmark(job.id, e)}
+                                  className="p-2 bg-gray-50 border border-gray-200 rounded-xl text-gray-500 hover:text-[#4f46e5] cursor-pointer"
+                                >
+                                  <Bookmark className="w-4 h-4" />
+                                </button>
+                                <button 
+                                  onClick={() => handleApplyJob(job)}
+                                  className="px-4 py-2 bg-[#4f46e5] hover:bg-[#3f37c9] text-white text-xs font-black rounded-xl shadow-xs cursor-pointer flex items-center gap-1.5"
+                                >
+                                  <Zap className="w-3.5 h-3.5" />
+                                  <span>Quick Apply</span>
+                                </button>
+                                <button 
+                                  onClick={() => setSelectedJobDetailModal(job)}
+                                  className="px-4 py-2 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 text-xs font-bold rounded-xl cursor-pointer"
+                                >
+                                  View Details →
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+
+                  {/* Right 1 Column: Intelligence Sidebar Widgets */}
+                  <div className="space-y-6">
+                    {/* Widget 1: Your Profile Overview */}
+                    <div className="bg-white p-5 rounded-3xl border border-gray-150 shadow-xs space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-xs font-black text-gray-900 uppercase tracking-wider font-display">Your Profile Overview</h3>
+                        <span className="text-[10px] font-extrabold text-[#4f46e5] cursor-pointer">View full report →</span>
                       </div>
 
-                      {/* Active Filter Summary Row */}
-                      {(selectedDatePosted !== 'all' || selectedWorkplaceTypes.length > 0 || selectedExperienceLevels.length > 0 || selectedJobTypes.length > 0 || selectedCompanies.length > 0 || selectedSalaryRange !== 'all' || easyApplyOnly) && (
-                        <div className="flex flex-wrap gap-1.5 pt-1.5 border-t border-gray-100 items-center text-[10px] font-bold">
-                          <span className="text-gray-400 font-extrabold uppercase tracking-wide mr-1">Active:</span>
-                          
-                          {selectedDatePosted !== 'all' && (
-                            <span className="inline-flex items-center gap-1 bg-[#4f46e5]/5 border border-[#4f46e5]/10 text-[#4f46e5] px-2 py-0.5 rounded-md">
-                              <span>Date: {selectedDatePosted === '24h' ? '24h' : selectedDatePosted === 'week' ? 'Week' : 'Month'}</span>
-                              <button onClick={() => setSelectedDatePosted('all')} className="hover:text-red-500 cursor-pointer text-xs">✕</button>
-                            </span>
-                          )}
-                          
-                          {selectedWorkplaceTypes.map(wt => (
-                            <span key={wt} className="inline-flex items-center gap-1 bg-[#4f46e5]/5 border border-[#4f46e5]/10 text-[#4f46e5] px-2 py-0.5 rounded-md">
-                              <span>{wt}</span>
-                              <button onClick={() => setSelectedWorkplaceTypes(selectedWorkplaceTypes.filter(x => x !== wt))} className="hover:text-red-500 cursor-pointer text-xs">✕</button>
-                            </span>
-                          ))}
-                          
-                          {selectedExperienceLevels.map(el => (
-                            <span key={el} className="inline-flex items-center gap-1 bg-[#4f46e5]/5 border border-[#4f46e5]/10 text-[#4f46e5] px-2 py-0.5 rounded-md">
-                              <span>{el}</span>
-                              <button onClick={() => setSelectedExperienceLevels(selectedExperienceLevels.filter(x => x !== el))} className="hover:text-red-500 cursor-pointer text-xs">✕</button>
-                            </span>
-                          ))}
-                          
-                          {selectedJobTypes.map(jt => (
-                            <span key={jt} className="inline-flex items-center gap-1 bg-[#4f46e5]/5 border border-[#4f46e5]/10 text-[#4f46e5] px-2 py-0.5 rounded-md">
-                              <span>{jt}</span>
-                              <button onClick={() => setSelectedJobTypes(selectedJobTypes.filter(x => x !== jt))} className="hover:text-red-500 cursor-pointer text-xs">✕</button>
-                            </span>
-                          ))}
-                          
-                          {selectedCompanies.map(co => (
-                            <span key={co} className="inline-flex items-center gap-1 bg-[#4f46e5]/5 border border-[#4f46e5]/10 text-[#4f46e5] px-2 py-0.5 rounded-md">
-                              <span>{co}</span>
-                              <button onClick={() => setSelectedCompanies(selectedCompanies.filter(x => x !== co))} className="hover:text-red-500 cursor-pointer text-xs">✕</button>
-                            </span>
-                          ))}
+                      <ProfileGaugeRing score={userProfile.profileCompleteness || 91} />
 
-                          {selectedSalaryRange !== 'all' && (
-                            <span className="inline-flex items-center gap-1 bg-[#4f46e5]/5 border border-[#4f46e5]/10 text-[#4f46e5] px-2 py-0.5 rounded-md">
-                              <span>Salary: {selectedSalaryRange === '10l' ? '₹10L+' : selectedSalaryRange === '15l' ? '₹15L+' : selectedSalaryRange === '20l' ? '₹20L+' : '₹30L+'}</span>
-                              <button onClick={() => setSelectedSalaryRange('all')} className="hover:text-red-500 cursor-pointer text-xs">✕</button>
-                            </span>
-                          )}
-
-                          {easyApplyOnly && (
-                            <span className="inline-flex items-center gap-1 bg-emerald-50 border border-emerald-200 text-emerald-700 px-2 py-0.5 rounded-md">
-                              <span>Easy Apply</span>
-                              <button onClick={() => setEasyApplyOnly(false)} className="hover:text-red-500 cursor-pointer text-xs">✕</button>
-                            </span>
-                          )}
-
-                          <button 
-                            onClick={() => {
-                              setSelectedDatePosted('all');
-                              setSelectedWorkplaceTypes([]);
-                              setSelectedExperienceLevels([]);
-                              setSelectedJobTypes([]);
-                              setSelectedCompanies([]);
-                              setSelectedSalaryRange('all');
-                              setEasyApplyOnly(false);
-                              setSearchQuery('');
-                              setLocationQuery('');
-                            }}
-                            className="text-red-500 hover:text-red-700 ml-1 hover:underline cursor-pointer transition-colors uppercase tracking-wider font-extrabold text-[9px]"
-                          >
-                            Clear all
-                          </button>
+                      <div className="p-3 bg-indigo-50/60 border border-indigo-100 rounded-2xl flex items-center justify-between cursor-pointer">
+                        <div className="flex items-center gap-2.5">
+                          <Sparkles className="w-4 h-4 text-[#4f46e5]" />
+                          <div>
+                            <p className="text-[11px] font-black text-gray-900">Improve your score</p>
+                            <p className="text-[9px] font-bold text-gray-500">8 suggestions available</p>
+                          </div>
                         </div>
-                      )}
+                        <ChevronRight className="w-4 h-4 text-[#4f46e5]" />
+                      </div>
+                    </div>
 
-                      {/* Header Results Summary and Sorting */}
-                      <div className="flex items-center justify-between border-t border-gray-100 pt-3">
-                        <span className="text-[11px] text-gray-400 font-bold uppercase tracking-wide">
-                          Found {filteredJobs.length} matches
-                        </span>
-                        
-                        <div className="flex items-center gap-1.5 text-[11px] font-bold text-gray-600">
-                          <span className="text-gray-400 uppercase tracking-wide">Sort by:</span>
-                          <select 
-                            value={sortBy}
-                            onChange={(e) => setSortBy(e.target.value)}
-                            className="bg-transparent border-none text-[11px] font-black text-[#4f46e5] py-0 pl-1 pr-6 focus:ring-0 focus:outline-none cursor-pointer"
-                          >
-                            <option value="recent">Most Recent</option>
-                            <option value="relevant">Most Relevant</option>
-                          </select>
+                    {/* Widget 2: AI Recommendations */}
+                    <div className="bg-white p-5 rounded-3xl border border-gray-150 shadow-xs space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-xs font-black text-gray-900 uppercase tracking-wider font-display">AI Recommendations</h3>
+                        <span className="text-[10px] font-extrabold text-[#4f46e5] cursor-pointer">View all</span>
+                      </div>
+
+                      <div className="space-y-3">
+                        {[
+                          { title: 'DevOps Engineer', company: 'IBM', location: 'Remote', match: 96 },
+                          { title: 'Full Stack Developer', company: 'Zoho', location: 'Chennai', match: 93 },
+                          { title: 'Software Engineer II', company: 'Swiggy', location: 'Bengaluru', match: 90 }
+                        ].map((rec, idx) => (
+                          <div key={idx} className="flex items-center justify-between p-2.5 hover:bg-gray-50 rounded-2xl transition-colors cursor-pointer border border-transparent hover:border-gray-100">
+                            <div className="flex items-center gap-3">
+                              <div className="w-9 h-9 bg-[#4f46e5]/10 rounded-xl flex items-center justify-center font-black text-xs text-[#4f46e5]">
+                                {rec.company[0]}
+                              </div>
+                              <div>
+                                <p className="text-xs font-black text-gray-900">{rec.title}</p>
+                                <p className="text-[10px] text-gray-400 font-bold">{rec.company} • {rec.location}</p>
+                              </div>
+                            </div>
+                            <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-full">
+                              {rec.match}% Match
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Widget 3: Market Insights */}
+                    <div className="bg-white p-5 rounded-3xl border border-gray-150 shadow-xs space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-xs font-black text-gray-900 uppercase tracking-wider font-display">Market Insights</h3>
+                        <span className="text-[10px] font-extrabold text-[#4f46e5] cursor-pointer">View all</span>
+                      </div>
+
+                      <div className="space-y-2">
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Avg. Salary (Your Role)</p>
+                        <div className="flex items-baseline justify-between">
+                          <span className="text-2xl font-black text-gray-900 font-display">₹18.7 LPA</span>
+                          <span className="text-[10px] font-black text-emerald-600">↑ 12% vs last year</span>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2 pt-2 border-t border-gray-100">
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Top Skills in Demand</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {['React.js', 'Node.js', 'TypeScript', 'AWS', 'SQL'].map(skill => (
+                            <span key={skill} className="px-2.5 py-1 bg-gray-50 border border-gray-200 rounded-xl text-[10px] font-black text-gray-700">
+                              {skill}
+                            </span>
+                          ))}
                         </div>
                       </div>
                     </div>
                   </div>
-
-                  {/* Job Search Core Grid - Full-Width Balanced 2-Column Grid */}
-                  <div className="flex-1 pb-6">
-                    {filteredJobs.length === 0 ? (
-                      <div className="bg-white rounded-3xl p-12 border border-gray-100 shadow-premium text-center space-y-3 max-w-md mx-auto my-8">
-                        <AlertCircle className="w-10 h-10 text-amber-500 mx-auto" />
-                        <h4 className="text-md font-bold font-display text-gray-900">No postings match filters</h4>
-                        <p className="text-xs text-gray-400 font-semibold leading-relaxed">
-                          Try modifying search keywords or resetting filters to check other opportunities.
-                        </p>
-                        <button 
-                          onClick={() => {
-                            setSearchQuery('');
-                            setLocationQuery('');
-                            setSelectedDatePosted('all');
-                            setSelectedWorkplaceTypes([]);
-                            setSelectedExperienceLevels([]);
-                            setSelectedJobTypes([]);
-                            setSelectedCompanies([]);
-                            setSelectedSalaryRange('all');
-                            setEasyApplyOnly(false);
-                            setSelectedCategory('All');
-                            setSortBy('recent');
-                          }}
-                          className="px-5 py-2.5 bg-[#4f46e5] text-white text-xs font-bold rounded-xl hover:bg-[#3f37c9] transition-all cursor-pointer shadow-sm"
-                        >
-                          Reset filters
-                        </button>
-                      </div>
-                    ) : isLoadingFilters ? (
-                      // Skeleton Cards Grid (2-column)
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {Array.from({ length: 6 }).map((_, index) => (
-                          <div key={index} className="p-5 rounded-3xl border border-gray-100 bg-white space-y-4 animate-pulse">
-                            <div className="flex items-start gap-4">
-                              <div className="w-11 h-11 bg-gray-200 rounded-2xl shrink-0"></div>
-                              <div className="flex-1 space-y-2">
-                                <div className="h-4 bg-gray-200 rounded-md w-3/4"></div>
-                                <div className="h-3 bg-gray-200 rounded-md w-1/2"></div>
-                              </div>
-                            </div>
-                            <div className="flex gap-2">
-                              <div className="h-5 bg-gray-200 rounded-lg w-16"></div>
-                              <div className="h-5 bg-gray-200 rounded-lg w-16"></div>
-                              <div className="h-5 bg-gray-200 rounded-lg w-16"></div>
-                            </div>
-                            <div className="pt-3 border-t border-gray-50 flex items-center justify-between">
-                              <div className="h-5 bg-gray-200 rounded-full w-24"></div>
-                              <div className="h-3 bg-gray-200 rounded-md w-12"></div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      // 2-Column Responsive Grid of Jobs (Fills both left line & right line completely!)
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4.5">
-                        {filteredJobs.map((job) => {
-                          const isSaved = savedJobIds.includes(job.id);
-                          const isApplied = applications.some(app => app.jobId === job.id);
-
-                          return (
-                            <div
-                              key={job.id}
-                              onClick={() => {
-                                setSelectedJob(job);
-                                setSelectedJobDetailModal(job);
-                              }}
-                              className="p-5 rounded-3xl border border-gray-150 bg-white hover:border-[#4f46e5]/40 hover:shadow-lg transition-all cursor-pointer space-y-4 flex flex-col justify-between group relative overflow-hidden"
-                              id={`job-item-${job.id}`}
-                            >
-                              {/* Top row: Logo, Title, Bookmark */}
-                              <div className="space-y-3">
-                                <div className="flex items-start justify-between gap-3">
-                                  <div className="flex items-center gap-3.5 min-w-0">
-                                    <div className="w-11 h-11 bg-gray-50 border border-gray-100 rounded-2xl flex items-center justify-center overflow-hidden shrink-0 shadow-inner">
-                                      <img 
-                                        alt={job.company} 
-                                        className="w-7 h-7 object-contain" 
-                                        src={job.logoUrl} 
-                                        onError={(e) => {
-                                          (e.target as HTMLImageElement).src = 'https://img.icons8.com/color/48/000000/briefcase.png';
-                                        }}
-                                      />
-                                    </div>
-                                    <div className="min-w-0 flex-1">
-                                      <h3 className="text-sm font-extrabold text-gray-900 truncate group-hover:text-[#4f46e5] transition-colors">{job.title}</h3>
-                                      <p className="text-xs font-semibold text-gray-400 truncate">{job.company} • {job.location}</p>
-                                    </div>
-                                  </div>
-
-                                  <button
-                                    onClick={(e) => handleToggleBookmark(job.id, e)}
-                                    className={`p-1.5 rounded-xl border transition-all cursor-pointer ${
-                                      isSaved 
-                                        ? 'bg-[#4f46e5]/5 border-[#4f46e5]/20 text-[#4f46e5]' 
-                                        : 'bg-white border-gray-150 hover:border-gray-200 text-gray-400'
-                                    }`}
-                                  >
-                                    <Bookmark className="w-4 h-4 fill-current stroke-[2.2]" />
-                                  </button>
-                                </div>
-
-                                {/* Job Specs Badges */}
-                                <div className="flex flex-wrap gap-1.5 text-[9px] font-bold text-gray-500 uppercase tracking-wide">
-                                  <span className={`px-2 py-1 border rounded-lg font-black ${getPlatformInfo(job).badgeBg}`}>
-                                    via {getPlatformInfo(job).name}
-                                  </span>
-                                  <span className="px-2 py-1 bg-gray-50 border border-gray-150 rounded-lg">{job.workType}</span>
-                                  <span className="px-2 py-1 bg-gray-50 border border-gray-150 rounded-lg">{job.jobType}</span>
-                                  <span className="px-2 py-1 bg-gray-50 border border-gray-150 rounded-lg">{job.experienceRequired}</span>
-                                  <span className="px-2 py-1 bg-indigo-50/60 text-[#4f46e5] border border-indigo-100 rounded-lg font-extrabold">{job.salaryRange}</span>
-                                </div>
-                              </div>
-
-                              {/* Bottom Row: AI Match & Action Button */}
-                              <div className="pt-3 border-t border-gray-100 flex items-center justify-between gap-2">
-                                {job.aiMatchPercent ? (
-                                  <div className="inline-flex items-center gap-1 bg-[#4f46e5]/5 border border-[#4f46e5]/10 text-[#4f46e5] text-[10px] font-extrabold px-2.5 py-1 rounded-full">
-                                    <Sparkles className="w-3.5 h-3.5" />
-                                    <span>{job.aiMatchPercent}% Match</span>
-                                  </div>
-                                ) : (
-                                  <span className="text-[10px] font-bold text-gray-400 flex items-center gap-1">
-                                    <Clock className="w-3 h-3" /> {job.postedTime}
-                                  </span>
-                                )}
-
-                                <div className="flex items-center gap-2">
-                                  {isApplied ? (
-                                    <span className="px-3 py-1.5 bg-green-50 text-green-700 border border-green-200 rounded-xl text-[10px] font-bold flex items-center gap-1">
-                                      <Check className="w-3 h-3 stroke-[3]" /> Applied
-                                    </span>
-                                  ) : (
-                                    <button className="px-3.5 py-1.5 bg-gray-900 group-hover:bg-[#4f46e5] text-white text-xs font-extrabold rounded-xl transition-all shadow-xs flex items-center gap-1">
-                                      View Details <ChevronRight className="w-3.5 h-3.5 opacity-80" />
-                                    </button>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
                 </div>
-              )}
+              </div>
+            )}
 
             {/* Lazy Loaded Secondary Tab Modules with Suspense Fallback */}
             <Suspense fallback={
