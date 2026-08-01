@@ -130,8 +130,9 @@ export function getPlatformInfo(job: Job) {
 }
 
 export default function App() {
-  const [activeScreen, setActiveScreen] = useState<ActiveScreen>('Landing');
+  const [activeScreen, setActiveScreen] = useState<ActiveScreen>('Dashboard');
   const [activeDashboardTab, setActiveDashboardTab] = useState<'FindJobs' | 'Salaries' | 'AIReview' | 'Applications' | 'Saved' | 'Resume' | 'AutoApply'>('FindJobs');
+  const [activeFilterCategory, setActiveFilterCategory] = useState<string>('Recommended');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   
   // User Authentication States
@@ -931,6 +932,9 @@ export default function App() {
 
   // Compute final filtered & sorted jobs list
   const filteredJobs = jobs.filter((job) => {
+    if (activeFilterCategory === 'Saved Jobs' && !savedJobIds.includes(job.id)) return false;
+    if (activeFilterCategory === 'Applied Jobs' && !applications.some(app => app.jobId === job.id)) return false;
+
     const matchesCategory = selectedCategory === 'All' || job.category === selectedCategory;
     if (!matchesCategory) return false;
 
