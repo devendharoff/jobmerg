@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { 
   Sparkles, Search, MapPin, SlidersHorizontal, BookOpen, Bookmark, 
   Briefcase, Award, ArrowRight, Check, CheckCircle2, DollarSign, 
@@ -11,13 +11,15 @@ import {
 } from './types';
 import { INITIAL_JOBS, INITIAL_SALARY_INSIGHTS, DEFAULT_USER } from './data';
 import LandingPage from './components/LandingPage';
-import SalaryInsights from './components/SalaryInsights';
-import ApplicationTracker from './components/ApplicationTracker';
-import AIResumeReview from './components/AIResumeReview';
-import ResumeBuilder from './components/ResumeBuilder';
-import AutoApplyBot from './components/AutoApplyBot';
 import { supabase, getSupabaseClient } from './supabaseClient';
 import { useUser, useAuth, SignIn as ClerkSignIn, SignUp as ClerkSignUp } from '@clerk/clerk-react';
+
+// High-concurrency bundle optimization: Lazy load heavy secondary tab components
+const SalaryInsights = lazy(() => import('./components/SalaryInsights'));
+const ApplicationTracker = lazy(() => import('./components/ApplicationTracker'));
+const AIResumeReview = lazy(() => import('./components/AIResumeReview'));
+const ResumeBuilder = lazy(() => import('./components/ResumeBuilder'));
+const AutoApplyBot = lazy(() => import('./components/AutoApplyBot'));
 
 export function getPlatformInfo(job: Job) {
   const url = (job.applyUrl || '').toLowerCase();
@@ -243,10 +245,26 @@ export default function App() {
     }
   }, [isSignedIn, user, isLoaded, supabaseClient]);
 
-  // Fetch jobs from Supabase on mount
+  // Fetch jobs from Supabase on mount (with high-concurrency client caching)
   useEffect(() => {
     async function fetchJobs() {
       try {
+        // High Concurrency Optimization: Check 60-second in-memory cache to protect database connection pool
+        const cachedStr = sessionStorage.getItem('jobmerge_cached_jobs_v2');
+        const cachedTime = sessionStorage.getItem('jobmerge_cached_jobs_time_v2');
+        const now = Date.now();
+
+        if (cachedStr && cachedTime && (now - parseInt(cachedTime, 10) < 60000)) {
+          try {
+            const cachedJobs: Job[] = JSON.parse(cachedStr);
+            if (cachedJobs && cachedJobs.length > 0) {
+              setJobs(cachedJobs);
+              setSelectedJob(cachedJobs[0]);
+              return;
+            }
+          } catch (e) {}
+        }
+
         const { data, error } = await supabaseClient
           .from('job_posts')
           .select('*')
@@ -279,6 +297,11 @@ export default function App() {
 
           setJobs(mappedJobs);
           setSelectedJob(mappedJobs[0]);
+
+          try {
+            sessionStorage.setItem('jobmerge_cached_jobs_v2', JSON.stringify(mappedJobs));
+            sessionStorage.setItem('jobmerge_cached_jobs_time_v2', now.toString());
+          } catch (e) {}
         }
       } catch (err) {
         console.error("Error fetching jobs from Supabase:", err);
@@ -1758,49 +1781,57 @@ export default function App() {
                 </div>
               )}
 
-            {/* Salaries Analysis View */}
-            {activeDashboardTab === 'Salaries' && (
-              <div className="flex-1 lg:overflow-y-auto pb-6">
-                <SalaryInsights 
-                  insights={INITIAL_SALARY_INSIGHTS} 
-                  userProfile={userProfile} 
-                  onUpdateUserProfile={handleUpdateProfile} 
-                  onViewJob={handleViewJob}
-                  availableJobs={jobs}
-                />
+            {/* Lazy Loaded Secondary Tab Modules with Suspense Fallback */}
+            <Suspense fallback={
+              <div className="bg-white rounded-3xl p-12 border border-gray-150 shadow-sm flex flex-col items-center justify-center text-center space-y-4 min-h-[400px]">
+                <div className="w-10 h-10 border-4 border-[#4f46e5]/20 border-t-[#4f46e5] rounded-full animate-spin"></div>
+                <p className="text-xs font-extrabold text-gray-500 uppercase tracking-wider">Loading Module...</p>
               </div>
-            )}
+            }>
+              {/* Salaries Analysis View */}
+              {activeDashboardTab === 'Salaries' && (
+                <div className="flex-1 lg:overflow-y-auto pb-6">
+                  <SalaryInsights 
+                    insights={INITIAL_SALARY_INSIGHTS} 
+                    userProfile={userProfile} 
+                    onUpdateUserProfile={handleUpdateProfile} 
+                    onViewJob={handleViewJob}
+                    availableJobs={jobs}
+                  />
+                </div>
+              )}
 
-            {/* AI Resume Reviewer View */}
-            {activeDashboardTab === 'AIReview' && (
-              <div className="flex-1 lg:overflow-y-auto pb-6">
-                <AIResumeReview 
-                  userProfile={userProfile} 
-                  availableJobs={jobs} 
-                  onUpdateUserProfile={handleUpdateProfile} 
-                  onUpdateJobMatches={handleUpdateJobMatches}
+              {/* AI Resume Reviewer View */}
+              {activeDashboardTab === 'AIReview' && (
+                <div className="flex-1 lg:overflow-y-auto pb-6">
+                  <AIResumeReview 
+                    userProfile={userProfile} 
+                    availableJobs={jobs} 
+                    onUpdateUserProfile={handleUpdateProfile} 
+                    onUpdateJobMatches={handleUpdateJobMatches}
+                  />
+                </div>
+              )}
+
+              {/* Resume Builder View */}
+              {activeDashboardTab === 'Resume' && (
+                <ResumeBuilder userProfile={userProfile} />
+              )}
+
+              {/* LinkedIn Auto-Applier Bot View */}
+              {activeDashboardTab === 'AutoApply' && (
+                <AutoApplyBot
+                  userProfile={userProfile}
+                  onSyncApplications={(newApps) => {
+                    setApplications(prev => {
+                      const existingIds = new Set(prev.map(a => a.id));
+                      const filteredNew = newApps.filter(a => !existingIds.has(a.id));
+                      return [...filteredNew, ...prev];
+                    });
+                  }}
                 />
-              </div>
-            )}
-
-            {/* Resume Builder View */}
-            {activeDashboardTab === 'Resume' && (
-              <ResumeBuilder userProfile={userProfile} />
-            )}
-
-            {/* LinkedIn Auto-Applier Bot View */}
-            {activeDashboardTab === 'AutoApply' && (
-              <AutoApplyBot
-                userProfile={userProfile}
-                onSyncApplications={(newApps) => {
-                  setApplications(prev => {
-                    const existingIds = new Set(prev.map(a => a.id));
-                    const filteredNew = newApps.filter(a => !existingIds.has(a.id));
-                    return [...filteredNew, ...prev];
-                  });
-                }}
-              />
-            )}
+              )}
+            </Suspense>
 
 
 

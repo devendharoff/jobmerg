@@ -8,6 +8,9 @@ import { exec } from "child_process";
 import { promisify } from "util";
 import { fileURLToPath } from "url";
 
+import compression from "compression";
+import rateLimit from "express-rate-limit";
+
 const execAsync = promisify(exec);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -16,6 +19,25 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3001;
+
+// Enable HTTP response compression (gzip/brotli) for high throughput (1000+ active users)
+app.use(compression({
+  filter: (req, res) => {
+    if (req.headers['x-no-compression']) return false;
+    return compression.filter(req, res);
+  },
+  threshold: 512
+}));
+
+// High-concurrency Rate Limiter: Allows 300 requests per 15-minute window per IP
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 300,
+  message: { error: "Too many requests from this IP, please try again later." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use("/api/", apiLimiter);
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
@@ -801,6 +823,201 @@ Years of experience: ${experienceYears || "Not specified"}`;
   }
 });
 
+// Server-Sent Events (SSE) clients list
+let sseClients: any[] = [];
+
+app.get("/api/user/subscription-status", (req, res) => {
+  const authHeader = req.headers.authorization;
+  let tier = "Premium";
+  let allowedPortals = ["LinkedIn", "Indeed", "ZipRecruiter"];
+  let dailyLimit = 200;
+
+  if (authHeader && authHeader.includes("basic_token")) {
+    tier = "Basic";
+    allowedPortals = ["LinkedIn"];
+    dailyLimit = 15;
+  } else if (authHeader && authHeader.includes("standard_token")) {
+    tier = "Standard";
+    allowedPortals = ["LinkedIn", "Indeed"];
+    dailyLimit = 50;
+  }
+
+  return res.json({
+    subscribed: tier !== "Basic",
+    tier,
+    allowedPortals,
+    dailyLimit,
+    remaining: dailyLimit
+  });
+});
+
+app.get("/api/user/profile", (req, res) => {
+  try {
+    const personalsPath = path.join(process.cwd(), 'Auto_job_applier_linkedIn-main', 'config', 'personals.py');
+    const questionsPath = path.join(process.cwd(), 'Auto_job_applier_linkedIn-main', 'config', 'questions.py');
+    
+    let firstName = "Applicant";
+    let lastName = "Candidate";
+    let phone = "9876543210";
+    let city = "San Francisco, CA";
+    
+    let expYears = "3";
+    let salary = "120000";
+    let requireVisa = "No";
+    let website = "";
+    let linkedIn = "";
+    let usCitizenship = "U.S. Citizen/Permanent Resident";
+    let currentCtc = "";
+    let noticePeriod = "30";
+    let headline = "";
+    let summary = "";
+    let coverLetter = "";
+
+    if (fs.existsSync(personalsPath)) {
+      const content = fs.readFileSync(personalsPath, 'utf8');
+      const fNameMatch = content.match(/first_name\s*=\s*"(.*?)"/);
+      const lNameMatch = content.match(/last_name\s*=\s*"(.*?)"/);
+      const phoneMatch = content.match(/phone_number\s*=\s*"(.*?)"/);
+      const cityMatch = content.match(/current_city\s*=\s*"(.*?)"/);
+      
+      if (fNameMatch) firstName = fNameMatch[1];
+      if (lNameMatch) lastName = lNameMatch[1];
+      if (phoneMatch) phone = phoneMatch[1];
+      if (cityMatch) city = cityMatch[1];
+    }
+
+    if (fs.existsSync(questionsPath)) {
+      const content = fs.readFileSync(questionsPath, 'utf8');
+      const expMatch = content.match(/years_of_experience\s*=\s*"(.*?)"/);
+      const salaryMatch = content.match(/desired_salary\s*=\s*(\d+)/);
+      const visaMatch = content.match(/require_visa\s*=\s*"(.*?)"/);
+      const webMatch = content.match(/website\s*=\s*"(.*?)"/);
+      const liMatch = content.match(/linkedIn\s*=\s*"(.*?)"/);
+      const citizenMatch = content.match(/us_citizenship\s*=\s*"(.*?)"/);
+      const ctcMatch = content.match(/current_ctc\s*=\s*(\d+)/);
+      const noticeMatch = content.match(/notice_period\s*=\s*(\d+)/);
+      
+      const headlineMatch = content.match(/linkedin_headline\s*=\s*"(.*?)"/);
+      const summaryMatch = content.match(/linkedin_summary\s*=\s*"""([\s\S]*?)"""/);
+      const coverMatch = content.match(/cover_letter\s*=\s*"""([\s\S]*?)"""/);
+
+      if (expMatch) expYears = expMatch[1];
+      if (salaryMatch) salary = salaryMatch[1];
+      if (visaMatch) requireVisa = visaMatch[1];
+      if (webMatch) website = webMatch[1];
+      if (liMatch) linkedIn = liMatch[1];
+      if (citizenMatch) usCitizenship = citizenMatch[1];
+      if (ctcMatch) currentCtc = ctcMatch[1];
+      if (noticeMatch) noticePeriod = noticeMatch[1];
+      if (headlineMatch) headline = headlineMatch[1];
+      if (summaryMatch) summary = summaryMatch[1].trim();
+      if (coverMatch) coverLetter = coverMatch[1].trim();
+    }
+
+    return res.json({
+      firstName,
+      lastName,
+      phone,
+      city,
+      experienceYears: expYears,
+      desiredSalary: salary,
+      requireVisa,
+      website,
+      linkedIn,
+      usCitizenship,
+      currentCtc,
+      noticePeriod,
+      headline,
+      summary,
+      coverLetter
+    });
+  } catch (error) {
+    console.error("Failed to read user profile:", error);
+    return res.status(500).json({ error: "Failed to read user profile." });
+  }
+});
+
+app.post("/api/auto-apply/solve", async (req, res) => {
+  try {
+    const { question, options, userInfo } = req.body;
+    if (!question) {
+      return res.status(400).json({ error: "Question text is required." });
+    }
+
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      console.warn("GEMINI_API_KEY is not configured. Falling back to default empty response.");
+      return res.json({ answer: "" });
+    }
+
+    let userContext = JSON.stringify(userInfo || {});
+    const pythonPersonalsPath = path.join(process.cwd(), 'Auto_job_applier_linkedIn-main', 'config', 'personals.py');
+    if (!userInfo && fs.existsSync(pythonPersonalsPath)) {
+      userContext = fs.readFileSync(pythonPersonalsPath, 'utf8');
+    }
+
+    const promptText = `
+    You are an AI assistant helping a job candidate apply to a job. Your task is to answer a single question from the job application form based on the candidate's profile context.
+    
+    Candidate Context:
+    ${userContext}
+    
+    Question to Answer:
+    "${question}"
+    
+    ${options && options.length > 0 ? `Available Options (Select the best matching option from this list only): [${options.join(", ")}]` : ""}
+    
+    Instructions:
+    - Respond with ONLY the direct answer.
+    - Do not write any explanations, greetings, or sentences.
+    - If the question asks for years of experience and you are unsure, default to "3".
+    - If it's a Yes/No question and you are unsure, default to "Yes" or the option that represents authorized/eligible to work.
+    - If it asks for desired salary, default to "120000".
+    `;
+
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: promptText }] }]
+      })
+    });
+
+    const data: any = await response.json();
+    const answer = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "";
+    
+    console.log(`[AI Solver] Question: "${question}" -> Answer: "${answer}"`);
+    return res.json({ answer });
+  } catch (error: any) {
+    console.error("AI Solver failed:", error);
+    return res.status(500).json({ error: "AI solver failed" });
+  }
+});
+
+app.get("/api/auto-apply/live-stream", (req, res) => {
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.flushHeaders();
+
+  sseClients.push(res);
+
+  req.on("close", () => {
+    sseClients = sseClients.filter(c => c !== res);
+  });
+});
+
+app.post("/api/auto-apply/sync", (req, res) => {
+  const { status, log, applied, failed } = req.body;
+
+  const payload = JSON.stringify({ status, log, applied, failed, timestamp: Date.now() });
+  sseClients.forEach(client => {
+    client.write(`data: ${payload}\n\n`);
+  });
+
+  return res.json({ success: true });
+});
+
 // Setup development server or static asset serving in production
 async function startServer() {
   if (process.env.NODE_ENV !== "production") {
@@ -811,7 +1028,18 @@ async function startServer() {
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), 'dist');
-    app.use(express.static(distPath));
+    app.use(express.static(distPath, {
+      maxAge: '1y',
+      etag: true,
+      lastModified: true,
+      setHeaders: (res, filePath) => {
+        if (filePath.endsWith('.html')) {
+          res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');
+        } else {
+          res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+        }
+      }
+    }));
     app.get('*', (req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
     });
