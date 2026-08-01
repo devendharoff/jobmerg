@@ -24,13 +24,13 @@ version:    26.01.20.5.08
 default_resume_path = "all resumes/default/resume.pdf"      # (In Development)
 
 # What do you want to answer for questions that ask about years of experience you have, this is different from current_experience? 
-years_of_experience = "0"          # A number in quotes Eg: "0","1","2","3","4", etc.
+years_of_experience = "1"          # A number in quotes Eg: "0","1","2","3","4", etc.
 
 # Do you need visa sponsorship now or in future?
 require_visa = "No"               # "Yes" or "No"
 
 # What is the link to your portfolio website, leave it empty as "", if you want to leave this question unanswered
-website = "https://www.linkedin.com/in/avasarama-niku-577a07397/"                        # "www.example.bio" or "" and so on....
+website = "https://github.com/avasaramaniku"                        # "www.example.bio" or "" and so on....
 
 # Please provide the link to your LinkedIn profile.
 linkedIn = "https://www.linkedin.com/in/example"       # "https://www.linkedin.com/in/example" or "" and so on...

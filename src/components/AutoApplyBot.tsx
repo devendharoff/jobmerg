@@ -321,6 +321,40 @@ export default function AutoApplyBot({ userProfile, onSyncApplications }: AutoAp
     return () => clearInterval(interval);
   }, []);
 
+  // Listen to live stream updates via Server-Sent Events (SSE)
+  useEffect(() => {
+    const eventSource = new EventSource('/api/auto-apply/live-stream');
+
+    eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        setIsBotRunning(data.status === 'Applying' || data.status === 'Active');
+        
+        if (data.log) {
+          setBotLogs(prev => {
+            if (prev.includes(data.log)) return prev;
+            const updated = [...prev, data.log];
+            return updated.slice(-500);
+          });
+        }
+        
+        if (data.applied !== undefined || data.failed !== undefined) {
+          setStats(prev => ({
+            applied: data.applied !== undefined ? data.applied : prev.applied,
+            failed: data.failed !== undefined ? data.failed : prev.failed,
+            skipped: prev.skipped
+          }));
+        }
+      } catch (err) {
+        console.error('Error parsing live stream event:', err);
+      }
+    };
+
+    return () => {
+      eventSource.close();
+    };
+  }, []);
+
   // Fetch applied history on mount
   useEffect(() => {
     fetchHistory();
@@ -351,6 +385,16 @@ export default function AutoApplyBot({ userProfile, onSyncApplications }: AutoAp
 
   const handleStartBot = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Dispatch custom event to notify local Chrome Extension to start automation
+    window.dispatchEvent(new CustomEvent('JOBMERGE_START_BOT', {
+      detail: {
+        keyword: searchTerms || 'Software Engineer',
+        location: searchLocation || 'United States',
+        limit: totalApplicationsLimit
+      }
+    }));
+
     try {
       const termsArray = searchTerms.split(',').map(t => t.trim()).filter(Boolean);
       const res = await fetch('/api/auto-apply/start', {
@@ -392,6 +436,9 @@ export default function AutoApplyBot({ userProfile, onSyncApplications }: AutoAp
   };
 
   const handleStopBot = async () => {
+    // Dispatch custom event to notify local Chrome Extension to stop automation
+    window.dispatchEvent(new CustomEvent('JOBMERGE_STOP_BOT'));
+
     try {
       const res = await fetch('/api/auto-apply/stop', { method: 'POST' });
       const data = await res.json();
@@ -425,6 +472,14 @@ export default function AutoApplyBot({ userProfile, onSyncApplications }: AutoAp
 
   return (
     <div className="space-y-8 animate-fade-in text-left relative pb-12">
+      
+      {/* Silent Sync Authentication Element for Chrome Extension */}
+      <div 
+        id="jobmerge-sync-auth" 
+        data-token="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.dummy_premium_token" 
+        data-api-url={typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3001'}
+        style={{ display: 'none' }} 
+      />
       
       {/* Dynamic Floating Toast Feedback */}
       {toastNotice && (

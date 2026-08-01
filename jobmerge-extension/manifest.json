@@ -1,0 +1,62 @@
+{
+  "manifest_version": 3,
+  "name": "JobMerge LinkedIn Auto-Applier",
+  "version": "1.0.0",
+  "description": "Natively automate LinkedIn Easy Apply applications and sync directly to your JobMerge dashboard.",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage"
+  ],
+  "host_permissions": [
+    "https://*.linkedin.com/*",
+    "https://*.indeed.com/*",
+    "https://*.ziprecruiter.com/*",
+    "http://localhost:3001/*",
+    "http://127.0.0.1:3001/*",
+    "https://*.vercel.app/*",
+    "https://*.jobmerge.com/*"
+  ],
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "http://localhost:3001/*",
+        "http://127.0.0.1:3001/*",
+        "https://*.loca.lt/*",
+        "https://*.vercel.app/*",
+        "https://*.jobmerge.com/*"
+      ],
+      "js": ["dashboard-sync.js"],
+      "run_at": "document_end"
+    },
+    {
+      "matches": [
+        "https://*.linkedin.com/jobs/*",
+        "https://*.linkedin.com/jobs/search/*"
+      ],
+      "js": ["linkedin-crawler.js"],
+      "run_at": "document_end"
+    },
+    {
+      "matches": [
+        "https://*.indeed.com/*"
+      ],
+      "js": ["indeed-crawler.js"],
+      "run_at": "document_end",
+      "all_frames": true
+    },
+    {
+      "matches": [
+        "https://*.ziprecruiter.com/*"
+      ],
+      "js": ["ziprecruiter-crawler.js"],
+      "run_at": "document_end"
+    }
+  ]
+}

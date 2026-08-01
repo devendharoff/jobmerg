@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body {
+      width: 320px;
+      margin: 0;
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background: #fafbfe;
+      color: #1e293b;
+    }
+    .card {
+      padding: 16px;
+    }
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #f1f5f9;
+      padding-bottom: 12px;
+      margin-bottom: 16px;
+    }
+    .logo {
+      font-size: 16px;
+      font-weight: 800;
+      color: #3f37c9;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .status-badge {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 9999px;
+      background: #f1f5f9;
+      color: #64748b;
+    }
+    .status-badge.active {
+      background: #ecfdf5;
+      color: #059669;
+    }
+    .form-group {
+      margin-bottom: 12px;
+    }
+    label {
+      display: block;
+      font-size: 10px;
+      font-weight: 700;
+      color: #475569;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+    select, input {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 8px 12px;
+      font-size: 12px;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      background: #f8fafc;
+      color: #0f172a;
+      outline: none;
+    }
+    select:focus, input:focus {
+      border-color: #3f37c9;
+    }
+    .stats-grid {
+      display: grid;
+      grid-template-cols: 1fr 1fr;
+      gap: 12px;
+      margin-top: 16px;
+      margin-bottom: 16px;
+    }
+    .stat-box {
+      background: #f8fafc;
+      border: 1px solid #f1f5f9;
+      border-radius: 12px;
+      padding: 10px;
+      text-align: center;
+    }
+    .stat-val {
+      font-size: 20px;
+      font-weight: 900;
+      color: #0f172a;
+    }
+    .stat-label {
+      font-size: 9px;
+      color: #64748b;
+      font-weight: 600;
+    }
+    .btn {
+      display: block;
+      width: 100%;
+      padding: 10px;
+      font-size: 12px;
+      font-weight: 700;
+      text-align: center;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-primary {
+      background: #3f37c9;
+      color: white;
+    }
+    .btn-primary:hover {
+      background: #4895ef;
+    }
+    .btn-secondary {
+      background: #f1f5f9;
+      color: #475569;
+      margin-top: 8px;
+    }
+    .checkbox-group {
+      margin-bottom: 12px;
+      text-align: left;
+    }
+    .checkbox-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      font-weight: 500;
+      color: #334155;
+      text-transform: none;
+      margin-bottom: 4px;
+      margin-right: 12px;
+      cursor: pointer;
+    }
+    .checkbox-label input {
+      width: auto;
+      margin: 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="header">
+      <div class="logo">🚀 JobMerge</div>
+      <div style="display: flex; gap: 4px;">
+        <div id="tierBadge" style="background: #e2e8f0; color: #475569;" class="status-badge">Free</div>
+        <div id="statusBadge" class="status-badge">Idle</div>
+      </div>
+    </div>
+    
+    <div class="form-group">
+      <label>Extension API Key</label>
+      <input type="password" id="tokenInput" placeholder="Paste dashboard API key">
+    </div>
+    <div class="form-group">
+      <label>Target Job Portal</label>
+      <select id="portalSelect">
+        <option value="LinkedIn">LinkedIn (Basic Plan)</option>
+        <option value="Indeed" id="optIndeed" disabled>Indeed (Standard Plan - Locked)</option>
+        <option value="ZipRecruiter" id="optZipRecruiter" disabled>ZipRecruiter (Premium Plan - Locked)</option>
+      </select>
+    </div>
+    
+    <div class="form-group">
+      <label>Gemini AI API Key</label>
+      <input type="password" id="geminiApiKeyInput" value="" placeholder="Paste your Gemini API Key">
+    </div>
+    
+    <div class="form-group">
+      <label>Search Keyword</label>
+      <input type="text" id="keywordInput" value="Software Engineer" placeholder="e.g. Frontend Developer">
+    </div>
+
+    <div class="form-group">
+      <label>Location</label>
+      <input type="text" id="locationInput" value="United States" placeholder="e.g. San Francisco, CA">
+    </div>
+
+    <div class="form-group">
+      <label>Date Posted</label>
+      <select id="datePostedSelect">
+        <option value="any">Any Time</option>
+        <option value="month">Past Month</option>
+        <option value="week" selected>Past Week</option>
+        <option value="day">Past 24 Hours</option>
+      </select>
+    </div>
+
+    <div class="checkbox-group">
+      <label>Work Style</label>
+      <label class="checkbox-label"><input type="checkbox" id="workstyleOnSite" checked> On-site</label>
+      <label class="checkbox-label"><input type="checkbox" id="workstyleHybrid" checked> Hybrid</label>
+      <label class="checkbox-label"><input type="checkbox" id="workstyleRemote" checked> Remote</label>
+    </div>
+
+    <div class="checkbox-group">
+      <label>Job Type</label>
+      <label class="checkbox-label"><input type="checkbox" id="jobtypeFullTime" checked> Full-time</label>
+      <label class="checkbox-label"><input type="checkbox" id="jobtypePartTime"> Part-time</label>
+      <label class="checkbox-label"><input type="checkbox" id="jobtypeContract"> Contract</label>
+      <label class="checkbox-label"><input type="checkbox" id="jobtypeInternship"> Internship</label>
+    </div>
+
+    <div class="form-group">
+      <label>Resume File Name</label>
+      <input type="text" id="resumeInput" value="resume.pdf" placeholder="e.g. my_resume.pdf">
+    </div>
+
+    <div class="form-group">
+      <label>Application Limit</label>
+      <select id="limitSelect">
+        <option value="10">Apply to 10 jobs strictly</option>
+        <option value="15">Apply to 15 jobs strictly</option>
+        <option value="30" selected>Apply to 30 jobs strictly</option>
+        <option value="50">Apply to 50 jobs strictly</option>
+      </select>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-box">
+        <div class="stat-val" id="appliedCount">0</div>
+        <div class="stat-label">Applied</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-val" id="failedCount">0</div>
+        <div class="stat-label">Skipped/Failed</div>
+      </div>
+    </div>
+
+    <button id="startBtn" class="btn btn-primary">Start Auto-Applying</button>
+    <button id="stopBtn" class="btn btn-secondary" style="display:none;">Stop Bot</button>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>
