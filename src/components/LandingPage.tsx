@@ -95,10 +95,16 @@ export default function LandingPage({ onNavigate, onSearch, jobs = [], onSelectJ
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
           {/* Left Content */}
           <div className="lg:col-span-6 space-y-7 animate-fade-in">
-            {/* Sun Badge */}
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-[#4f46e5]/5 text-[#4f46e5] rounded-full border border-[#4f46e5]/10">
-              <Sun className="w-4 h-4 text-amber-500 animate-spin-slow" />
-              <span className="text-[11px] font-extrabold tracking-wide uppercase">One Search. Every Opportunity.</span>
+            {/* Sun & Security Badge */}
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-[#4f46e5]/5 text-[#4f46e5] rounded-full border border-[#4f46e5]/10">
+                <Sun className="w-4 h-4 text-amber-500 animate-spin-slow" />
+                <span className="text-[11px] font-extrabold tracking-wide uppercase">One Search. Every Opportunity.</span>
+              </div>
+              <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-50 text-emerald-700 rounded-full border border-emerald-200">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                <span className="text-[11px] font-extrabold tracking-wide uppercase">256-Bit SSL & OAuth 2.0 Safe Redirects</span>
+              </div>
             </div>
 
             <div className="space-y-4">
@@ -208,28 +214,48 @@ export default function LandingPage({ onNavigate, onSearch, jobs = [], onSelectJ
                 {/* LinkedIn */}
                 <div className="flex flex-col items-center gap-1.5">
                   <div className="w-14 h-14 bg-white border border-gray-200 hover:border-[#353df6]/30 rounded-2xl flex items-center justify-center shadow-sm hover:shadow-md transition-all cursor-pointer">
-                    <img alt="LinkedIn" className="w-8 h-8 object-contain" src="top_logos (1)/logos/job_websites/linkedin.png" />
+                    <img 
+                      alt="LinkedIn" 
+                      className="w-8 h-8 object-contain" 
+                      src="/assets/logos/job_websites/linkedin.png" 
+                      onError={(e) => { (e.target as HTMLImageElement).src = 'https://cdn.simpleicons.org/linkedin/0A66C2'; }}
+                    />
                   </div>
                   <span className="text-[10px] font-extrabold text-gray-500">LinkedIn</span>
                 </div>
                 {/* Indeed */}
                 <div className="flex flex-col items-center gap-1.5">
                   <div className="w-14 h-14 bg-white border border-gray-200 hover:border-[#353df6]/30 rounded-2xl flex items-center justify-center shadow-sm hover:shadow-md transition-all cursor-pointer">
-                    <img alt="Indeed" className="w-8 h-8 object-contain" src="https://cdn.simpleicons.org/indeed/003A9B" />
+                    <img 
+                      alt="Indeed" 
+                      className="w-8 h-8 object-contain" 
+                      src="/assets/logos/job_websites/indeed.png" 
+                      onError={(e) => { (e.target as HTMLImageElement).src = 'https://cdn.simpleicons.org/indeed/003A9B'; }}
+                    />
                   </div>
                   <span className="text-[10px] font-extrabold text-gray-500">Indeed</span>
                 </div>
                 {/* Glassdoor */}
                 <div className="flex flex-col items-center gap-1.5">
                   <div className="w-14 h-14 bg-white border border-gray-200 hover:border-[#353df6]/30 rounded-2xl flex items-center justify-center shadow-sm hover:shadow-md transition-all cursor-pointer">
-                    <img alt="Glassdoor" className="w-8 h-8 object-contain" src="https://cdn.simpleicons.org/glassdoor/0CAA41" />
+                    <img 
+                      alt="Glassdoor" 
+                      className="w-8 h-8 object-contain" 
+                      src="/assets/logos/job_websites/glassdoor.png" 
+                      onError={(e) => { (e.target as HTMLImageElement).src = 'https://cdn.simpleicons.org/glassdoor/0CAA41'; }}
+                    />
                   </div>
                   <span className="text-[10px] font-extrabold text-gray-500">Glassdoor</span>
                 </div>
                 {/* ZipRecruiter */}
                 <div className="flex flex-col items-center gap-1.5">
                   <div className="w-14 h-14 bg-white border border-gray-200 hover:border-[#353df6]/30 rounded-2xl flex items-center justify-center shadow-sm hover:shadow-md transition-all cursor-pointer">
-                    <img alt="ZipRecruiter" className="w-8 h-8 object-contain" src="top_logos (1)/logos/job_websites/ziprecruiter.png" />
+                    <img 
+                      alt="ZipRecruiter" 
+                      className="w-8 h-8 object-contain" 
+                      src="/assets/logos/job_websites/ziprecruiter.png" 
+                      onError={(e) => { (e.target as HTMLImageElement).src = 'https://www.google.com/s2/favicons?sz=128&domain=ziprecruiter.com'; }}
+                    />
                   </div>
                   <span className="text-[10px] font-extrabold text-gray-500">ZipRecruiter</span>
                 </div>

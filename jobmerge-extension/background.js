@@ -1,29 +1,32 @@
-// background.js
+// background.js - Chrome Extension Service Worker
 
 let isBotRunning = false;
 let appliedCount = 0;
 let failedCount = 0;
-let botLimit = 30;
+let botLimit = 15;
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === 'START_BOT') {
     isBotRunning = true;
     appliedCount = 0;
     failedCount = 0;
-    botLimit = message.limit || 30;
+    botLimit = message.limit || 15;
     
-    // Save state
+    // Save state across sessions
     chrome.storage.local.set({ 
       isApplying: true,
-      applied: 0,
-      failed: 0
+      appliedCount: 0,
+      failedCount: 0,
+      jobIndex: 0,
+      visitedJobIds: [],
+      appLimit: botLimit
     });
 
-    // Find active tab and direct to search URL
+    // Find active tab and direct to target search URL
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       const activeTab = tabs[0];
-      const keywordEncoded = encodeURIComponent(message.keyword);
-      const locationEncoded = message.location ? encodeURIComponent(message.location) : '';
+      const keywordEncoded = encodeURIComponent(message.keyword || 'Software Engineer');
+      const locationEncoded = message.location ? encodeURIComponent(message.location) : 'United%20States';
       let targetUrl = '';
 
       if (message.portal === 'Indeed') {
@@ -31,36 +34,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       } else if (message.portal === 'ZipRecruiter') {
         targetUrl = `https://www.ziprecruiter.com/jobs?search=${keywordEncoded}&location=${locationEncoded}`;
       } else {
-        // LinkedIn (Default)
-        targetUrl = `https://www.linkedin.com/jobs/search/?keywords=${keywordEncoded}&location=${locationEncoded ? locationEncoded : 'United%20States'}&f_AL=true`;
-        
-        // Time Posted
-        if (message.datePosted === 'day') targetUrl += '&f_TPR=r86400';
-        else if (message.datePosted === 'week') targetUrl += '&f_TPR=r604800';
-        else if (message.datePosted === 'month') targetUrl += '&f_TPR=r2592000';
-        
-        // Work Styles (On-site/Remote/Hybrid)
-        const wt = [];
-        if (message.workStyles) {
-          if (message.workStyles.onSite) wt.push('1');
-          if (message.workStyles.remote) wt.push('2');
-          if (message.workStyles.hybrid) wt.push('3');
-        }
-        if (wt.length > 0) {
-          targetUrl += `&f_WT=${wt.join('%2C')}`;
-        }
-
-        // Job Types (Full-time/Contract/etc.)
-        const jt = [];
-        if (message.jobTypes) {
-          if (message.jobTypes.fullTime) jt.push('F');
-          if (message.jobTypes.partTime) jt.push('P');
-          if (message.jobTypes.contract) jt.push('C');
-          if (message.jobTypes.internship) jt.push('I');
-        }
-        if (jt.length > 0) {
-          targetUrl += `&f_JT=${jt.join('%2C')}`;
-        }
+        // LinkedIn (Default with Easy Apply Filter f_AL=true)
+        targetUrl = `https://www.linkedin.com/jobs/search/?keywords=${keywordEncoded}&location=${locationEncoded}&f_AL=true`;
       }
       
       if (activeTab && activeTab.url && (activeTab.url.includes('linkedin.com') || activeTab.url.includes('indeed.com') || activeTab.url.includes('ziprecruiter.com'))) {
@@ -86,8 +61,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   else if (message.action === 'JOB_APPLIED') {
-    appliedCount++;
-    chrome.storage.local.set({ applied: appliedCount }, () => {
+    appliedCount = message.appliedCount || (appliedCount + 1);
+    chrome.storage.local.set({ appliedCount }, () => {
       chrome.runtime.sendMessage({ 
         action: 'UPDATE_STATS', 
         applied: appliedCount, 
@@ -96,14 +71,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       });
       
       if (appliedCount >= botLimit) {
+        chrome.storage.local.set({ isApplying: false });
         chrome.runtime.sendMessage({ action: 'STOP_BOT' });
       }
     });
   }
 
   else if (message.action === 'JOB_FAILED') {
-    failedCount++;
-    chrome.storage.local.set({ failed: failedCount }, () => {
+    failedCount = message.failedCount || (failedCount + 1);
+    chrome.storage.local.set({ failedCount }, () => {
       chrome.runtime.sendMessage({ 
         action: 'UPDATE_STATS', 
         applied: appliedCount, 

@@ -1007,16 +1007,38 @@ app.get("/api/auto-apply/live-stream", (req, res) => {
   });
 });
 
-app.post("/api/auto-apply/sync", (req, res) => {
-  const { status, log, applied, failed } = req.body;
+app.post("/api/auto-apply/sync", async (req, res) => {
+  const { status, log, applied, failed, targetLimit, jobTitle, company, platform } = req.body;
 
-  const payload = JSON.stringify({ status, log, applied, failed, timestamp: Date.now() });
+  // Broadcast to SSE clients for live web dashboard updates
+  const payload = JSON.stringify({ status, log, applied, failed, targetLimit, timestamp: Date.now() });
   sseClients.forEach(client => {
     client.write(`data: ${payload}\n\n`);
   });
 
+  // Save successful application directly to Supabase Database
+  if (log && log.includes('✅ Successfully applied') && supabase) {
+    try {
+      await supabase.from('job_applications').insert([{
+        job_id: `auto-${Date.now()}`,
+        job_title: jobTitle || 'Software Engineer',
+        company_name: company || 'Featured Company',
+        platform: platform || 'LinkedIn',
+        status: 'Applied',
+        applied_at: new Date().toISOString(),
+        notes: 'Auto-applied via JobMerge Unstoppable Chrome Extension'
+      }]);
+      console.log(`[Supabase DB Sync] Saved application: ${jobTitle} at ${company}`);
+    } catch (dbErr) {
+      console.warn('Supabase DB auto-apply sync error:', dbErr);
+    }
+  }
+
   return res.json({ success: true });
 });
+
+// Serve static public assets (logos, images) across all environments
+app.use('/assets', express.static(path.join(process.cwd(), 'public', 'assets')));
 
 // Setup development server or static asset serving in production
 async function startServer() {

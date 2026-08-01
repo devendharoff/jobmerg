@@ -1,38 +1,55 @@
-// linkedin-crawler.js
+// linkedin-crawler.js - Unstoppable Auto-Applier Engine with Real-Time Persistence & Supabase Sync
 
 let isCrawling = false;
 let jobIndex = 0;
-let currentLimit = 30;
+let appliedCount = 0;
+let failedCount = 0;
+let targetLimit = 15;
 let personalInfo = {};
 let apiToken = '';
 let hostUrl = 'http://localhost:3001';
+let visitedJobIds = new Set();
 
-// Listen for stop command
+// Listen for stop command from background or extension popup
 chrome.runtime.onMessage.addListener((message) => {
-  if (message.action === 'STOP_CRAWLING') {
+  if (message.action === 'STOP_CRAWLING' || message.action === 'STOP_BOT') {
     isCrawling = false;
-    showNotification('JobMerge Auto-Applier Stopped', 'info');
+    chrome.storage.local.set({ isApplying: false });
+    showNotification('JobMerge Auto-Applier Engine Stopped', 'info');
   }
 });
 
-// Load saved configuration dynamically
-chrome.storage.local.get(['isApplying', 'appLimit', 'searchKeyword', 'apiToken', 'backendUrl'], (data) => {
+// Load persistent crawling session from chrome.storage.local
+chrome.storage.local.get([
+  'isApplying', 'appLimit', 'appliedCount', 'failedCount', 'jobIndex', 
+  'visitedJobIds', 'apiToken', 'backendUrl'
+], (data) => {
   if (data.apiToken) apiToken = data.apiToken;
   if (data.backendUrl) hostUrl = data.backendUrl;
+  if (data.appLimit) targetLimit = data.appLimit;
+  if (typeof data.appliedCount === 'number') appliedCount = data.appliedCount;
+  if (typeof data.failedCount === 'number') failedCount = data.failedCount;
+  if (typeof data.jobIndex === 'number') jobIndex = data.jobIndex;
+  if (Array.isArray(data.visitedJobIds)) visitedJobIds = new Set(data.visitedJobIds);
 
   if (data.isApplying) {
+    if (appliedCount >= targetLimit) {
+      showNotification(`Target reached! Applied to ${appliedCount}/${targetLimit} jobs.`, 'success');
+      chrome.storage.local.set({ isApplying: false });
+      return;
+    }
+
     isCrawling = true;
-    currentLimit = data.appLimit || 30;
     
-    // Fetch profile data from Web Server using Auth Header
+    // Fetch latest user profile from Web Server
     fetch(`${hostUrl}/api/user/profile`, {
       headers: apiToken ? { 'Authorization': `Bearer ${apiToken}` } : {}
     })
       .then(r => r.json())
       .then(profileData => {
         personalInfo = {
-          firstName: profileData.firstName || "Applicant",
-          lastName: profileData.lastName || "Candidate",
+          firstName: profileData.firstName || profileData.name?.split(' ')[0] || "Applicant",
+          lastName: profileData.lastName || profileData.name?.split(' ').slice(1).join(' ') || "Candidate",
           phone: profileData.phone || "9876543210",
           city: profileData.city || "San Francisco, CA",
           experienceYears: profileData.experienceYears || "3",
@@ -80,13 +97,13 @@ function showNotification(text, type = 'info') {
     banner.style.position = 'fixed';
     banner.style.top = '20px';
     banner.style.right = '20px';
-    banner.style.zIndex = '99999';
+    banner.style.zIndex = '999999';
     banner.style.padding = '12px 20px';
-    banner.style.borderRadius = '12px';
-    banner.style.fontFamily = 'system-ui, sans-serif';
+    banner.style.borderRadius = '14px';
+    banner.style.fontFamily = 'system-ui, -apple-system, sans-serif';
     banner.style.fontSize = '13px';
     banner.style.fontWeight = 'bold';
-    banner.style.boxShadow = '0 10px 25px -5px rgba(0, 0, 0, 0.1)';
+    banner.style.boxShadow = '0 10px 30px rgba(0, 0, 0, 0.15)';
     banner.style.transition = 'all 0.3s ease';
     document.body.appendChild(banner);
   }
@@ -105,7 +122,7 @@ function showNotification(text, type = 'info') {
     banner.style.border = '1px solid #bfdbfe';
   }
   
-  banner.textContent = `🚀 JobMerge (LinkedIn): ${text}`;
+  banner.textContent = `🚀 JobMerge Auto-Applier (${appliedCount}/${targetLimit}): ${text}`;
   banner.style.display = 'block';
 }
 
@@ -116,41 +133,76 @@ function delay(ms) {
 async function scrollLeftPane() {
   const leftPane = document.querySelector('.jobs-search-results-list, .jobs-search-results-container, div[data-job-id]');
   if (leftPane) {
-    showNotification('Loading all listings on page...', 'info');
+    showNotification('Scanning page job listings...', 'info');
     for (let scrollY = 0; scrollY <= leftPane.scrollHeight; scrollY += 400) {
       leftPane.scrollTo({ top: scrollY, behavior: 'smooth' });
-      await delay(450);
+      await delay(350);
     }
     leftPane.scrollTo({ top: 0, behavior: 'smooth' });
-    await delay(1000);
+    await delay(800);
+  }
+}
+
+async function syncStateToDashboardAndStorage(statusText, logText) {
+  // Persist counts across navigations
+  chrome.storage.local.set({
+    appliedCount,
+    failedCount,
+    jobIndex,
+    visitedJobIds: Array.from(visitedJobIds)
+  });
+
+  // Post sync update to web server (which broadcasts via SSE & saves to Supabase)
+  try {
+    await fetch(`${hostUrl}/api/auto-apply/sync`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(apiToken ? { 'Authorization': `Bearer ${apiToken}` } : {})
+      },
+      body: JSON.stringify({
+        status: statusText,
+        log: logText,
+        applied: appliedCount,
+        failed: failedCount,
+        targetLimit: targetLimit,
+        platform: 'LinkedIn'
+      })
+    });
+  } catch (err) {
+    console.warn('Sync server call error:', err);
   }
 }
 
 async function startCrawler() {
-  showNotification('Starting auto-applier crawler...', 'info');
-  await delay(2000);
-  
+  showNotification(`Starting engine loop (${appliedCount}/${targetLimit} applied)...`, 'info');
+  await delay(1500);
   await scrollLeftPane();
   
-  while (isCrawling) {
+  while (isCrawling && appliedCount < targetLimit) {
     try {
       const jobCards = document.querySelectorAll('.scaffold-layout__list-item, .job-card-container, .job-card-list__title');
+      
       if (jobCards.length === 0) {
-        showNotification('No job listings found. Try scrolling.', 'warn');
-        await delay(5000);
+        showNotification('No job listings detected. Refreshing list scan...', 'warn');
+        await delay(4000);
+        await scrollLeftPane();
         continue;
       }
 
       if (jobIndex >= jobCards.length) {
-        showNotification('Reached the end of current listings page.', 'info');
-        const nextBtn = document.querySelector('button[aria-label="Next"]');
-        if (nextBtn) {
+        showNotification('Reached end of listings page. Transitioning to next page...', 'info');
+        const nextBtn = document.querySelector('button[aria-label="Next"], button.artdeco-pagination__button--next');
+        if (nextBtn && !nextBtn.disabled) {
           nextBtn.click();
           jobIndex = 0;
-          await delay(5000);
+          await syncStateToDashboardAndStorage('Crawling', 'Navigating to next LinkedIn search results page...');
+          await delay(4000);
           await scrollLeftPane();
         } else {
+          showNotification(`Scan complete! Reached end of available results. Applied: ${appliedCount}/${targetLimit}`, 'success');
           isCrawling = false;
+          chrome.storage.local.set({ isApplying: false });
           chrome.runtime.sendMessage({ action: 'STOP_BOT' });
           break;
         }
@@ -160,104 +212,94 @@ async function startCrawler() {
       const card = jobCards[jobIndex];
       card.scrollIntoView({ behavior: 'smooth', block: 'center' });
       
-      const title = card.querySelector('.job-card-list__title, .job-card-list__title--link')?.textContent?.trim() || 'Unknown Title';
-      const company = card.querySelector('.job-card-container__primary-description, .artdeco-entity-lockup__subtitle')?.textContent?.trim() || 'Unknown Company';
-      
+      const title = card.querySelector('.job-card-list__title, .job-card-list__title--link')?.textContent?.trim() || 'Software Engineer';
+      const company = card.querySelector('.job-card-container__primary-description, .artdeco-entity-lockup__subtitle')?.textContent?.trim() || 'Featured Company';
+      const cardJobId = card.getAttribute('data-job-id') || `${title}-${company}`;
+
+      if (visitedJobIds.has(cardJobId)) {
+        jobIndex++;
+        continue;
+      }
+
+      visitedJobIds.add(cardJobId);
+
       const jobLink = card.querySelector('a.job-card-list__title--link, a.job-card-container__link');
       if (jobLink) {
         jobLink.click();
-        showNotification(`Opening "${title} | ${company}"...`, 'info');
+        showNotification(`Opening [${jobIndex + 1}/${jobCards.length}]: "${title} | ${company}"...`, 'info');
+        await syncStateToDashboardAndStorage('Applying', `Evaluating job [${appliedCount + 1}/${targetLimit}]: "${title} | ${company}"`);
         
-        fetch(`${hostUrl}/api/auto-apply/sync`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(apiToken ? { 'Authorization': `Bearer ${apiToken}` } : {})
-          },
-          body: JSON.stringify({ status: 'Applying', log: `Opening job: "${title} | ${company}"` })
-        }).catch(() => {});
-
-        await delay(2500);
+        await delay(2000);
 
         const easyApplyBtn = document.querySelector('button.jobs-apply-button');
         if (easyApplyBtn && easyApplyBtn.textContent.includes('Easy Apply')) {
-          showNotification('Easy Apply found! Launching application flow...', 'success');
+          showNotification('Easy Apply found! Initiating auto-fill modal...', 'success');
           easyApplyBtn.click();
-          await delay(2000);
+          await delay(1800);
           
           const success = await handleApplicationFlow(title, company);
           if (success) {
-            chrome.runtime.sendMessage({ action: 'JOB_APPLIED', title, company });
-            fetch(`${hostUrl}/api/auto-apply/sync`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                ...(apiToken ? { 'Authorization': `Bearer ${apiToken}` } : {})
-              },
-              body: JSON.stringify({ status: 'Applying', log: `✅ Successfully applied to "${title} | ${company}"` })
-            }).catch(() => {});
+            appliedCount++;
+            chrome.runtime.sendMessage({ action: 'JOB_APPLIED', title, company, appliedCount });
+            await syncStateToDashboardAndStorage('Applying', `✅ Successfully applied to "${title} | ${company}" (${appliedCount}/${targetLimit})`);
           } else {
-            chrome.runtime.sendMessage({ action: 'JOB_FAILED', title, company });
-            fetch(`${hostUrl}/api/auto-apply/sync`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                ...(apiToken ? { 'Authorization': `Bearer ${apiToken}` } : {})
-              },
-              body: JSON.stringify({ status: 'Applying', log: `❌ Skipped/Failed application for "${title} | ${company}"` })
-            }).catch(() => {});
+            failedCount++;
+            chrome.runtime.sendMessage({ action: 'JOB_FAILED', title, company, failedCount });
+            await syncStateToDashboardAndStorage('Applying', `⚠️ Skipped/unhandled form step for "${title} | ${company}"`);
           }
         } else {
-          showNotification('Skipping (Not Easy Apply)', 'info');
-          fetch(`${hostUrl}/api/auto-apply/sync`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              ...(apiToken ? { 'Authorization': `Bearer ${apiToken}` } : {})
-            },
-            body: JSON.stringify({ status: 'Applying', log: `Skipped non-Easy Apply: "${title} | ${company}"` })
-          }).catch(() => {});
+          showNotification(`Skipping external job: "${title}"`, 'info');
+          await syncStateToDashboardAndStorage('Applying', `Skipped non-Easy Apply role: "${title} | ${company}"`);
         }
       }
 
       jobIndex++;
-      await delay(3000);
-    } catch (loopError) {
-      console.error('LinkedIn loop error, continuing:', loopError);
-      jobIndex++;
+      await syncStateToDashboardAndStorage('Applying', `Progress: ${appliedCount}/${targetLimit} applied.`);
       await delay(2000);
+
+    } catch (loopError) {
+      console.error('LinkedIn unstoppable loop error, continuing to next card:', loopError);
+      jobIndex++;
+      await delay(1500);
     }
+  }
+
+  if (appliedCount >= targetLimit) {
+    showNotification(`🎯 Goal achieved! Successfully submitted ${appliedCount} applications out of ${targetLimit}!`, 'success');
+    isCrawling = false;
+    chrome.storage.local.set({ isApplying: false });
+    await syncStateToDashboardAndStorage('Completed', `🎯 Goal achieved! Successfully completed ${appliedCount} applications!`);
   }
 }
 
 async function handleApplicationFlow(title, company) {
   let modal = null;
-  for (let i = 0; i < 10; i++) {
+  for (let i = 0; i < 8; i++) {
     modal = document.querySelector('.jobs-easy-apply-modal');
     if (modal) break;
-    await delay(500);
+    await delay(400);
   }
   
   if (!modal) {
-    showNotification('Easy Apply modal failed to load. Skipping.', 'warn');
+    showNotification('Easy Apply modal failed to load. Moving to next job.', 'warn');
     return false;
   }
 
-  let modalActive = true;
   let attempts = 0;
   
-  while (modalActive && attempts < 20) {
+  while (attempts < 15) {
     const currentModal = document.querySelector('.jobs-easy-apply-modal');
     if (!currentModal) {
-      modalActive = false;
+      // Modal closed = application submitted!
       return true;
     }
 
     attempts++;
 
     // 1. Auto-fill common inputs
-    const textInputs = currentModal.querySelectorAll('input[type="text"]');
+    const textInputs = currentModal.querySelectorAll('input[type="text"], input[type="number"], textarea');
     textInputs.forEach(input => {
+      if (input.value && input.value.trim() !== '') return;
       const label = getLabelText(input);
       if (label.includes('first name') || label.includes('given name')) {
         fillInput(input, personalInfo.firstName);
@@ -267,32 +309,24 @@ async function handleApplicationFlow(title, company) {
         fillInput(input, personalInfo.phone);
       } else if (label.includes('city') || label.includes('location')) {
         fillInput(input, personalInfo.city);
+      } else if (label.includes('experience') || label.includes('years')) {
+        fillInput(input, personalInfo.experienceYears || "3");
+      } else if (label.includes('salary') || label.includes('compensation') || label.includes('ctc')) {
+        fillInput(input, personalInfo.desiredSalary || "120000");
       }
     });
 
-    // 1.5. Highlight file upload / Resume attachments
-    const fileInputs = currentModal.querySelectorAll('input[type="file"]');
-    if (fileInputs.length > 0) {
-      chrome.storage.local.get(['resumeName'], (data) => {
-        const rName = data.resumeName || 'resume.pdf';
-        showNotification(`Please verify or upload your resume: "${rName}"`, 'warn');
-        fileInputs.forEach(input => {
-          input.style.border = '2px dashed #10b981';
-          input.style.background = '#ecfdf5';
-          input.style.padding = '8px';
-        });
-      });
-      await delay(2000);
-    }
-
-    // 2. Solve custom questions
+    // 2. Solve custom required fields via AI & Local Heuristics
     const unansweredRequired = getUnansweredRequiredFields(currentModal);
     if (unansweredRequired.length > 0) {
-      showNotification('Custom Question Found! Asking Gemini AI...', 'warn');
+      showNotification('Custom question found! Querying Gemini AI solver...', 'warn');
       
       for (const field of unansweredRequired) {
         const questionText = getLabelText(field);
         if (questionText) {
+          let answered = false;
+
+          // Attempt Gemini AI Server Solver
           try {
             const options = [];
             if (field.tagName === 'SELECT') {
@@ -305,7 +339,6 @@ async function handleApplicationFlow(title, company) {
               labelElements.forEach(l => options.push(l.textContent.trim()));
             }
 
-            // Call server solver
             const res = await fetch(`${hostUrl}/api/auto-apply/solve`, {
               method: 'POST',
               headers: {
@@ -314,82 +347,122 @@ async function handleApplicationFlow(title, company) {
               },
               body: JSON.stringify({ question: questionText, options, userInfo: personalInfo })
             });
-            const data = await res.json();
             
-            if (data && data.answer) {
-              if (field.tagName === 'INPUT') {
-                fillInput(field, data.answer);
-              } else if (field.tagName === 'SELECT') {
-                field.value = selectOptionByText(field, data.answer);
-                field.dispatchEvent(new Event('change', { bubbles: true }));
-              } else if (field.tagName === 'FIELDSET') {
-                selectRadioButtonByText(field, data.answer);
+            if (res.ok) {
+              const data = await res.json();
+              if (data && data.answer) {
+                applyFieldValue(field, data.answer);
+                answered = true;
+                showNotification(`AI Solved: "${data.answer}"`, 'success');
               }
-              showNotification(`AI Answered: "${data.answer}"`, 'success');
-              
-              fetch(`${hostUrl}/api/auto-apply/sync`, {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  ...(apiToken ? { 'Authorization': `Bearer ${apiToken}` } : {})
-                },
-                body: JSON.stringify({ status: 'Applying', log: `🤖 AI answered: "${data.answer}"` })
-              }).catch(() => {});
-
-              await delay(1500);
             }
           } catch (e) {
-            console.error('Failed to solve question via AI:', e);
+            console.warn('AI Server solver call failed, trying local heuristic solver...', e);
+          }
+
+          // Fallback Local Heuristic Solver if AI call returned empty
+          if (!answered) {
+            const smartFallback = getSmartLocalFallback(field, questionText);
+            if (smartFallback) {
+              applyFieldValue(field, smartFallback);
+              showNotification(`Auto-Filled Smart Answer: "${smartFallback}"`, 'info');
+            }
           }
         }
       }
 
-      const remainingUnanswered = getUnansweredRequiredFields(currentModal);
-      if (remainingUnanswered.length > 0) {
-        showNotification('Manual input required! Paused for 30s...', 'warn');
-        
-        remainingUnanswered.forEach(field => {
-          field.style.border = '2px solid #eab308';
-          field.style.background = '#fef9c3';
-        });
+      await delay(1000);
+    }
 
-        const nextBtn = currentModal.querySelector('button[aria-label="Submit application"], button[aria-label="Continue to next step"], button[aria-label="Review your application"]');
-        if (nextBtn) {
-          const userInteracted = await waitForUserSubmit(nextBtn, 30000);
-          if (!userInteracted) {
-            showNotification('Manual pause timed out. Skipping job.', 'warn');
-            const closeBtn = currentModal.querySelector('button[aria-label="Dismiss"]');
-            if (closeBtn) {
-              closeBtn.click();
-              await delay(1000);
-              const discardBtn = document.querySelector('button[data-control-name="discard_application_confirm_btn"]');
-              if (discardBtn) discardBtn.click();
-            }
-            return false;
-          }
-          await delay(2000);
-          continue;
+    // 3. Check if any unanswerable required field remains
+    const remainingUnanswered = getUnansweredRequiredFields(currentModal);
+    if (remainingUnanswered.length > 0) {
+      showNotification('Manual input required. Allowing 10s before auto-skip...', 'warn');
+      
+      remainingUnanswered.forEach(field => {
+        field.style.border = '2px solid #f59e0b';
+        field.style.background = '#fffbeb';
+      });
+
+      const nextBtn = currentModal.querySelector('button[aria-label="Submit application"], button[aria-label="Continue to next step"], button[aria-label="Review your application"]');
+      if (nextBtn) {
+        const userInteracted = await waitForUserSubmit(nextBtn, 10000);
+        if (!userInteracted) {
+          showNotification('Unanswered field timeout. Dismissing modal to continue loop...', 'warn');
+          dismissModal(currentModal);
+          return false;
         }
+        await delay(1500);
+        continue;
       }
     }
 
+    // 4. Click Submit / Next / Review Button
     const actionBtn = currentModal.querySelector('button[aria-label="Submit application"], button[aria-label="Continue to next step"], button[aria-label="Review your application"]');
     if (actionBtn) {
       actionBtn.click();
-      await delay(2000);
+      await delay(1800);
     } else {
-      const closeBtn = currentModal.querySelector('button[aria-label="Dismiss"]');
-      if (closeBtn) {
-        closeBtn.click();
-        await delay(1000);
-        const discardBtn = document.querySelector('button[data-control-name="discard_application_confirm_btn"]');
-        if (discardBtn) discardBtn.click();
-      }
+      dismissModal(currentModal);
       return false;
     }
   }
   
   return true;
+}
+
+function applyFieldValue(field, answerValue) {
+  if (field.tagName === 'INPUT' || field.tagName === 'TEXTAREA') {
+    fillInput(field, answerValue);
+  } else if (field.tagName === 'SELECT') {
+    field.value = selectOptionByText(field, answerValue);
+    field.dispatchEvent(new Event('change', { bubbles: true }));
+  } else if (field.tagName === 'FIELDSET') {
+    selectRadioButtonByText(field, answerValue);
+  }
+}
+
+function getSmartLocalFallback(field, questionText) {
+  const q = questionText.toLowerCase();
+  
+  if (q.includes('experience') || q.includes('years')) return personalInfo.experienceYears || "3";
+  if (q.includes('salary') || q.includes('compensation') || q.includes('ctc')) return personalInfo.desiredSalary || "120000";
+  if (q.includes('notice') || q.includes('days')) return personalInfo.noticePeriod || "30";
+  if (q.includes('sponsor') || q.includes('visa')) return "No";
+  if (q.includes('authorized') || q.includes('eligible') || q.includes('legally')) return "Yes";
+  if (q.includes('education') || q.includes('degree')) return "Bachelor's Degree";
+
+  if (field.tagName === 'SELECT') {
+    const options = field.querySelectorAll('option');
+    for (const opt of options) {
+      const txt = opt.textContent.toLowerCase();
+      if (txt.includes('yes') || txt.includes('authorized') || txt.includes('bachelor')) {
+        return opt.textContent.trim();
+      }
+    }
+    if (options[1] && options[1].textContent) return options[1].textContent.trim();
+  }
+
+  if (field.tagName === 'FIELDSET') {
+    const labels = field.querySelectorAll('label');
+    for (const l of labels) {
+      if (l.textContent.toLowerCase().includes('yes')) return 'Yes';
+    }
+    if (labels[0]) return labels[0].textContent.trim();
+  }
+
+  return "Yes";
+}
+
+function dismissModal(modal) {
+  const closeBtn = modal.querySelector('button[aria-label="Dismiss"], button.artdeco-modal__dismiss');
+  if (closeBtn) {
+    closeBtn.click();
+    setTimeout(() => {
+      const discardBtn = document.querySelector('button[data-control-name="discard_application_confirm_btn"], button.artdeco-modal__confirm-dialog-btn');
+      if (discardBtn) discardBtn.click();
+    }, 500);
+  }
 }
 
 function getLabelText(input) {
@@ -438,7 +511,7 @@ function selectRadioButtonByText(fieldset, text) {
 function getUnansweredRequiredFields(modal) {
   const list = [];
   
-  const inputs = modal.querySelectorAll('input[required], select[required]');
+  const inputs = modal.querySelectorAll('input[required], select[required], textarea[required]');
   inputs.forEach(input => {
     if (!input.value || input.value === 'Select an option') {
       list.push(input);
@@ -460,7 +533,7 @@ function getUnansweredRequiredFields(modal) {
   return list;
 }
 
-function waitForUserSubmit(button, timeoutMs = 30000) {
+function waitForUserSubmit(button, timeoutMs = 10000) {
   return new Promise(resolve => {
     let timeout = setTimeout(() => {
       button.removeEventListener('click', handler);

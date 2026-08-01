@@ -3,7 +3,7 @@ import {
   Sparkles, Search, MapPin, SlidersHorizontal, BookOpen, Bookmark, 
   Briefcase, Award, ArrowRight, Check, CheckCircle2, DollarSign, 
   Compass, BarChart3, FileText, User, LogOut, ChevronRight, HelpCircle, 
-  X, AlertCircle, BookmarkCheck, Heart, UserCheck, ShieldCheck, Clock,
+  X, AlertCircle, BookmarkCheck, Heart, UserCheck, ShieldCheck, Clock, Lock,
   ChevronDown, ExternalLink, PanelLeftClose, PanelLeftOpen, Sidebar,
   Bell, Mic, TrendingUp, Zap, Target, LayoutDashboard, ChevronLeft,
   MoreHorizontal, MessageSquare, Video, Filter, Grid, List
@@ -13,6 +13,7 @@ import {
 } from './types';
 import { INITIAL_JOBS, INITIAL_SALARY_INSIGHTS, DEFAULT_USER } from './data';
 import LandingPage from './components/LandingPage';
+import ExternalRedirectModal from './components/ExternalRedirectModal';
 import { supabase, getSupabaseClient } from './supabaseClient';
 import { useUser, useAuth, SignIn as ClerkSignIn, SignUp as ClerkSignUp } from '@clerk/clerk-react';
 
@@ -173,6 +174,24 @@ export default function App() {
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [selectedJobDetailModal, setSelectedJobDetailModal] = useState<Job | null>(null);
 
+  // Security & Redirect Intent State
+  const [pendingRedirectJob, setPendingRedirectJob] = useState<Job | null>(null);
+  const [redirectIntentScreen, setRedirectIntentScreen] = useState<ActiveScreen | null>(null);
+  const [redirectIntentTab, setRedirectIntentTab] = useState<string | null>(null);
+
+  // Route Security Guard for Protected Navigations
+  const handleProtectedNavigate = (screen: ActiveScreen, tab?: string) => {
+    if (!isSignedIn) {
+      setRedirectIntentScreen(screen);
+      if (tab) setRedirectIntentTab(tab);
+      setActiveScreen('SignIn');
+      showToast("🔒 Security Shield: Please sign in to access " + screen);
+    } else {
+      setActiveScreen(screen);
+      if (tab) setActiveDashboardTab(tab);
+    }
+  };
+
   // Debounce search query and location query
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -309,8 +328,16 @@ export default function App() {
       
       syncProfile();
       setIsLoggedIn(true);
-      setActiveScreen('Dashboard');
-      setActiveDashboardTab('FindJobs');
+      if (redirectIntentScreen) {
+        setActiveScreen(redirectIntentScreen);
+        if (redirectIntentTab) setActiveDashboardTab(redirectIntentTab);
+        setRedirectIntentScreen(null);
+        setRedirectIntentTab(null);
+        showToast("🔒 Security Shield: Welcome back! Redirected to your destination.");
+      } else {
+        setActiveScreen('Dashboard');
+        setActiveDashboardTab('FindJobs');
+      }
     } else {
       setIsLoggedIn(false);
       setUserProfile(DEFAULT_USER);
@@ -567,10 +594,12 @@ export default function App() {
     }
   };
 
-  const handleApplyJob = async (job: Job) => {
+  const handleApplyJob = (job: Job) => {
     if (!isSignedIn) {
+      setRedirectIntentScreen('Dashboard');
+      setRedirectIntentTab('FindJobs');
       setActiveScreen('SignIn');
-      showToast("Please sign in to apply for jobs.");
+      showToast("🔒 Security Shield: Please sign in to apply for jobs.");
       return;
     }
     // Check if already applied
@@ -580,9 +609,16 @@ export default function App() {
       return;
     }
 
-    const applyUrl = job.applyUrl || `https://www.linkedin.com/jobs/search/?keywords=${encodeURIComponent(job.title + " " + job.company)}`;
-    
-    // open original job post portal in a new tab
+    // Open External Redirect Security Shield Modal
+    setPendingRedirectJob(job);
+  };
+
+  const handleConfirmExternalRedirect = async (applyUrl: string) => {
+    if (!pendingRedirectJob) return;
+    const job = pendingRedirectJob;
+    setPendingRedirectJob(null);
+
+    // Open external job post portal in a new secure tab with noopener,noreferrer
     window.open(applyUrl, '_blank', 'noopener,noreferrer');
 
     const newApp: JobApplication = {
@@ -593,7 +629,7 @@ export default function App() {
       logoUrl: job.logoUrl,
       appliedDate: 'Today',
       status: 'Applied',
-      notes: `Redirected to portal and logged on ${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}.`
+      notes: `Redirected securely to hiring portal on ${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}.`
     };
 
     setApplications([newApp, ...applications]);
@@ -605,7 +641,7 @@ export default function App() {
     else if (applyUrl.includes("microsoft.com")) platform = "Microsoft Careers";
     else if (applyUrl.includes("stripe.com")) platform = "Stripe Careers";
 
-    showToast(`Opening ${platform} & logging application in pipeline!`);
+    showToast(`Safely opened ${platform} & logged application in pipeline!`);
 
     try {
       await supabaseClient.from('applications').insert({
@@ -1098,6 +1134,27 @@ export default function App() {
       )}
 
       {activeScreen === 'Dashboard' && (
+        !isSignedIn ? (
+          <div className="flex-1 flex items-center justify-center min-h-[85vh] py-12 px-4 bg-[#f8f9fa] animate-fade-in">
+            <div className="max-w-md w-full p-8 bg-white rounded-3xl border border-gray-150 shadow-2xl text-center space-y-6">
+              <div className="w-14 h-14 bg-indigo-50 text-[#353df6] rounded-2xl flex items-center justify-center mx-auto shadow-sm border border-indigo-100">
+                <Lock className="w-7 h-7" />
+              </div>
+              <div className="space-y-2">
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-extrabold uppercase tracking-wider border border-emerald-200">
+                  <ShieldCheck className="w-3.5 h-3.5" /> 100% Security Guard Active
+                </div>
+                <h2 className="text-2xl font-black text-gray-900 font-display tracking-tight">Authentication Required</h2>
+                <p className="text-xs text-gray-500 font-semibold leading-relaxed">
+                  JobMerge Dashboard is protected. Please sign in to access live aggregated job listings, application tracking pipelines, and AI resume builder tools.
+                </p>
+              </div>
+              <div className="pt-2 flex justify-center">
+                <ClerkSignIn routing="hash" />
+              </div>
+            </div>
+          </div>
+        ) : (
         <div className="flex-1 flex flex-col lg:flex-row lg:h-screen lg:overflow-hidden bg-[#f8f9fa]">
           
           {/* Main Navigation Sidebar (Left Column - Collapsible Dock / Expanded Mode) */}
@@ -1932,7 +1989,8 @@ export default function App() {
             )}
           </main>
         </div>
-      )}
+      )
+    )}
 
       {/* All Filters Drawer/Modal rendering */}
       {isAllFiltersOpen && (
@@ -2408,6 +2466,13 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* External Link Safety & Redirect Shield Modal */}
+      <ExternalRedirectModal
+        job={pendingRedirectJob}
+        onClose={() => setPendingRedirectJob(null)}
+        onConfirmRedirect={handleConfirmExternalRedirect}
+      />
 
     </div>
   );
