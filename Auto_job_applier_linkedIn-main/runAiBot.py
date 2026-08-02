@@ -885,10 +885,86 @@ def submitted_jobs(job_id: str, title: str, company: str, work_location: str, wo
 
 
 
+# Function to dismiss post-application popups, upgrade plan prompts, and dismiss icons
+def dismiss_post_apply_popups(driver: WebDriver, actions: ActionChains) -> None:
+    '''
+    Dismisses post-application popups, upgrade plan modals, feedback dialogs, and promo banners.
+    Tries clicking 'Not now', 'No thanks', 'Dismiss', 'Skip', 'Done', or the Close ('X' / cross) icon button.
+    '''
+    buffer(1)
+    
+    # Try clicking 'Done' first if present
+    if wait_span_click(driver, "Done", 2):
+        print_lg("Clicked 'Done' button.")
+        buffer(1)
+
+    dismiss_texts = [
+        "Not now", "Not Now", "No thanks", "No Thanks", "No, thanks", 
+        "Maybe later", "Dismiss", "Skip", "Cancel", "No", "Got it", "Close", "No Thank You"
+    ]
+    
+    clicked = False
+    for text in dismiss_texts:
+        try:
+            elements = driver.find_elements(By.XPATH, f'//button[.//span[normalize-space(.)="{text}"]] | //span[normalize-space(.)="{text}"] | //button[normalize-space(.)="{text}"]')
+            for el in elements:
+                if el.is_displayed():
+                    try:
+                        driver.execute_script("arguments[0].click();", el)
+                        print_lg(f"Dismissed popup/upgrade prompt by clicking '{text}'")
+                        clicked = True
+                        buffer(1)
+                        break
+                    except Exception:
+                        pass
+            if clicked:
+                break
+        except Exception:
+            pass
+
+    # Search for 'X' / Close icon button (aria-label, class, or data attributes)
+    close_xpaths = [
+        '//button[@aria-label="Dismiss"]',
+        '//button[@aria-label="Close"]',
+        '//button[@aria-label="close"]',
+        '//button[contains(@class, "artdeco-modal__dismiss")]',
+        '//button[contains(@class, "artdeco-button--tertiary")]',
+        '//button[@data-test-icon="close-small"]',
+        '//button[@data-test-modal-close-btn]',
+        '//button[contains(@class, "modal__close")]',
+        '//button[contains(@class, "close-button")]',
+        '//*[local-name()="svg" and (@data-test-icon="close-small" or @data-test-icon="cancel-icon")]/ancestor::button[1]'
+    ]
+    for xpath in close_xpaths:
+        try:
+            btns = driver.find_elements(By.XPATH, xpath)
+            for btn in btns:
+                if btn.is_displayed():
+                    try:
+                        driver.execute_script("arguments[0].click();", btn)
+                        print_lg("Dismissed popup/upgrade prompt by clicking Close ('X') icon button.")
+                        clicked = True
+                        buffer(1)
+                        break
+                    except Exception:
+                        pass
+            if clicked:
+                break
+        except Exception:
+            pass
+
+    # Final safety fallback: Send ESCAPE keypress
+    try:
+        actions.send_keys(Keys.ESCAPE).perform()
+    except Exception:
+        pass
+
+
 # Function to discard the job application
 def discard_job() -> None:
     actions.send_keys(Keys.ESCAPE).perform()
-    wait_span_click(driver, 'Discard', 2)
+    if not wait_span_click(driver, 'Discard', 2):
+        dismiss_post_apply_popups(driver, actions)
 
 
 
@@ -1124,12 +1200,12 @@ def apply_to_jobs(search_terms: list[str]) -> None:
                                 if wait_span_click(driver, "Submit application", 2, scrollTop=True): 
                                     date_applied = datetime.now()
                                     save_live_screenshot(driver)
-                                    if not wait_span_click(driver, "Done", 2): actions.send_keys(Keys.ESCAPE).perform()
+                                    dismiss_post_apply_popups(driver, actions)
                                 elif errored != "stuck" and cur_pause_before_submit:
                                      print_lg("Review submitted state bypassed.")
                                      date_applied = datetime.now()
                                      save_live_screenshot(driver)
-                                     wait_span_click(driver, "Done", 2)
+                                     dismiss_post_apply_popups(driver, actions)
                                 else:
                                     print_lg("Since, Submit Application failed, discarding the job application...")
                                     # if screenshot_name == "Not Available":  screenshot_name = screenshot(driver, job_id, "Failed to click Submit application")
