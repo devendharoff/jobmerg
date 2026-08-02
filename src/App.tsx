@@ -6,7 +6,7 @@ import {
   X, AlertCircle, BookmarkCheck, Heart, UserCheck, ShieldCheck, Clock, Lock,
   ChevronDown, ExternalLink, PanelLeftClose, PanelLeftOpen, Sidebar,
   Bell, Mic, TrendingUp, Zap, Target, LayoutDashboard, ChevronLeft,
-  MoreHorizontal, MessageSquare, Video, Filter, Grid, List
+  MoreHorizontal, MessageSquare, Video, Filter, Grid, List, Menu
 } from 'lucide-react';
 import { 
   ActiveScreen, Job, UserProfile, JobApplication, SalaryInsight 
@@ -15,7 +15,7 @@ import { INITIAL_JOBS, INITIAL_SALARY_INSIGHTS, DEFAULT_USER } from './data';
 import LandingPage from './components/LandingPage';
 import ExternalRedirectModal from './components/ExternalRedirectModal';
 import { supabase, getSupabaseClient } from './supabaseClient';
-import { useUser, useAuth, SignIn as ClerkSignIn, SignUp as ClerkSignUp } from '@clerk/clerk-react';
+import { useUser, useAuth, SignIn as ClerkSignIn, SignUp as ClerkSignUp, SignInButton } from '@clerk/clerk-react';
 
 // High-concurrency bundle optimization: Lazy load heavy secondary tab components
 const SalaryInsights = lazy(() => import('./components/SalaryInsights'));
@@ -131,10 +131,39 @@ export function getPlatformInfo(job: Job) {
 }
 
 export default function App() {
-  const [activeScreen, setActiveScreen] = useState<ActiveScreen>('Dashboard');
+  const [activeScreen, setActiveScreen] = useState<ActiveScreen>('Landing');
   const [activeDashboardTab, setActiveDashboardTab] = useState<'FindJobs' | 'Salaries' | 'AIReview' | 'Applications' | 'Saved' | 'Resume' | 'AutoApply'>('FindJobs');
   const [activeFilterCategory, setActiveFilterCategory] = useState<string>('Recommended');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  
+  // Conversion Auth Modal State for Non-authenticated Visitors
+  const [showAuthModal, setShowAuthModal] = useState<boolean>(false);
+  const [authModalDetails, setAuthModalDetails] = useState<{ title: string; subtitle: string; targetJob?: Job | null }>({
+    title: "Continue with Google to Apply Instantly",
+    subtitle: "Create your free account to unlock 1-click quick apply, AI match scores, and automated applier tools."
+  });
+
+  const triggerAuthModal = (title: string, subtitle: string, targetJob?: Job | null) => {
+    setAuthModalDetails({ title, subtitle, targetJob: targetJob || null });
+    setShowAuthModal(true);
+  };
+
+  const handleTabSelect = (tab: 'FindJobs' | 'Salaries' | 'AIReview' | 'Applications' | 'Saved' | 'Resume' | 'AutoApply') => {
+    if (!isSignedIn && (tab === 'AIReview' || tab === 'Resume' || tab === 'AutoApply' || tab === 'Saved')) {
+      const titles: Record<string, string> = {
+        AIReview: "Continue with Google for ATS Score Checker",
+        Resume: "Continue with Google for AI Resume Builder",
+        AutoApply: "Continue with Google for Auto-Apply Bot",
+        Saved: "Continue with Google to Save Jobs"
+      };
+      triggerAuthModal(
+        titles[tab] || "Sign In to Access Feature",
+        "Create your free account to access AI tools and saved jobs."
+      );
+      return;
+    }
+    setActiveDashboardTab(tab);
+  };
   
   // User Authentication States
   const { isLoaded, isSignedIn, user } = useUser();
@@ -171,8 +200,18 @@ export default function App() {
   
   const [isLoadingFilters, setIsLoadingFilters] = useState<boolean>(false);
   const [isAllFiltersOpen, setIsAllFiltersOpen] = useState<boolean>(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [selectedJobDetailModal, setSelectedJobDetailModal] = useState<Job | null>(null);
+
+  // Pagination & Display Limit state to keep site ultra-fast & memory light
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [jobsPerPage, setJobsPerPage] = useState<number>(10);
+
+  // Reset page to 1 whenever any filter or search query changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearchQuery, debouncedLocationQuery, selectedCategory, selectedDatePosted, selectedWorkplaceTypes, selectedExperienceLevels, selectedJobTypes, selectedCompanies, selectedSalaryRange, easyApplyOnly, sortBy]);
 
   // Security & Redirect Intent State
   const [pendingRedirectJob, setPendingRedirectJob] = useState<Job | null>(null);
@@ -571,8 +610,10 @@ export default function App() {
   const handleToggleBookmark = async (jobId: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     if (!isSignedIn) {
-      setActiveScreen('SignIn');
-      showToast("Please sign in to save jobs.");
+      triggerAuthModal(
+        "Continue with Google to Save Jobs",
+        "Create your free account to bookmark jobs and track applications."
+      );
       return;
     }
     if (savedJobIds.includes(jobId)) {
@@ -596,10 +637,12 @@ export default function App() {
 
   const handleApplyJob = (job: Job) => {
     if (!isSignedIn) {
-      setRedirectIntentScreen('Dashboard');
-      setRedirectIntentTab('FindJobs');
-      setActiveScreen('SignIn');
-      showToast("🔒 Security Shield: Please sign in to apply for jobs.");
+      setPendingRedirectJob(job);
+      triggerAuthModal(
+        "Continue with Google to Apply Instantly",
+        `Apply for ${job.title} at ${job.company} with 1-click quick apply.`,
+        job
+      );
       return;
     }
     // Check if already applied
@@ -1107,6 +1150,7 @@ export default function App() {
           onNavigate={setActiveScreen} 
           onSearch={handleLandingSearch} 
           jobs={jobs} 
+          isSignedIn={isSignedIn}
           onSelectJob={(job) => {
             setSelectedJob(job);
             if (job.category) {
@@ -1155,13 +1199,107 @@ export default function App() {
             </div>
           </div>
         ) : (
-        <div className="flex-1 flex flex-col lg:flex-row lg:h-screen lg:overflow-hidden bg-[#f8f9fa]">
+        <div className="flex-1 flex flex-col lg:flex-row lg:h-screen lg:overflow-hidden bg-[#f8f9fa] relative">
           
-          {/* Main Navigation Sidebar (Left Column - Collapsible Dock / Expanded Mode) */}
-          <aside className={`bg-white border-r border-gray-150 flex flex-col justify-between shrink-0 lg:h-screen lg:fixed lg:top-0 lg:bottom-0 lg:left-0 select-none z-30 shadow-xs transition-all duration-300 ${
-            isSidebarCollapsed 
-              ? 'w-full lg:w-16 items-center py-5' 
-              : 'w-full lg:w-64 p-5'
+          {/* Mobile Sticky Top Header */}
+          <header className="lg:hidden sticky top-0 bg-white/95 backdrop-blur-md border-b border-gray-150 z-40 px-4 py-3 flex items-center justify-between shadow-xs">
+            <div className="flex items-center gap-2.5">
+              <button 
+                onClick={() => setActiveScreen('Landing')}
+                className="w-9 h-9 bg-[#4f46e5] rounded-xl flex items-center justify-center shadow-md shadow-[#4f46e5]/15 cursor-pointer"
+              >
+                <Sparkles className="text-white w-4.5 h-4.5" />
+              </button>
+              <span className="font-extrabold text-lg text-gray-900 tracking-tight font-display">JobMerge</span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <img 
+                alt={userProfile.name} 
+                className="w-8 h-8 rounded-full object-cover border border-gray-200"
+                src={userProfile.avatarUrl} 
+              />
+              <button 
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                className="p-2 rounded-xl border border-gray-200 text-gray-700 hover:bg-gray-50 active:scale-95 transition-all cursor-pointer"
+                aria-label="Toggle Navigation Menu"
+              >
+                {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+              </button>
+            </div>
+          </header>
+
+          {/* Mobile App-Style Bottom Navigation Bar */}
+          <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t border-gray-200 z-40 px-2 py-1.5 flex justify-around items-center shadow-lg">
+            <button
+              onClick={() => { setActiveDashboardTab('FindJobs'); setIsMobileMenuOpen(false); }}
+              className={`flex flex-col items-center justify-center py-1 px-2 rounded-xl transition-all cursor-pointer min-w-[56px] ${
+                activeDashboardTab === 'FindJobs' ? 'text-[#4f46e5] font-extrabold' : 'text-gray-400 hover:text-gray-700'
+              }`}
+            >
+              <Search className="w-5 h-5" />
+              <span className="text-[10px] font-bold mt-0.5">Jobs</span>
+            </button>
+
+            <button
+              onClick={() => { setActiveDashboardTab('AIReview'); setIsMobileMenuOpen(false); }}
+              className={`flex flex-col items-center justify-center py-1 px-2 rounded-xl transition-all cursor-pointer min-w-[56px] ${
+                activeDashboardTab === 'AIReview' ? 'text-[#4f46e5] font-extrabold' : 'text-gray-400 hover:text-gray-700'
+              }`}
+            >
+              <FileText className="w-5 h-5" />
+              <span className="text-[10px] font-bold mt-0.5">ATS Score</span>
+            </button>
+
+            <button
+              onClick={() => { setActiveDashboardTab('Resume'); setIsMobileMenuOpen(false); }}
+              className={`flex flex-col items-center justify-center py-1 px-2 rounded-xl transition-all cursor-pointer min-w-[56px] ${
+                activeDashboardTab === 'Resume' ? 'text-[#4f46e5] font-extrabold' : 'text-gray-400 hover:text-gray-700'
+              }`}
+            >
+              <BookOpen className="w-5 h-5" />
+              <span className="text-[10px] font-bold mt-0.5">Resume</span>
+            </button>
+
+            <button
+              onClick={() => { setActiveDashboardTab('Saved'); setIsMobileMenuOpen(false); }}
+              className={`flex flex-col items-center justify-center py-1 px-2 rounded-xl transition-all cursor-pointer min-w-[56px] relative ${
+                activeDashboardTab === 'Saved' ? 'text-[#4f46e5] font-extrabold' : 'text-gray-400 hover:text-gray-700'
+              }`}
+            >
+              <Bookmark className="w-5 h-5" />
+              <span className="text-[10px] font-bold mt-0.5">Saved</span>
+              {savedJobIds.length > 0 && (
+                <span className="absolute top-0 right-2 bg-[#4f46e5] text-white text-[8px] font-black w-3.5 h-3.5 rounded-full flex items-center justify-center">
+                  {savedJobIds.length}
+                </span>
+              )}
+            </button>
+
+            <button
+              onClick={() => { setActiveDashboardTab('AutoApply'); setIsMobileMenuOpen(false); }}
+              className={`flex flex-col items-center justify-center py-1 px-2 rounded-xl transition-all cursor-pointer min-w-[56px] ${
+                activeDashboardTab === 'AutoApply' ? 'text-[#4f46e5] font-extrabold' : 'text-gray-400 hover:text-gray-700'
+              }`}
+            >
+              <Sparkles className="w-5 h-5 text-[#4f46e5]" />
+              <span className="text-[10px] font-bold mt-0.5">Auto-Apply</span>
+            </button>
+          </nav>
+
+          {/* Mobile Drawer Backdrop */}
+          {isMobileMenuOpen && (
+            <div 
+              className="lg:hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-40 transition-opacity"
+              onClick={() => setIsMobileMenuOpen(false)}
+            />
+          )}
+
+          {/* Main Navigation Sidebar (Left Column - Mobile Drawer / Desktop Dock) */}
+          <aside className={`bg-white border-r border-gray-150 flex flex-col justify-between shrink-0 select-none shadow-xs transition-all duration-300 ${
+            isMobileMenuOpen 
+              ? 'fixed inset-y-0 left-0 z-50 w-72 p-5 animate-slide-in'
+              : 'hidden lg:flex lg:h-screen lg:fixed lg:top-0 lg:bottom-0 lg:left-0 z-30 ' + (isSidebarCollapsed ? 'lg:w-16 items-center py-5' : 'lg:w-64 p-5')
           }`}>
             {isSidebarCollapsed ? (
               /* COLLAPSED DOCK SIDEBAR MODE (Image 1 preference) */
@@ -1188,19 +1326,6 @@ export default function App() {
                       title="Dashboard"
                     >
                       <Compass className="w-5 h-5" />
-                    </button>
-
-                    <button
-                      onClick={() => setActiveDashboardTab('Applications')}
-                      className={`p-2.5 rounded-2xl transition-all cursor-pointer relative ${
-                        activeDashboardTab === 'Applications'
-                          ? 'bg-[#4f46e5]/10 text-[#4f46e5] shadow-xs'
-                          : 'text-gray-400 hover:text-gray-800 hover:bg-gray-50'
-                      }`}
-                      title="Applications"
-                    >
-                      <Briefcase className="w-5 h-5" />
-                      <span className="absolute -top-1 -right-1 bg-[#4f46e5] text-white text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center">12</span>
                     </button>
 
                     <button
@@ -1341,21 +1466,6 @@ export default function App() {
                     </button>
 
                     <button
-                      onClick={() => setActiveDashboardTab('Applications')}
-                      className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
-                        activeDashboardTab === 'Applications'
-                          ? 'bg-[#4f46e5]/10 text-[#4f46e5] font-extrabold'
-                          : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <Briefcase className="w-4 h-4" />
-                        <span>Applications</span>
-                      </div>
-                      <span className="px-2 py-0.5 bg-indigo-50 text-[#4f46e5] border border-indigo-100 rounded-full text-[10px] font-black">12</span>
-                    </button>
-
-                    <button
                       onClick={() => setActiveDashboardTab('Saved')}
                       className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
                         activeDashboardTab === 'Saved'
@@ -1432,14 +1542,6 @@ export default function App() {
                     <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-3 mb-2">Tools</p>
                     
                     <button
-                      onClick={() => setActiveDashboardTab('Applications')}
-                      className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-2xl text-xs font-bold text-gray-500 hover:text-gray-900 hover:bg-gray-50 transition-all cursor-pointer"
-                    >
-                      <Briefcase className="w-4 h-4" />
-                      <span>Job Tracker</span>
-                    </button>
-
-                    <button
                       onClick={() => setActiveDashboardTab('Salaries')}
                       className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-2xl text-xs font-bold text-gray-500 hover:text-gray-900 hover:bg-gray-50 transition-all cursor-pointer"
                     >
@@ -1496,12 +1598,12 @@ export default function App() {
           </aside>
 
           {/* Main Workspace Area */}
-          <main className={`flex-1 p-6 lg:p-8 max-w-[1600px] w-full flex flex-col space-y-6 transition-all duration-300 lg:overflow-y-auto ${
+          <main className={`flex-1 p-4 sm:p-6 lg:p-8 w-full max-w-full flex flex-col space-y-6 transition-all duration-300 lg:overflow-y-auto pb-24 lg:pb-8 ${
             isSidebarCollapsed ? 'lg:ml-16' : 'lg:ml-64'
           }`}>
             
             {/* Top Navigation Header Bar */}
-            <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-gray-150/60">
+            <header className="hidden lg:flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-gray-150/60">
               <div>
                 <h1 className="text-2xl font-black text-gray-900 tracking-tight font-display flex items-center gap-2">
                   <span>Good Evening, {userProfile.name.split(' ')[0]}</span> 👋
@@ -1509,9 +1611,9 @@ export default function App() {
                 <p className="text-xs font-bold text-gray-400 mt-0.5">Let's find the right opportunity for your next big move.</p>
               </div>
 
-              <div className="flex items-center gap-3 self-end md:self-auto">
+              <div className="flex items-center gap-3 self-end md:self-auto w-full md:w-auto justify-between md:justify-end">
                 {/* Search Bar */}
-                <div className="relative w-64 md:w-80 flex items-center bg-white border border-gray-200 rounded-full px-4 py-2 shadow-xs focus-within:border-[#4f46e5] transition-all">
+                <div className="relative w-full sm:w-64 md:w-80 flex items-center bg-white border border-gray-200 rounded-full px-4 py-2 shadow-xs focus-within:border-[#4f46e5] transition-all">
                   <Search className="w-4 h-4 text-gray-400 shrink-0" />
                   <input 
                     type="text" 
@@ -1545,65 +1647,6 @@ export default function App() {
             {activeDashboardTab === 'FindJobs' && (
               <div className="space-y-6 flex-1 flex flex-col">
                 
-                {/* 4 Analytics KPI Stat Cards Row */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <div className="bg-white p-4.5 rounded-3xl border border-gray-150 shadow-xs flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-indigo-50 text-[#4f46e5] border border-indigo-100 rounded-2xl flex items-center justify-center shrink-0">
-                        <Briefcase className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <h3 className="text-xl font-black text-gray-900 font-display leading-tight">{jobs.length}</h3>
-                        <p className="text-[11px] font-bold text-gray-400">Jobs Match</p>
-                        <span className="text-[10px] font-black text-emerald-600">+18 new today</span>
-                      </div>
-                    </div>
-                    <MiniSparkline color="#4f46e5" data={[12, 18, 15, 25, 22, 34]} />
-                  </div>
-
-                  <div className="bg-white p-4.5 rounded-3xl border border-gray-150 shadow-xs flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-2xl flex items-center justify-center shrink-0">
-                        <FileText className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <h3 className="text-xl font-black text-gray-900 font-display leading-tight">12</h3>
-                        <p className="text-[11px] font-bold text-gray-400">Applications</p>
-                        <span className="text-[10px] font-black text-emerald-600">+3 today</span>
-                      </div>
-                    </div>
-                    <MiniSparkline color="#10b981" data={[8, 10, 14, 12, 20, 28]} />
-                  </div>
-
-                  <div className="bg-white p-4.5 rounded-3xl border border-gray-150 shadow-xs flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-amber-50 text-amber-600 border border-amber-100 rounded-2xl flex items-center justify-center shrink-0">
-                        <Award className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <h3 className="text-xl font-black text-gray-900 font-display leading-tight">{userProfile.profileCompleteness}%</h3>
-                        <p className="text-[11px] font-bold text-gray-400">Resume Score</p>
-                        <span className="text-[10px] font-black text-emerald-600">Excellent</span>
-                      </div>
-                    </div>
-                    <MiniSparkline color="#f59e0b" data={[70, 75, 82, 85, 89, 91]} />
-                  </div>
-
-                  <div className="bg-white p-4.5 rounded-3xl border border-gray-150 shadow-xs flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-sky-50 text-sky-600 border border-sky-100 rounded-2xl flex items-center justify-center shrink-0">
-                        <Sparkles className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <h3 className="text-xl font-black text-gray-900 font-display leading-tight">8</h3>
-                        <p className="text-[11px] font-bold text-gray-400">AI Suggestions</p>
-                        <span className="text-[10px] font-black text-sky-600">High Match</span>
-                      </div>
-                    </div>
-                    <MiniSparkline color="#0284c7" data={[3, 5, 4, 7, 6, 8]} />
-                  </div>
-                </div>
-
                 {/* Royal Purple Hero Gradient Banner */}
                 <div className="relative bg-gradient-to-r from-[#4f46e5] via-[#4338ca] to-[#3730a3] rounded-3xl p-7 text-white overflow-hidden shadow-lg shadow-indigo-500/10 flex flex-col md:flex-row items-center justify-between gap-6">
                   <div className="space-y-2 relative z-10 max-w-xl text-center md:text-left">
@@ -1635,8 +1678,8 @@ export default function App() {
                 </div>
 
                 {/* Search and Filters Toolbar */}
-                <div className="bg-white rounded-3xl p-5 border border-gray-150 shadow-xs space-y-4">
-                  <div className="flex flex-col md:flex-row gap-3">
+                <div className="bg-white rounded-3xl p-4 sm:p-5 border border-gray-150 shadow-xs space-y-4">
+                  <div className="flex flex-col sm:flex-row gap-2.5">
                     <div className="flex-1 flex items-center gap-2.5 bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 focus-within:bg-white focus-within:border-[#4f46e5] focus-within:ring-2 focus-within:ring-[#4f46e5]/10 transition-all">
                       <Search className="w-4 h-4 text-gray-400 shrink-0" />
                       <input 
@@ -1649,22 +1692,24 @@ export default function App() {
                       <Mic className="w-4 h-4 text-gray-400 shrink-0 cursor-pointer" />
                     </div>
 
-                    <button className="px-6 py-2.5 bg-[#4f46e5] hover:bg-[#3f37c9] text-white text-xs font-extrabold rounded-2xl shadow-md transition-all cursor-pointer">
-                      Search
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button className="flex-1 sm:flex-none px-5 py-2.5 bg-[#4f46e5] hover:bg-[#3f37c9] text-white text-xs font-extrabold rounded-2xl shadow-md transition-all cursor-pointer">
+                        Search
+                      </button>
 
-                    <button 
-                      onClick={() => setIsAllFiltersOpen(!isAllFiltersOpen)}
-                      className="px-4 py-2.5 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 text-xs font-bold rounded-2xl flex items-center gap-2 cursor-pointer shadow-xs"
-                    >
-                      <SlidersHorizontal className="w-4 h-4" />
-                      <span>Advanced</span>
-                      <ChevronDown className="w-3.5 h-3.5 opacity-60" />
-                    </button>
+                      <button 
+                        onClick={() => setIsAllFiltersOpen(!isAllFiltersOpen)}
+                        className="px-4 py-2.5 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 text-xs font-bold rounded-2xl flex items-center gap-2 cursor-pointer shadow-xs shrink-0"
+                      >
+                        <SlidersHorizontal className="w-4 h-4" />
+                        <span>Advanced</span>
+                        <ChevronDown className="w-3.5 h-3.5 opacity-60" />
+                      </button>
+                    </div>
                   </div>
 
                   {/* Filter Tabs & Easy Apply */}
-                  <div className="flex flex-wrap gap-2 items-center justify-between text-xs font-bold pt-1 border-t border-gray-100">
+                  <div className="flex flex-col sm:flex-row gap-3 sm:items-center justify-between text-xs font-bold pt-1 border-t border-gray-100">
                     <div className="flex items-center gap-2">
                       <button 
                         onClick={() => setEasyApplyOnly(!easyApplyOnly)}
@@ -1678,12 +1723,12 @@ export default function App() {
                     </div>
 
                     {/* Category Selection Tabs */}
-                    <div className="flex items-center gap-1 bg-gray-100/80 p-1 rounded-2xl overflow-x-auto">
+                    <div className="flex items-center gap-1 bg-gray-100/80 p-1 rounded-2xl overflow-x-auto no-scrollbar max-w-full">
                       {['Recommended', 'Recent Jobs', 'Saved Jobs', 'Applied Jobs'].map(tab => (
                         <button 
                           key={tab}
                           onClick={() => setActiveFilterCategory(tab)}
-                          className={`px-3.5 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer shrink-0 ${
+                          className={`px-3.5 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer shrink-0 whitespace-nowrap ${
                             activeFilterCategory === tab ? 'bg-[#4f46e5] text-white shadow-xs' : 'text-gray-500 hover:text-gray-900'
                           }`}
                         >
@@ -1694,160 +1739,238 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Main 2-Column Feed & Right Sidebar Column Layout */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  {/* Left 2 Columns: Job Cards Feed */}
-                  <div className="lg:col-span-2 space-y-4">
-                    {filteredJobs.length === 0 ? (
-                      <div className="bg-white rounded-3xl p-10 border border-gray-150 text-center space-y-3">
-                        <AlertCircle className="w-10 h-10 text-amber-500 mx-auto" />
-                        <h4 className="text-md font-bold font-display text-gray-900">No jobs found matching criteria</h4>
-                        <p className="text-xs text-gray-400 font-semibold max-w-xs mx-auto">Try resetting filters to explore all available job opportunities.</p>
+                {/* Top Intelligence Strip (3 Equal Columns) */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {/* Widget 1: Your Profile Overview */}
+                  <div className="bg-white p-5 rounded-3xl border border-gray-150 shadow-xs space-y-4 flex flex-col justify-between">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-xs font-black text-gray-900 uppercase tracking-wider font-display">Your Profile Overview</h3>
+                      <span className="text-[10px] font-extrabold text-[#4f46e5] cursor-pointer">View full report →</span>
+                    </div>
+
+                    <ProfileGaugeRing score={userProfile.profileCompleteness || 91} />
+
+                    <div className="p-3 bg-indigo-50/60 border border-indigo-100 rounded-2xl flex items-center justify-between cursor-pointer">
+                      <div className="flex items-center gap-2.5">
+                        <Sparkles className="w-4 h-4 text-[#4f46e5]" />
+                        <div>
+                          <p className="text-[11px] font-black text-gray-900">Improve your score</p>
+                          <p className="text-[9px] font-bold text-gray-500">8 suggestions available</p>
+                        </div>
                       </div>
-                    ) : (
-                      filteredJobs.map((job, idx) => {
-                        const matchPct = job.aiMatchPercent || (95 - idx * 3);
-                        return (
-                          <div key={job.id} className="bg-white p-5 rounded-3xl border border-gray-150 shadow-xs hover:shadow-md transition-all space-y-4 relative group">
-                            <div className="flex items-start justify-between gap-4">
-                              <div className="flex items-start gap-4">
-                                <div className="w-12 h-12 bg-gray-50 border border-gray-100 rounded-2xl flex items-center justify-center overflow-hidden shrink-0 shadow-inner">
-                                  <img alt={job.company} className="w-8 h-8 object-contain" src={job.logoUrl} />
-                                </div>
-                                <div>
-                                  <div className="flex items-center gap-2">
-                                    <h3 className="text-base font-black text-gray-900 font-display group-hover:text-[#4f46e5] transition-colors">{job.title}</h3>
-                                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase border ${getPlatformInfo(job).badgeBg}`}>
-                                      via {getPlatformInfo(job).name}
-                                    </span>
-                                  </div>
-                                  <p className="text-xs text-gray-500 font-semibold mt-0.5">
-                                    {job.company} • {job.location} • {job.workType}
-                                  </p>
-                                  <div className="flex flex-wrap gap-2 text-[10px] font-bold text-gray-600 mt-2.5">
-                                    <span className="px-2.5 py-1 bg-gray-50 border border-gray-150 rounded-lg">{job.salaryRange}</span>
-                                    <span className="px-2.5 py-1 bg-gray-50 border border-gray-150 rounded-lg">{job.jobType}</span>
-                                    <span className="px-2.5 py-1 bg-gray-50 border border-gray-150 rounded-lg">{job.experienceRequired}</span>
-                                    <span className="px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg font-black">⚡ Easy Apply</span>
-                                  </div>
-                                </div>
-                              </div>
-
-                              {/* Circular Match Score Gauge Ring */}
-                              <CircularProgress percentage={matchPct} />
-                            </div>
-
-                            <div className="flex items-center justify-between pt-3 border-t border-gray-100">
-                              <span className="text-[10px] font-bold text-gray-400">Posted {job.postedTime}</span>
-                              <div className="flex items-center gap-2">
-                                <button 
-                                  onClick={(e) => handleToggleBookmark(job.id, e)}
-                                  className="p-2 bg-gray-50 border border-gray-200 rounded-xl text-gray-500 hover:text-[#4f46e5] cursor-pointer"
-                                >
-                                  <Bookmark className="w-4 h-4" />
-                                </button>
-                                <button 
-                                  onClick={() => handleApplyJob(job)}
-                                  className="px-4 py-2 bg-[#4f46e5] hover:bg-[#3f37c9] text-white text-xs font-black rounded-xl shadow-xs cursor-pointer flex items-center gap-1.5"
-                                >
-                                  <Zap className="w-3.5 h-3.5" />
-                                  <span>Quick Apply</span>
-                                </button>
-                                <button 
-                                  onClick={() => setSelectedJobDetailModal(job)}
-                                  className="px-4 py-2 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 text-xs font-bold rounded-xl cursor-pointer"
-                                >
-                                  View Details →
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })
-                    )}
+                      <ChevronRight className="w-4 h-4 text-[#4f46e5]" />
+                    </div>
                   </div>
 
-                  {/* Right 1 Column: Intelligence Sidebar Widgets */}
-                  <div className="space-y-6">
-                    {/* Widget 1: Your Profile Overview */}
-                    <div className="bg-white p-5 rounded-3xl border border-gray-150 shadow-xs space-y-4">
-                      <div className="flex items-center justify-between">
-                        <h3 className="text-xs font-black text-gray-900 uppercase tracking-wider font-display">Your Profile Overview</h3>
-                        <span className="text-[10px] font-extrabold text-[#4f46e5] cursor-pointer">View full report →</span>
-                      </div>
+                  {/* Widget 2: AI Recommendations */}
+                  <div className="bg-white p-5 rounded-3xl border border-gray-150 shadow-xs space-y-4 flex flex-col justify-between">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-xs font-black text-gray-900 uppercase tracking-wider font-display">AI Recommendations</h3>
+                      <span className="text-[10px] font-extrabold text-[#4f46e5] cursor-pointer">View all</span>
+                    </div>
 
-                      <ProfileGaugeRing score={userProfile.profileCompleteness || 91} />
-
-                      <div className="p-3 bg-indigo-50/60 border border-indigo-100 rounded-2xl flex items-center justify-between cursor-pointer">
-                        <div className="flex items-center gap-2.5">
-                          <Sparkles className="w-4 h-4 text-[#4f46e5]" />
-                          <div>
-                            <p className="text-[11px] font-black text-gray-900">Improve your score</p>
-                            <p className="text-[9px] font-bold text-gray-500">8 suggestions available</p>
+                    <div className="space-y-2 flex-1 flex flex-col justify-center">
+                      {[
+                        { title: 'DevOps Engineer', company: 'IBM', location: 'Remote', match: 96 },
+                        { title: 'Full Stack Developer', company: 'Zoho', location: 'Chennai', match: 93 },
+                        { title: 'Software Engineer II', company: 'Swiggy', location: 'Bengaluru', match: 90 }
+                      ].map((rec, idx) => (
+                        <div key={idx} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-2xl transition-colors cursor-pointer border border-transparent hover:border-gray-100">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-8 h-8 bg-[#4f46e5]/10 rounded-xl flex items-center justify-center font-black text-xs text-[#4f46e5]">
+                              {rec.company[0]}
+                            </div>
+                            <div>
+                              <p className="text-xs font-black text-gray-900">{rec.title}</p>
+                              <p className="text-[10px] text-gray-400 font-bold">{rec.company} • {rec.location}</p>
+                            </div>
                           </div>
+                          <span className="text-[9px] font-black text-emerald-600 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-full">
+                            {rec.match}% Match
+                          </span>
                         </div>
-                        <ChevronRight className="w-4 h-4 text-[#4f46e5]" />
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Widget 3: Market Insights */}
+                  <div className="bg-white p-5 rounded-3xl border border-gray-150 shadow-xs space-y-4 flex flex-col justify-between">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-xs font-black text-gray-900 uppercase tracking-wider font-display">Market Insights</h3>
+                      <span className="text-[10px] font-extrabold text-[#4f46e5] cursor-pointer">View all</span>
+                    </div>
+
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Avg. Salary (Your Role)</p>
+                      <div className="flex items-baseline justify-between">
+                        <span className="text-2xl font-black text-gray-900 font-display">₹18.7 LPA</span>
+                        <span className="text-[10px] font-black text-emerald-600">↑ 12% vs last year</span>
                       </div>
                     </div>
 
-                    {/* Widget 2: AI Recommendations */}
-                    <div className="bg-white p-5 rounded-3xl border border-gray-150 shadow-xs space-y-4">
-                      <div className="flex items-center justify-between">
-                        <h3 className="text-xs font-black text-gray-900 uppercase tracking-wider font-display">AI Recommendations</h3>
-                        <span className="text-[10px] font-extrabold text-[#4f46e5] cursor-pointer">View all</span>
-                      </div>
-
-                      <div className="space-y-3">
-                        {[
-                          { title: 'DevOps Engineer', company: 'IBM', location: 'Remote', match: 96 },
-                          { title: 'Full Stack Developer', company: 'Zoho', location: 'Chennai', match: 93 },
-                          { title: 'Software Engineer II', company: 'Swiggy', location: 'Bengaluru', match: 90 }
-                        ].map((rec, idx) => (
-                          <div key={idx} className="flex items-center justify-between p-2.5 hover:bg-gray-50 rounded-2xl transition-colors cursor-pointer border border-transparent hover:border-gray-100">
-                            <div className="flex items-center gap-3">
-                              <div className="w-9 h-9 bg-[#4f46e5]/10 rounded-xl flex items-center justify-center font-black text-xs text-[#4f46e5]">
-                                {rec.company[0]}
-                              </div>
-                              <div>
-                                <p className="text-xs font-black text-gray-900">{rec.title}</p>
-                                <p className="text-[10px] text-gray-400 font-bold">{rec.company} • {rec.location}</p>
-                              </div>
-                            </div>
-                            <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-full">
-                              {rec.match}% Match
-                            </span>
-                          </div>
+                    <div className="space-y-1.5 pt-2 border-t border-gray-100">
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Top Skills in Demand</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {['React.js', 'Node.js', 'TypeScript', 'AWS', 'SQL'].map(skill => (
+                          <span key={skill} className="px-2 py-0.5 bg-gray-50 border border-gray-200 rounded-xl text-[10px] font-black text-gray-700">
+                            {skill}
+                          </span>
                         ))}
                       </div>
                     </div>
-
-                    {/* Widget 3: Market Insights */}
-                    <div className="bg-white p-5 rounded-3xl border border-gray-150 shadow-xs space-y-4">
-                      <div className="flex items-center justify-between">
-                        <h3 className="text-xs font-black text-gray-900 uppercase tracking-wider font-display">Market Insights</h3>
-                        <span className="text-[10px] font-extrabold text-[#4f46e5] cursor-pointer">View all</span>
-                      </div>
-
-                      <div className="space-y-2">
-                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Avg. Salary (Your Role)</p>
-                        <div className="flex items-baseline justify-between">
-                          <span className="text-2xl font-black text-gray-900 font-display">₹18.7 LPA</span>
-                          <span className="text-[10px] font-black text-emerald-600">↑ 12% vs last year</span>
-                        </div>
-                      </div>
-
-                      <div className="space-y-2 pt-2 border-t border-gray-100">
-                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Top Skills in Demand</p>
-                        <div className="flex flex-wrap gap-1.5">
-                          {['React.js', 'Node.js', 'TypeScript', 'AWS', 'SQL'].map(skill => (
-                            <span key={skill} className="px-2.5 py-1 bg-gray-50 border border-gray-200 rounded-xl text-[10px] font-black text-gray-700">
-                              {skill}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
                   </div>
+                </div>
+
+                {/* Full-Width 2-Column Job Cards Feed (Zero Empty Space) */}
+                <div className="w-full space-y-4">
+                  {filteredJobs.length === 0 ? (
+                    <div className="bg-white rounded-3xl p-10 border border-gray-150 text-center space-y-3">
+                      <AlertCircle className="w-10 h-10 text-amber-500 mx-auto" />
+                      <h4 className="text-md font-bold font-display text-gray-900">No jobs found matching criteria</h4>
+                      <p className="text-xs text-gray-400 font-semibold max-w-xs mx-auto">Try resetting filters to explore all available job opportunities.</p>
+                    </div>
+                  ) : (
+                    <>
+                      {(() => {
+                        const totalPages = Math.max(1, Math.ceil(filteredJobs.length / jobsPerPage));
+                        const paginatedJobs = filteredJobs.slice((currentPage - 1) * jobsPerPage, currentPage * jobsPerPage);
+                        return (
+                          <>
+                            {/* Responsive 2-Column Card Grid filling full container width */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              {paginatedJobs.map((job, idx) => {
+                                const matchPct = job.aiMatchPercent || (95 - idx * 3);
+                                return (
+                                  <div key={job.id} className="bg-white p-5 rounded-3xl border border-gray-150 shadow-xs hover:shadow-md transition-all space-y-4 relative group flex flex-col justify-between">
+                                    <div className="flex items-start justify-between gap-3">
+                                      <div className="flex items-start gap-3.5 min-w-0">
+                                        <div className="w-12 h-12 bg-gray-50 border border-gray-100 rounded-2xl flex items-center justify-center overflow-hidden shrink-0 shadow-inner">
+                                          <img alt={job.company} className="w-8 h-8 object-contain" src={job.logoUrl} />
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                          <div className="flex items-center gap-2 flex-wrap">
+                                            <h3 className="text-base font-black text-gray-900 font-display group-hover:text-[#4f46e5] transition-colors truncate">{job.title}</h3>
+                                            <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase border shrink-0 ${getPlatformInfo(job).badgeBg}`}>
+                                              via {getPlatformInfo(job).name}
+                                            </span>
+                                          </div>
+                                          <p className="text-xs text-gray-500 font-semibold mt-0.5 truncate">
+                                            {job.company} • {job.location} • {job.workType}
+                                          </p>
+                                          <div className="flex flex-wrap gap-1.5 text-[10px] font-bold text-gray-600 mt-2.5">
+                                            <span className="px-2.5 py-1 bg-gray-50 border border-gray-150 rounded-lg">{job.salaryRange}</span>
+                                            <span className="px-2.5 py-1 bg-gray-50 border border-gray-150 rounded-lg">{job.jobType}</span>
+                                            <span className="px-2.5 py-1 bg-gray-50 border border-gray-150 rounded-lg">{job.experienceRequired}</span>
+                                            <span className="px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg font-black">⚡ Easy Apply</span>
+                                          </div>
+                                        </div>
+                                      </div>
+
+                                      {/* Circular Match Score Gauge Ring */}
+                                      <div className="shrink-0">
+                                        <CircularProgress percentage={matchPct} />
+                                      </div>
+                                    </div>
+
+                                    <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+                                      <span className="text-[10px] font-bold text-gray-400">Posted {job.postedTime}</span>
+                                      <div className="flex items-center gap-2">
+                                        <button 
+                                          onClick={(e) => handleToggleBookmark(job.id, e)}
+                                          className="p-2 bg-gray-50 border border-gray-200 rounded-xl text-gray-500 hover:text-[#4f46e5] cursor-pointer"
+                                        >
+                                          <Bookmark className="w-4 h-4" />
+                                        </button>
+                                        <button 
+                                          onClick={() => handleApplyJob(job)}
+                                          className="px-3.5 py-1.5 bg-[#4f46e5] hover:bg-[#3f37c9] text-white text-xs font-black rounded-xl shadow-xs cursor-pointer flex items-center gap-1.5"
+                                        >
+                                          <Zap className="w-3.5 h-3.5" />
+                                          <span>Quick Apply</span>
+                                        </button>
+                                        <button 
+                                          onClick={() => setSelectedJobDetailModal(job)}
+                                          className="px-3.5 py-1.5 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 text-xs font-bold rounded-xl cursor-pointer"
+                                        >
+                                          Details →
+                                        </button>
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+
+                            {/* Clean Modern Pagination Controls Bar (Full Width) */}
+                            {filteredJobs.length > 0 && (
+                              <div className="bg-white p-4 rounded-3xl border border-gray-150 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4 mt-4 w-full">
+                                <div className="flex items-center gap-3 text-xs font-bold text-gray-500">
+                                  <span>
+                                    Showing <strong className="text-gray-900">{Math.min((currentPage - 1) * jobsPerPage + 1, filteredJobs.length)}</strong> to <strong className="text-gray-900">{Math.min(currentPage * jobsPerPage, filteredJobs.length)}</strong> of <strong className="text-gray-900">{filteredJobs.length}</strong> postings
+                                  </span>
+                                  <div className="hidden sm:flex items-center gap-1.5 border-l border-gray-200 pl-3">
+                                    <span className="text-gray-400">Per page:</span>
+                                    <select 
+                                      value={jobsPerPage} 
+                                      onChange={(e) => { setJobsPerPage(Number(e.target.value)); setCurrentPage(1); }}
+                                      className="bg-transparent border border-gray-200 rounded-xl text-xs font-bold px-2 py-1 focus:outline-none focus:ring-1 focus:ring-[#4f46e5] text-gray-800 cursor-pointer"
+                                    >
+                                      <option value={10}>10</option>
+                                      <option value={20}>20</option>
+                                      <option value={50}>50</option>
+                                    </select>
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center gap-1.5">
+                                  <button
+                                    disabled={currentPage === 1}
+                                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                    className="px-3.5 py-1.5 bg-white border border-gray-200 hover:bg-gray-50 disabled:opacity-40 text-gray-700 text-xs font-extrabold rounded-xl transition-all cursor-pointer disabled:cursor-not-allowed flex items-center gap-1 shadow-xs"
+                                  >
+                                    <ChevronLeft className="w-3.5 h-3.5" /> Previous
+                                  </button>
+
+                                  <div className="flex items-center gap-1 px-1">
+                                    {Array.from({ length: totalPages }).map((_, index) => {
+                                      const pageNum = index + 1;
+                                      if (totalPages > 5 && pageNum !== 1 && pageNum !== totalPages && Math.abs(pageNum - currentPage) > 1) {
+                                        if (pageNum === 2 && currentPage > 3) return <span key={pageNum} className="text-gray-400 text-xs px-1">...</span>;
+                                        if (pageNum === totalPages - 1 && currentPage < totalPages - 2) return <span key={pageNum} className="text-gray-400 text-xs px-1">...</span>;
+                                        return null;
+                                      }
+
+                                      return (
+                                        <button
+                                          key={pageNum}
+                                          onClick={() => setCurrentPage(pageNum)}
+                                          className={`w-8 h-8 rounded-xl text-xs font-extrabold transition-all cursor-pointer flex items-center justify-center ${
+                                            currentPage === pageNum
+                                              ? 'bg-[#4f46e5] text-white shadow-xs'
+                                              : 'bg-white hover:bg-gray-100 text-gray-600 border border-gray-200'
+                                          }`}
+                                        >
+                                          {pageNum}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+
+                                  <button
+                                    disabled={currentPage >= totalPages}
+                                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                    className="px-3.5 py-1.5 bg-white border border-gray-200 hover:bg-gray-50 disabled:opacity-40 text-gray-700 text-xs font-extrabold rounded-xl transition-all cursor-pointer disabled:cursor-not-allowed flex items-center gap-1 shadow-xs"
+                                  >
+                                    Next <ChevronRight className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </>
+                        );
+                      })()}
+                    </>
+                  )}
                 </div>
               </div>
             )}
@@ -2473,6 +2596,101 @@ export default function App() {
         onClose={() => setPendingRedirectJob(null)}
         onConfirmRedirect={handleConfirmExternalRedirect}
       />
+
+      {/* High-Conversion Auth Trigger Modal ("Continue with Google to Apply Instantly") */}
+      {showAuthModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-white rounded-3xl max-w-md w-full p-7 border border-gray-150 shadow-2xl space-y-5 relative overflow-hidden">
+            {/* Decorative gradient blur */}
+            <div className="absolute -top-12 -right-12 w-44 h-44 bg-gradient-to-br from-[#4f46e5]/25 via-purple-500/20 to-pink-500/15 rounded-full blur-2xl pointer-events-none" />
+            
+            {/* Close button */}
+            <button 
+              onClick={() => setShowAuthModal(false)}
+              className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            {/* Header */}
+            <div className="space-y-2 text-center pt-1">
+              <div className="w-12 h-12 bg-indigo-50 border border-indigo-100 rounded-2xl flex items-center justify-center mx-auto text-[#4f46e5] shadow-xs">
+                <Sparkles className="w-6 h-6" />
+              </div>
+              <h3 className="text-xl font-black text-gray-900 tracking-tight font-display">
+                {authModalDetails.title}
+              </h3>
+              <p className="text-xs font-medium text-gray-500 leading-relaxed max-w-xs mx-auto">
+                {authModalDetails.subtitle}
+              </p>
+            </div>
+
+            {/* Target Job Quick Preview Badge */}
+            {authModalDetails.targetJob && (
+              <div className="bg-indigo-50/60 border border-indigo-100 p-3 rounded-2xl flex items-center gap-3">
+                <img 
+                  src={authModalDetails.targetJob.logoUrl} 
+                  alt={authModalDetails.targetJob.company} 
+                  className="w-9 h-9 rounded-xl object-contain bg-white p-1 border border-indigo-100 shrink-0"
+                  onError={(e) => { (e.target as HTMLImageElement).src = 'https://img.icons8.com/color/48/000000/briefcase.png'; }}
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="text-[9px] font-black uppercase text-[#4f46e5] tracking-wider">Target Application</p>
+                  <p className="text-xs font-extrabold text-gray-900 truncate">{authModalDetails.targetJob.title}</p>
+                  <p className="text-[10px] font-bold text-gray-500 truncate">{authModalDetails.targetJob.company} • {authModalDetails.targetJob.location}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Value Proposition Checklist */}
+            <div className="space-y-2.5 bg-gray-50/80 p-4 rounded-2xl border border-gray-150 text-xs font-bold text-gray-700">
+              <div className="flex items-center gap-2.5">
+                <div className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-[10px] font-black shrink-0">✓</div>
+                <span>⚡ 1-Click Quick Apply across 50+ job portals</span>
+              </div>
+              <div className="flex items-center gap-2.5">
+                <div className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-[10px] font-black shrink-0">✓</div>
+                <span>🤖 AI ATS Resume Score & Keyword Optimizer</span>
+              </div>
+              <div className="flex items-center gap-2.5">
+                <div className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-[10px] font-black shrink-0">✓</div>
+                <span>🚀 Automated LinkedIn & Indeed Job Applier</span>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="space-y-3 pt-1">
+              <SignInButton mode="modal">
+                <button 
+                  onClick={() => setShowAuthModal(false)}
+                  className="w-full py-3.5 bg-[#4f46e5] hover:bg-[#3f37c9] text-white rounded-2xl text-xs font-black shadow-md shadow-[#4f46e5]/20 flex items-center justify-center gap-2.5 cursor-pointer transition-all active:scale-98"
+                >
+                  <svg className="w-4 h-4 bg-white rounded-full p-0.5" viewBox="0 0 24 24">
+                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+                  </svg>
+                  <span>Continue with Google / Email</span>
+                  <ArrowRight className="w-4 h-4 ml-auto" />
+                </button>
+              </SignInButton>
+
+              <div className="flex items-center justify-between text-[10px] text-gray-400 font-bold px-1 pt-1">
+                <span>🔒 100% Free • No credit card</span>
+                <span>⚡ Join 50,000+ candidates</span>
+              </div>
+
+              <button 
+                onClick={() => setShowAuthModal(false)}
+                className="w-full py-1.5 text-xs font-bold text-gray-400 hover:text-gray-700 transition-colors cursor-pointer text-center"
+              >
+                Continue browsing public jobs
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { 
   Sun, Search, MapPin, SlidersHorizontal, ArrowRight, Check, 
   Briefcase, Bolt, Users, ShieldCheck, Heart, Sparkles, 
-  TrendingUp, Bookmark, MessageSquare, ArrowUpRight, Mail, Send, Globe, ChevronDown, Bell
+  TrendingUp, Bookmark, MessageSquare, ArrowUpRight, Mail, Send, Globe, ChevronDown, Bell,
+  FileText, Cpu, BarChart3, Layers, Bot, CheckCircle2, DollarSign, Activity, FileSpreadsheet, Play, Lock, Laptop, Building2, Menu, X
 } from 'lucide-react';
 import { ActiveScreen, Job } from '../types';
 
@@ -11,22 +12,43 @@ interface LandingPageProps {
   onSearch: (query: string, location: string) => void;
   jobs: Job[];
   onSelectJob: (job: Job) => void;
+  isSignedIn?: boolean;
 }
 
-export default function LandingPage({ onNavigate, onSearch, jobs = [], onSelectJob }: LandingPageProps) {
+export default function LandingPage({ onNavigate, onSearch, jobs = [], onSelectJob, isSignedIn }: LandingPageProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [locationQuery, setLocationQuery] = useState('');
   const [emailInput, setEmailInput] = useState('');
   const [newsletterSubscribed, setNewsletterSubscribed] = useState(false);
   const [activeCategory, setActiveCategory] = useState<'Students' | 'Freshers' | 'Graduates' | 'Experienced'>('Students');
+  const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
+
+  const handleFeatureClick = (sectionId?: string, targetScreen: ActiveScreen = 'Dashboard') => {
+    if (sectionId) {
+      const el = document.getElementById(sectionId);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth' });
+        return;
+      }
+    }
+    onNavigate(targetScreen);
+  };
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSearch(searchQuery, locationQuery);
+    const el = document.getElementById('jobs-showcase');
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth' });
+    }
   };
 
   const handlePopularSearch = (term: string) => {
     onSearch(term, '');
+    const el = document.getElementById('jobs-showcase');
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth' });
+    }
   };
 
   const handleNewsletterSubscribe = (e: React.FormEvent) => {
@@ -57,13 +79,13 @@ export default function LandingPage({ onNavigate, onSearch, jobs = [], onSelectJ
 
             {/* Menu items */}
             <div className="hidden md:flex items-center gap-7 text-[13px] font-bold text-gray-600">
-              <button onClick={() => onNavigate('Dashboard')} className="hover:text-[#4f46e5] transition-colors cursor-pointer flex items-center gap-1">
+              <button onClick={() => handleFeatureClick('jobs-showcase')} className="hover:text-[#4f46e5] transition-colors cursor-pointer flex items-center gap-1">
                 Find Jobs <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
               </button>
-              <button onClick={() => onNavigate('Dashboard')} className="hover:text-[#4f46e5] transition-colors cursor-pointer flex items-center gap-1">
+              <button onClick={() => handleFeatureClick('top-companies')} className="hover:text-[#4f46e5] transition-colors cursor-pointer flex items-center gap-1">
                 Companies <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
               </button>
-              <button onClick={() => onNavigate('Dashboard')} className="hover:text-[#4f46e5] transition-colors cursor-pointer flex items-center gap-1">
+              <button onClick={() => handleFeatureClick('feature-superpowers')} className="hover:text-[#4f46e5] transition-colors cursor-pointer flex items-center gap-1">
                 Resources <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
               </button>
               <a href="#" className="hover:text-[#4f46e5] transition-colors">For Employers</a>
@@ -71,23 +93,67 @@ export default function LandingPage({ onNavigate, onSearch, jobs = [], onSelectJ
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 sm:gap-4">
             <button 
               onClick={() => onNavigate('SignIn')}
-              className="px-4 py-2 text-gray-600 font-bold text-[13px] hover:text-[#4f46e5] transition-colors cursor-pointer"
+              className="hidden sm:block px-4 py-2 text-gray-600 font-bold text-[13px] hover:text-[#4f46e5] transition-colors cursor-pointer"
               id="btn-signin-nav"
             >
               Sign in
             </button>
             <button 
               onClick={() => onNavigate('SignUp')}
-              className="px-5 py-2.5 bg-[#3f37c9] hover:bg-[#4f46e5] text-white rounded-xl font-bold text-[13px] hover:shadow-lg hover:shadow-[#4f46e5]/20 active:scale-[0.98] transition-all cursor-pointer"
+              className="px-4 sm:px-5 py-2 sm:py-2.5 bg-[#3f37c9] hover:bg-[#4f46e5] text-white rounded-xl font-bold text-xs sm:text-[13px] hover:shadow-lg hover:shadow-[#4f46e5]/20 active:scale-[0.98] transition-all cursor-pointer"
               id="btn-signup-nav"
             >
               Get Started Free
             </button>
+
+            {/* Mobile Nav Hamburger Toggle Button */}
+            <button
+              onClick={() => setIsMobileNavOpen(!isMobileNavOpen)}
+              className="md:hidden p-2 text-gray-700 hover:text-gray-900 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer"
+              aria-label="Toggle Menu"
+            >
+              {isMobileNavOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </button>
           </div>
         </div>
+
+        {/* Mobile Slide-Down Dropdown Menu */}
+        {isMobileNavOpen && (
+          <div className="md:hidden bg-white border-b border-gray-100 px-6 py-4 space-y-3 animate-fade-in shadow-lg">
+            <button 
+              onClick={() => { handleFeatureClick('jobs-showcase'); setIsMobileNavOpen(false); }}
+              className="w-full text-left py-2 text-sm font-bold text-gray-700 hover:text-[#4f46e5] flex items-center justify-between"
+            >
+              <span>Find Jobs</span>
+              <ChevronDown className="w-4 h-4 text-gray-400" />
+            </button>
+            <button 
+              onClick={() => { handleFeatureClick('top-companies'); setIsMobileNavOpen(false); }}
+              className="w-full text-left py-2 text-sm font-bold text-gray-700 hover:text-[#4f46e5] flex items-center justify-between"
+            >
+              <span>Companies</span>
+              <ChevronDown className="w-4 h-4 text-gray-400" />
+            </button>
+            <button 
+              onClick={() => { handleFeatureClick('feature-superpowers'); setIsMobileNavOpen(false); }}
+              className="w-full text-left py-2 text-sm font-bold text-gray-700 hover:text-[#4f46e5] flex items-center justify-between"
+            >
+              <span>Resources</span>
+              <ChevronDown className="w-4 h-4 text-gray-400" />
+            </button>
+            <div className="pt-2 border-t border-gray-100 flex flex-col gap-2">
+              <button 
+                onClick={() => { onNavigate('SignIn'); setIsMobileNavOpen(false); }}
+                className="w-full py-2.5 text-center text-sm font-bold text-gray-700 hover:text-[#4f46e5] border border-gray-200 rounded-xl"
+              >
+                Sign in
+              </button>
+            </div>
+          </div>
+        )}
       </nav>
 
       {/* Hero Section */}
@@ -95,15 +161,11 @@ export default function LandingPage({ onNavigate, onSearch, jobs = [], onSelectJ
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
           {/* Left Content */}
           <div className="lg:col-span-6 space-y-7 animate-fade-in">
-            {/* Sun & Security Badge */}
+            {/* Sun Badge */}
             <div className="flex flex-wrap items-center gap-2">
               <div className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-[#4f46e5]/5 text-[#4f46e5] rounded-full border border-[#4f46e5]/10">
                 <Sun className="w-4 h-4 text-amber-500 animate-spin-slow" />
                 <span className="text-[11px] font-extrabold tracking-wide uppercase">One Search. Every Opportunity.</span>
-              </div>
-              <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-50 text-emerald-700 rounded-full border border-emerald-200">
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                <span className="text-[11px] font-extrabold tracking-wide uppercase">256-Bit SSL & OAuth 2.0 Safe Redirects</span>
               </div>
             </div>
 
@@ -170,7 +232,7 @@ export default function LandingPage({ onNavigate, onSearch, jobs = [], onSelectJ
               </div>
               <button 
                 type="button"
-                onClick={() => onNavigate('Dashboard')}
+                onClick={() => handleFeatureClick('Dashboard')}
                 className="flex items-center gap-1.5 px-3 py-2 text-gray-500 font-bold text-[13px] hover:text-[#4f46e5] transition-colors shrink-0 cursor-pointer"
               >
                 <SlidersHorizontal className="w-4 h-4" />
@@ -194,7 +256,7 @@ export default function LandingPage({ onNavigate, onSearch, jobs = [], onSelectJ
               <button type="button" onClick={() => handlePopularSearch('Data Analyst')} className="px-3 py-1.5 bg-white hover:bg-[#4f46e5] border border-gray-100 hover:text-white rounded-xl font-bold text-gray-600 cursor-pointer transition-all shadow-sm">Data Analyst</button>
               <button type="button" onClick={() => handlePopularSearch('UI/UX Designer')} className="px-3 py-1.5 bg-white hover:bg-[#4f46e5] border border-gray-100 hover:text-white rounded-xl font-bold text-gray-600 cursor-pointer transition-all shadow-sm">UI/UX Designer</button>
               <button type="button" onClick={() => handlePopularSearch('Remote')} className="px-3 py-1.5 bg-white hover:bg-[#4f46e5] border border-gray-100 hover:text-white rounded-xl font-bold text-gray-600 cursor-pointer transition-all shadow-sm">Remote Jobs</button>
-              <button type="button" onClick={() => onNavigate('Dashboard')} className="text-[#4f46e5] font-extrabold flex items-center gap-0.5 hover:underline ml-1 cursor-pointer">
+              <button type="button" onClick={() => handleFeatureClick('Dashboard')} className="text-[#4f46e5] font-extrabold flex items-center gap-0.5 hover:underline ml-1 cursor-pointer">
                 View all <ArrowRight className="w-3.5 h-3.5" />
               </button>
             </div>
@@ -203,14 +265,14 @@ export default function LandingPage({ onNavigate, onSearch, jobs = [], onSelectJ
           {/* Right Dashboard Mockup Column */}
           <div className="lg:col-span-6 space-y-6">
             {/* Top Job Sources Component */}
-            <div className="bg-white rounded-3xl p-6 border border-gray-150 shadow-lg shadow-gray-200/20">
+            <div className="bg-[#ffffff] rounded-3xl p-6 border border-gray-150 shadow-lg shadow-gray-200/20">
               <div className="flex justify-between items-center mb-5">
                 <h3 className="text-sm font-extrabold text-gray-900 font-display">Top job sources</h3>
-                <button onClick={() => onNavigate('Dashboard')} className="text-[#353df6] text-xs font-extrabold flex items-center gap-0.5 hover:underline cursor-pointer">
+                <button onClick={() => handleFeatureClick('Dashboard')} className="text-[#353df6] text-xs font-extrabold flex items-center gap-0.5 hover:underline cursor-pointer">
                   View all sources <ArrowRight className="w-3.5 h-3.5" />
                 </button>
               </div>
-              <div className="grid grid-cols-6 gap-3">
+              <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
                 {/* LinkedIn */}
                 <div className="flex flex-col items-center gap-1.5">
                   <div className="w-14 h-14 bg-white border border-gray-200 hover:border-[#353df6]/30 rounded-2xl flex items-center justify-center shadow-sm hover:shadow-md transition-all cursor-pointer">
@@ -443,7 +505,7 @@ export default function LandingPage({ onNavigate, onSearch, jobs = [], onSelectJ
       </section>
 
       {/* Trusted By Section */}
-      <section className="py-12 bg-white border-y border-gray-100 overflow-hidden">
+      <section id="top-companies" className="py-12 bg-white border-y border-gray-100 overflow-hidden">
         <div className="max-w-7xl mx-auto text-center">
           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-6">Trusted by job seekers from</p>
           
@@ -486,8 +548,155 @@ export default function LandingPage({ onNavigate, onSearch, jobs = [], onSelectJ
         </div>
       </section>
 
+      {/* 6 Core Superpowers Feature Grid Section */}
+      <section id="feature-superpowers" className="py-20 bg-[#f8f9fa] border-b border-gray-100">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="text-center mb-16 space-y-3">
+            <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-[#4f46e5]/10 text-[#4f46e5] text-xs font-extrabold rounded-full border border-[#4f46e5]/20 uppercase tracking-wider">
+              <Bolt className="w-3.5 h-3.5 fill-[#4f46e5]" />
+              Supercharge Your Job Search
+            </div>
+            <h2 className="text-3xl md:text-4xl font-extrabold font-display text-gray-900 leading-tight">
+              Everything You Need to Land Your Next Role
+            </h2>
+            <p className="text-gray-500 max-w-2xl mx-auto font-semibold text-sm md:text-base">
+              JobMerge brings together live job feeds, 9 recruiter-tested ATS resume templates, automated application tools, and salary intelligence into one seamless workspace.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {/* Superpower 1: 50+ Job Aggregator */}
+            <div className="bg-white p-8 rounded-3xl border border-gray-150 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group flex flex-col justify-between">
+              <div className="space-y-4">
+                <div className="w-14 h-14 bg-indigo-50 text-[#4f46e5] rounded-2xl flex items-center justify-center border border-indigo-100 group-hover:scale-110 transition-transform">
+                  <Globe className="w-7 h-7" />
+                </div>
+                <div className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-full border border-indigo-100">
+                  50+ Global Portals
+                </div>
+                <h3 className="text-xl font-extrabold text-gray-900 font-display">Unified Multi-Site Aggregator</h3>
+                <p className="text-xs text-gray-500 font-semibold leading-relaxed">
+                  Search LinkedIn, Indeed, Glassdoor, ZipRecruiter, Upwork & 45+ hiring platforms simultaneously in a single real-time feed with zero duplicates.
+                </p>
+              </div>
+              <div className="pt-6">
+                <button onClick={() => handleFeatureClick('Dashboard')} className="text-xs font-extrabold text-[#4f46e5] hover:underline flex items-center gap-1 group-hover:gap-2 transition-all cursor-pointer">
+                  Explore Live Aggregator <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Superpower 2: Unstoppable Auto Apply Bot */}
+            <div className="bg-white p-8 rounded-3xl border border-gray-150 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group flex flex-col justify-between relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-purple-500/10 to-transparent rounded-bl-full pointer-events-none"></div>
+              <div className="space-y-4 relative">
+                <div className="w-14 h-14 bg-purple-50 text-purple-600 rounded-2xl flex items-center justify-center border border-purple-100 group-hover:scale-110 transition-transform">
+                  <Bot className="w-7 h-7" />
+                </div>
+                <div className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-purple-600 bg-purple-50 px-2.5 py-1 rounded-full border border-purple-100">
+                  Chrome Extension Sync
+                </div>
+                <h3 className="text-xl font-extrabold text-gray-900 font-display">Unstoppable Auto-Apply Bot</h3>
+                <p className="text-xs text-gray-500 font-semibold leading-relaxed">
+                  Submit 50+ targeted applications with 1 click. Watch live SSE progress logs stream applications directly into employers' career portals.
+                </p>
+              </div>
+              <div className="pt-6 relative">
+                <button onClick={() => handleFeatureClick('Dashboard')} className="text-xs font-extrabold text-purple-600 hover:underline flex items-center gap-1 group-hover:gap-2 transition-all cursor-pointer">
+                  Try Auto-Apply Bot <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Superpower 3: 9 ATS Resume Templates */}
+            <div className="bg-white p-8 rounded-3xl border border-gray-150 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group flex flex-col justify-between">
+              <div className="space-y-4">
+                <div className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center border border-emerald-100 group-hover:scale-110 transition-transform">
+                  <FileText className="w-7 h-7" />
+                </div>
+                <div className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-100">
+                  Recruiter Vetted
+                </div>
+                <h3 className="text-xl font-extrabold text-gray-900 font-display">9 World-Class ATS Templates</h3>
+                <p className="text-xs text-gray-500 font-semibold leading-relaxed">
+                  Choose from Executive CEO, Harvard/Ivy League, Tech Engineer ATS, Corporate PM, and Modern Split Sidebar templates with 1-click PDF download.
+                </p>
+              </div>
+              <div className="pt-6">
+                <button onClick={() => handleFeatureClick('Dashboard')} className="text-xs font-extrabold text-emerald-600 hover:underline flex items-center gap-1 group-hover:gap-2 transition-all cursor-pointer">
+                  Build ATS Resume <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Superpower 4: Application Pipeline */}
+            <div className="bg-white p-8 rounded-3xl border border-gray-150 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group flex flex-col justify-between">
+              <div className="space-y-4">
+                <div className="w-14 h-14 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center border border-amber-100 group-hover:scale-110 transition-transform">
+                  <Layers className="w-7 h-7" />
+                </div>
+                <div className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-amber-600 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-100">
+                  Kanban Board
+                </div>
+                <h3 className="text-xl font-extrabold text-gray-900 font-display">Kanban Application Tracker</h3>
+                <p className="text-xs text-gray-500 font-semibold leading-relaxed">
+                  Track every submission through Saved, Applied, Interviewing, and Offer stages with custom follow-up dates and interviewer notes.
+                </p>
+              </div>
+              <div className="pt-6">
+                <button onClick={() => handleFeatureClick('Dashboard')} className="text-xs font-extrabold text-amber-600 hover:underline flex items-center gap-1 group-hover:gap-2 transition-all cursor-pointer">
+                  View Pipeline Board <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Superpower 5: Salary Analytics */}
+            <div className="bg-white p-8 rounded-3xl border border-gray-150 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group flex flex-col justify-between">
+              <div className="space-y-4">
+                <div className="w-14 h-14 bg-teal-50 text-teal-600 rounded-2xl flex items-center justify-center border border-teal-100 group-hover:scale-110 transition-transform">
+                  <BarChart3 className="w-7 h-7" />
+                </div>
+                <div className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-teal-600 bg-teal-50 px-2.5 py-1 rounded-full border border-teal-100">
+                  Compensation Benchmarks
+                </div>
+                <h3 className="text-xl font-extrabold text-gray-900 font-display">Salary & Equity Insights</h3>
+                <p className="text-xs text-gray-500 font-semibold leading-relaxed">
+                  Access verified pay ranges across 25+ tech and corporate roles. Compare base salary, stock options, performance bonuses, and remote stipends.
+                </p>
+              </div>
+              <div className="pt-6">
+                <button onClick={() => handleFeatureClick('Dashboard')} className="text-xs font-extrabold text-teal-600 hover:underline flex items-center gap-1 group-hover:gap-2 transition-all cursor-pointer">
+                  Calculate Salary Bands <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Superpower 6: SSL Shield Guard */}
+            <div className="bg-white p-8 rounded-3xl border border-gray-150 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group flex flex-col justify-between">
+              <div className="space-y-4">
+                <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center border border-blue-100 group-hover:scale-110 transition-transform">
+                  <ShieldCheck className="w-7 h-7" />
+                </div>
+                <div className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full border border-blue-100">
+                  OAuth 2.0 & SSL
+                </div>
+                <h3 className="text-xl font-extrabold text-gray-900 font-display">Safe External Redirect Shield</h3>
+                <p className="text-xs text-gray-500 font-semibold leading-relaxed">
+                  256-Bit SSL protection validates link protocols before redirecting to official company hiring portals with noopener, noreferrer headers.
+                </p>
+              </div>
+              <div className="pt-6">
+                <button onClick={() => handleFeatureClick('Dashboard')} className="text-xs font-extrabold text-blue-600 hover:underline flex items-center gap-1 group-hover:gap-2 transition-all cursor-pointer">
+                  Learn About Security <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Interactive Jobs Showcase Section */}
-      <section className="py-20 bg-white">
+      <section id="jobs-showcase" className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-6">
           <div className="text-center mb-12 space-y-3">
             <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-[#4f46e5]/5 text-[#4f46e5] text-xs font-bold rounded-lg border border-[#4f46e5]/10 uppercase tracking-wider">
@@ -606,7 +815,9 @@ export default function LandingPage({ onNavigate, onSearch, jobs = [], onSelectJ
                   <div className="pt-5">
                     <button
                       type="button"
-                      onClick={() => onSelectJob(job)}
+                      onClick={() => {
+                        onSelectJob(job);
+                      }}
                       className="w-full py-3 bg-[#4f46e5]/5 hover:bg-[#3f37c9] text-[#4f46e5] hover:text-white rounded-2xl text-xs font-bold transition-all duration-300 flex items-center justify-center gap-1.5 cursor-pointer shadow-sm group-hover:shadow-md"
                     >
                       View details & Apply
@@ -791,9 +1002,9 @@ export default function LandingPage({ onNavigate, onSearch, jobs = [], onSelectJ
             <div className="md:col-span-2 space-y-3">
               <h4 className="font-black text-gray-900 text-xs uppercase tracking-wider">Product</h4>
               <ul className="space-y-2">
-                <li><button type="button" onClick={() => onNavigate('Dashboard')} className="text-gray-400 text-xs font-bold hover:text-[#353df6] cursor-pointer">Find Jobs</button></li>
-                <li><button type="button" onClick={() => onNavigate('Dashboard')} className="text-gray-400 text-xs font-bold hover:text-[#353df6] cursor-pointer">Salaries</button></li>
-                <li><button type="button" onClick={() => onNavigate('Dashboard')} className="text-gray-400 text-xs font-bold hover:text-[#353df6] cursor-pointer">AI Matching</button></li>
+                <li><button type="button" onClick={() => handleFeatureClick('Dashboard')} className="text-gray-400 text-xs font-bold hover:text-[#353df6] cursor-pointer">Find Jobs</button></li>
+                <li><button type="button" onClick={() => handleFeatureClick('Dashboard')} className="text-gray-400 text-xs font-bold hover:text-[#353df6] cursor-pointer">Salaries</button></li>
+                <li><button type="button" onClick={() => handleFeatureClick('Dashboard')} className="text-gray-400 text-xs font-bold hover:text-[#353df6] cursor-pointer">AI Matching</button></li>
                 <li><a className="text-gray-400 text-xs font-bold hover:text-[#353df6]" href="#">Mobile App</a></li>
               </ul>
             </div>

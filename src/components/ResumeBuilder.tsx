@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { 
   User, Mail, Phone, MapPin, Globe, Award, Briefcase, BookOpen, 
-  Sparkles, Check, Trash2, Plus, Download, RefreshCw, Printer, ShieldAlert, ChevronRight, LayoutGrid, CheckCircle2
+  Sparkles, Check, Trash2, Plus, Download, RefreshCw, Printer, ShieldAlert, ChevronRight, LayoutGrid, CheckCircle2,
+  Columns, Eye, FileText
 } from 'lucide-react';
 import { UserProfile } from '../types';
 
@@ -135,6 +136,9 @@ const TEMPLATE_OPTIONS: TemplateOption[] = [
 ];
 
 export default function ResumeBuilder({ userProfile }: ResumeBuilderProps) {
+  // View mode switcher: 'split' | 'form' | 'preview'
+  const [viewMode, setViewMode] = useState<'split' | 'form' | 'preview'>('split');
+
   // Resume details state
   const [personal, setPersonal] = useState({
     name: userProfile.name || 'Devender Singh',
@@ -264,95 +268,96 @@ export default function ResumeBuilder({ userProfile }: ResumeBuilderProps) {
   return (
     <div className="space-y-6 animate-fade-in flex-1 flex flex-col lg:overflow-hidden h-full">
       
-      {/* Top Banner Toolbar */}
-      <div className="bg-white rounded-3xl p-5 border border-gray-150 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shrink-0">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight font-display">Job Ready Resume Builder</h1>
-            <span className="px-2.5 py-0.5 rounded-full bg-blue-50 text-[#353df6] text-[10px] font-extrabold tracking-wide uppercase border border-blue-100">9 World-Class Templates</span>
+      {/* Top Header & Compact Template Selector Toolbar */}
+      <div className="bg-white rounded-3xl p-5 border border-gray-150 shadow-xs space-y-4 shrink-0 print:hidden">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight font-display">Resume Builder & Studio</h1>
+              <span className="px-2.5 py-0.5 rounded-full bg-indigo-50 text-[#4f46e5] text-[10px] font-black tracking-wide uppercase border border-indigo-100">9 ATS Templates</span>
+            </div>
+            <p className="text-xs font-semibold text-gray-500 mt-0.5">Recruiter-tested, ATS-optimized executive & technical formats.</p>
           </div>
-          <p className="text-xs font-semibold text-gray-500 mt-0.5">Recruiter-tested, ATS-friendly templates inspired by CEO Executive, Ivy League, Tech Engineering, and Corporate PM formats.</p>
-        </div>
-        <div className="flex flex-wrap gap-2 items-center w-full md:w-auto">
-          <button
-            onClick={handleAutoFill}
-            className="px-4 py-2 border border-gray-150 text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-xl font-bold text-xs flex items-center gap-1.5 cursor-pointer transition-colors"
-          >
-            <RefreshCw className="w-3.5 h-3.5" />
-            Auto-fill Profile
-          </button>
 
-          <button
-            onClick={handlePrint}
-            className="px-5 py-2 bg-[#353df6] text-white hover:bg-[#252ccb] rounded-xl font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-md shadow-[#353df6]/15 transition-all"
-          >
-            <Printer className="w-3.5 h-3.5" />
-            Print / Save PDF
-          </button>
-        </div>
-      </div>
-
-      {/* Template Selector Bar */}
-      <div className="bg-white rounded-3xl p-4 border border-gray-150 shadow-sm space-y-3 shrink-0 print:hidden">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-gray-100 pb-3">
-          <div className="flex items-center gap-2">
-            <LayoutGrid className="w-4 h-4 text-[#353df6]" />
-            <h2 className="text-xs font-extrabold text-gray-900 uppercase tracking-wider font-display">Select Resume Template Format</h2>
-          </div>
-          
-          {/* Category Filter Pills */}
-          <div className="flex flex-wrap gap-1 bg-gray-50 p-1 rounded-xl border border-gray-150 text-[10px] font-bold">
-            {(['All', 'Executive', 'Corporate', 'Technical', 'Modern'] as const).map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setCategoryFilter(cat)}
-                className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
-                  categoryFilter === cat ? 'bg-white text-gray-900 shadow-sm font-black' : 'text-gray-500 hover:text-gray-800'
-                }`}
+          <div className="flex flex-wrap gap-2 items-center w-full md:w-auto">
+            {/* Template Selector Dropdown */}
+            <div className="flex items-center gap-1.5 bg-gray-50 border border-gray-200 px-3 py-1.5 rounded-2xl">
+              <LayoutGrid className="w-3.5 h-3.5 text-[#4f46e5]" />
+              <span className="text-xs font-bold text-gray-400">Template:</span>
+              <select
+                value={template}
+                onChange={(e) => setTemplate(e.target.value as TemplateId)}
+                className="bg-transparent text-xs font-black text-gray-900 focus:outline-none cursor-pointer"
               >
-                {cat}
-              </button>
-            ))}
-          </div>
-        </div>
+                {TEMPLATE_OPTIONS.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name} ({t.tag})
+                  </option>
+                ))}
+              </select>
+            </div>
 
-        {/* Scrollable Template Cards Row */}
-        <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-thin">
-          {filteredTemplates.map((t) => {
-            const isSelected = template === t.id;
-            return (
+            {/* View Mode Switcher */}
+            <div className="flex items-center bg-gray-100 p-1 rounded-2xl border border-gray-200 text-xs font-bold">
               <button
-                key={t.id}
-                onClick={() => setTemplate(t.id)}
-                className={`flex-shrink-0 w-64 p-3 rounded-2xl border text-left transition-all cursor-pointer relative flex flex-col justify-between ${
-                  isSelected 
-                    ? 'border-[#353df6] bg-blue-50/40 shadow-sm ring-1 ring-[#353df6]' 
-                    : 'border-gray-150 bg-gray-50/60 hover:bg-white hover:border-gray-300'
+                onClick={() => setViewMode('split')}
+                className={`px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition-all cursor-pointer ${
+                  viewMode === 'split' ? 'bg-white text-[#4f46e5] shadow-xs font-extrabold' : 'text-gray-500 hover:text-gray-800'
                 }`}
+                title="Split View"
               >
-                <div>
-                  <div className="flex justify-between items-start gap-1">
-                    <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md ${t.badgeBg} ${t.badgeText}`}>
-                      {t.tag}
-                    </span>
-                    {isSelected && (
-                      <CheckCircle2 className="w-4 h-4 text-[#353df6] shrink-0" />
-                    )}
-                  </div>
-                  <h3 className="text-xs font-extrabold text-gray-900 mt-2 tracking-tight">{t.name}</h3>
-                  <p className="text-[10px] text-gray-500 mt-1 line-clamp-2 leading-relaxed">{t.description}</p>
-                </div>
+                <Columns className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Split</span>
               </button>
-            );
-          })}
+              <button
+                onClick={() => setViewMode('form')}
+                className={`px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition-all cursor-pointer ${
+                  viewMode === 'form' ? 'bg-white text-[#4f46e5] shadow-xs font-extrabold' : 'text-gray-500 hover:text-gray-800'
+                }`}
+                title="Form Only Mode"
+              >
+                <FileText className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Form</span>
+              </button>
+              <button
+                onClick={() => setViewMode('preview')}
+                className={`px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition-all cursor-pointer ${
+                  viewMode === 'preview' ? 'bg-white text-[#4f46e5] shadow-xs font-extrabold' : 'text-gray-500 hover:text-gray-800'
+                }`}
+                title="Preview Only Mode"
+              >
+                <Eye className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Preview</span>
+              </button>
+            </div>
+
+            <button
+              onClick={handleAutoFill}
+              className="px-3.5 py-2 border border-gray-200 text-gray-700 hover:bg-gray-50 rounded-xl font-bold text-xs flex items-center gap-1.5 cursor-pointer transition-colors"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              Auto-fill
+            </button>
+
+            <button
+              onClick={handlePrint}
+              className="px-4 py-2 bg-[#4f46e5] text-white hover:bg-[#3f37c9] rounded-xl font-black text-xs flex items-center gap-1.5 cursor-pointer shadow-xs transition-all"
+            >
+              <Printer className="w-3.5 h-3.5" />
+              Print / Save PDF
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Main Builder Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch flex-1 min-h-0 lg:overflow-hidden pb-4">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start flex-1 min-h-0 lg:overflow-hidden pb-4">
         
         {/* Left Column: Input Form (Scrollable) */}
-        <div className="lg:col-span-6 space-y-6 lg:h-full lg:overflow-y-auto pr-1 pb-4 scrollbar-thin print:hidden">
+        {(viewMode === 'split' || viewMode === 'form') && (
+          <div className={`space-y-6 lg:h-full lg:overflow-y-auto pr-1 pb-4 scrollbar-thin print:hidden ${
+            viewMode === 'form' ? 'lg:col-span-12 max-w-4xl mx-auto w-full' : 'lg:col-span-6'
+          }`}>
           
           {/* Section: Personal Info */}
           <div className="bg-white p-5 rounded-3xl border border-gray-150 shadow-sm space-y-4">
@@ -725,20 +730,40 @@ export default function ResumeBuilder({ userProfile }: ResumeBuilderProps) {
               ))}
             </div>
           </div>
-
         </div>
+        )}
 
         {/* Right Column: High-Fidelity Resume Preview Pane */}
-        <div className="lg:col-span-6 lg:h-full lg:overflow-y-auto pb-6 print:w-full print:p-0 print:h-auto print:overflow-visible">
-          
-          <div className="bg-gray-100 p-4 sm:p-6 rounded-3xl border border-gray-150 flex items-center justify-center print:bg-white print:border-none print:p-0">
-            {/* Sheet layout */}
-            <div 
-              id="resume-printable-sheet" 
-              className={`w-full max-w-[650px] min-h-[840px] bg-white rounded-xl shadow-xl p-8 text-gray-900 print:shadow-none print:p-0 print:rounded-none print:max-w-none transition-all ${
-                template === 'sidebar' ? 'p-0 overflow-hidden' : ''
-              }`}
-            >
+        {(viewMode === 'split' || viewMode === 'preview') && (
+          <div className={`lg:h-full lg:overflow-y-auto pb-6 print:w-full print:p-0 print:h-auto print:overflow-visible ${
+            viewMode === 'preview' ? 'lg:col-span-12 flex justify-center w-full' : 'lg:col-span-6 lg:sticky lg:top-4'
+          }`}>
+            
+            <div className="bg-slate-100/90 p-4 sm:p-6 rounded-3xl border border-slate-200/90 flex flex-col items-center shadow-xs min-h-full print:bg-white print:border-none print:p-0">
+              {/* Preview Canvas Top Header */}
+              <div className="w-full flex items-center justify-between pb-3 border-b border-slate-200/80 mb-4 print:hidden text-slate-700">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="text-xs font-black tracking-wider uppercase text-slate-800 font-display">Live A4 Paper Preview</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-extrabold text-slate-500 bg-white border border-slate-200 px-2.5 py-1 rounded-lg shadow-xs">A4 Format</span>
+                  <button 
+                    onClick={handlePrint} 
+                    className="px-3.5 py-1.5 bg-[#4f46e5] hover:bg-[#3f37c9] text-white rounded-xl text-xs font-black flex items-center gap-1.5 cursor-pointer transition-all shadow-xs"
+                  >
+                    <Printer className="w-3.5 h-3.5" /> Save PDF
+                  </button>
+                </div>
+              </div>
+
+              {/* Sheet layout */}
+              <div 
+                id="resume-printable-sheet" 
+                className={`w-full max-w-[620px] min-h-[820px] bg-white rounded-2xl shadow-xl shadow-slate-300/40 p-8 sm:p-10 text-gray-900 print:shadow-none print:p-0 print:rounded-none print:max-w-none transition-all border border-gray-200/90 ${
+                  template === 'sidebar' ? 'p-0 overflow-hidden' : ''
+                }`}
+              >
               
               {/* ==================== TEMPLATE 1: EXECUTIVE CEO (Reference Image 1) ==================== */}
               {template === 'executive_ceo' && (
@@ -1420,6 +1445,7 @@ export default function ResumeBuilder({ userProfile }: ResumeBuilderProps) {
           </div>
 
         </div>
+        )}
 
       </div>
 

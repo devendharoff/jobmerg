@@ -15,7 +15,13 @@ const execAsync = promisify(exec);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+import { createClient } from "@supabase/supabase-js";
+
 dotenv.config();
+
+const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '';
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || '';
+const supabase = (SUPABASE_URL && SUPABASE_KEY) ? createClient(SUPABASE_URL, SUPABASE_KEY) : null;
 
 const app = express();
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3001;
