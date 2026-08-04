@@ -24,6 +24,7 @@ const ApplicationTracker = lazy(() => import('./components/ApplicationTracker'))
 const AIResumeReview = lazy(() => import('./components/AIResumeReview'));
 const ResumeBuilder = lazy(() => import('./components/ResumeBuilder'));
 const AutoApplyBot = lazy(() => import('./components/AutoApplyBot'));
+import CoverLetterGenerator from './components/CoverLetterGenerator';
 
 function CircularProgress({ percentage, size = 48, strokeWidth = 4 }: { percentage: number; size?: number; strokeWidth?: number }) {
   const radius = (size - strokeWidth) / 2;
@@ -159,6 +160,8 @@ export default function App() {
   const [showAuthModal, setShowAuthModal] = useState<boolean>(false);
   const [showPricingModal, setShowPricingModal] = useState<boolean>(false);
   const [isOnboardingPlanSelection, setIsOnboardingPlanSelection] = useState<boolean>(false);
+  const [showCoverLetterModal, setShowCoverLetterModal] = useState<boolean>(false);
+  const [selectedJobForCoverLetter, setSelectedJobForCoverLetter] = useState<Job | null>(null);
   const [authModalDetails, setAuthModalDetails] = useState<{ title: string; subtitle: string; targetJob?: Job | null }>({
     title: "Continue with Google to Apply Instantly",
     subtitle: "Create your free account to unlock 1-click quick apply, AI match scores, and automated applier tools."
@@ -1942,6 +1945,17 @@ export default function App() {
                                           <span>Quick Apply</span>
                                         </button>
                                         <button 
+                                          onClick={() => {
+                                            setSelectedJobForCoverLetter(job);
+                                            setShowCoverLetterModal(true);
+                                          }}
+                                          className="px-3 py-2.5 bg-indigo-50 border border-indigo-150 hover:bg-indigo-100 text-[#4f46e5] text-xs font-bold rounded-xl cursor-pointer transition-colors shrink-0 flex items-center gap-1"
+                                          title="Generate AI Cover Letter"
+                                        >
+                                          <FileText className="w-3.5 h-3.5" />
+                                          <span>Cover Letter</span>
+                                        </button>
+                                        <button 
                                           onClick={() => setSelectedJobDetailModal(job)}
                                           className="px-4 py-2.5 bg-gray-50 border border-gray-200 hover:bg-gray-100 text-gray-700 text-xs font-bold rounded-xl cursor-pointer transition-colors shrink-0"
                                         >
@@ -2617,16 +2631,29 @@ export default function App() {
 
             {/* Modal Footer CTA */}
             <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 flex items-center justify-between">
-              <button 
-                onClick={(e) => handleToggleBookmark(selectedJobDetailModal.id, e)}
-                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                  savedJobIds.includes(selectedJobDetailModal.id)
-                    ? 'bg-[#4f46e5]/10 border border-[#4f46e5]/30 text-[#4f46e5]'
-                    : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-100'
-                }`}
-              >
-                {savedJobIds.includes(selectedJobDetailModal.id) ? 'Saved' : 'Save Job'}
-              </button>
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={(e) => handleToggleBookmark(selectedJobDetailModal.id, e)}
+                  className={`px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    savedJobIds.includes(selectedJobDetailModal.id)
+                      ? 'bg-[#4f46e5]/10 border border-[#4f46e5]/30 text-[#4f46e5]'
+                      : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-100'
+                  }`}
+                >
+                  {savedJobIds.includes(selectedJobDetailModal.id) ? 'Saved' : 'Save Job'}
+                </button>
+
+                <button 
+                  onClick={() => {
+                    setSelectedJobForCoverLetter(selectedJobDetailModal);
+                    setShowCoverLetterModal(true);
+                  }}
+                  className="px-3.5 py-2.5 bg-indigo-50 border border-indigo-150 hover:bg-indigo-100 text-[#4f46e5] text-xs font-extrabold rounded-xl transition-all cursor-pointer flex items-center gap-1.5"
+                >
+                  <FileText className="w-3.5 h-3.5" />
+                  <span>AI Cover Letter</span>
+                </button>
+              </div>
 
               {applications.some(app => app.jobId === selectedJobDetailModal.id) ? (
                 <button disabled className="px-6 py-2.5 bg-green-50 text-green-700 border border-green-200 rounded-xl text-xs font-bold flex items-center gap-1.5">
@@ -2752,6 +2779,15 @@ export default function App() {
         onSelectPlan={handleSelectPlan}
         currentPlan={userProfile.plan || 'Free'}
         isOnboarding={isOnboardingPlanSelection}
+      />
+
+      {/* AI Cover Letter Studio Modal */}
+      <CoverLetterGenerator
+        isOpen={showCoverLetterModal}
+        onClose={() => setShowCoverLetterModal(false)}
+        targetJob={selectedJobForCoverLetter}
+        userProfile={userProfile}
+        showToast={showToast}
       />
     </div>
   );
