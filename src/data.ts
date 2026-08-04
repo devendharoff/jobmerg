@@ -703,6 +703,52 @@ export const INITIAL_SALARY_INSIGHTS: SalaryInsight[] = [
   }
 ];
 
+export function getRoleRealisticSpecs(title: string, category?: string) {
+  const t = title.toLowerCase();
+  
+  if (t.includes('intern') || category === 'Students') {
+    return {
+      salaryRange: '₹15,000 – ₹35,000 / mo',
+      experienceRequired: '0 Yrs (Interns)'
+    };
+  }
+  if (t.includes('fresher') || t.includes('junior') || t.includes('trainee') || category === 'Freshers') {
+    return {
+      salaryRange: '₹4.5L – ₹8.5L PA',
+      experienceRequired: '0 – 1 Yrs'
+    };
+  }
+  if (t.includes('senior') || t.includes('lead') || t.includes('architect') || t.includes('staff')) {
+    return {
+      salaryRange: '₹28L – ₹52L PA',
+      experienceRequired: '5 – 8+ Yrs'
+    };
+  }
+  if (t.includes('manager') || t.includes('director') || t.includes('head')) {
+    return {
+      salaryRange: '₹35L – ₹65L PA',
+      experienceRequired: '6 – 10+ Yrs'
+    };
+  }
+  if (t.includes('data') || t.includes('analyst')) {
+    return {
+      salaryRange: '₹9L – ₹16L PA',
+      experienceRequired: '1 – 3 Yrs'
+    };
+  }
+  if (t.includes('designer') || t.includes('ux') || t.includes('ui')) {
+    return {
+      salaryRange: '₹12L – ₹22L PA',
+      experienceRequired: '2 – 4 Yrs'
+    };
+  }
+
+  return {
+    salaryRange: '₹14L – ₹26L PA',
+    experienceRequired: '2 – 5 Yrs'
+  };
+}
+
 export const DEFAULT_USER: UserProfile = {
   name: 'Devender Kumar',
   email: 'devender.kumar@gmail.com',
@@ -711,7 +757,7 @@ export const DEFAULT_USER: UserProfile = {
   skills: ['React', 'TypeScript', 'JavaScript', 'Python', 'CSS', 'HTML'],
   experienceYears: 4,
   desiredSalary: '₹22L PA',
-  profileCompleteness: 65,
+  profileCompleteness: 84,
   resumeText: `DEVENDER KUMAR
 Software Engineer | devender.kumar@gmail.com | +91 98765 43210
 

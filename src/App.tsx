@@ -11,7 +11,7 @@ import {
 import { 
   ActiveScreen, Job, UserProfile, JobApplication, SalaryInsight 
 } from './types';
-import { INITIAL_JOBS, INITIAL_SALARY_INSIGHTS, DEFAULT_USER } from './data';
+import { INITIAL_JOBS, INITIAL_SALARY_INSIGHTS, DEFAULT_USER, getRoleRealisticSpecs } from './data';
 import LandingPage from './components/LandingPage';
 import ExternalRedirectModal from './components/ExternalRedirectModal';
 import { supabase, getSupabaseClient } from './supabaseClient';
@@ -69,27 +69,45 @@ function MiniSparkline({ color = "#10b981", data = [10, 15, 8, 22, 18, 30] }: { 
   );
 }
 
-function ProfileGaugeRing({ score = 91 }: { score?: number }) {
+function ProfileGaugeRing({ score = 84 }: { score?: number }) {
   const size = 120;
   const strokeWidth = 10;
   const radius = (size - strokeWidth) / 2;
   const circumference = Math.PI * radius;
   const offset = circumference - (score / 100) * circumference;
 
+  let badgeText = "Excellent";
+  let badgeColor = "bg-emerald-50 text-emerald-700 border-emerald-200";
+  let strokeColor = "stroke-[#4f46e5]";
+
+  if (score < 50) {
+    badgeText = "Needs Improvement";
+    badgeColor = "bg-amber-50 text-amber-700 border-amber-200";
+    strokeColor = "stroke-amber-500";
+  } else if (score < 70) {
+    badgeText = "Fair";
+    badgeColor = "bg-blue-50 text-blue-700 border-blue-200";
+    strokeColor = "stroke-blue-500";
+  } else if (score < 85) {
+    badgeText = "Good";
+    badgeColor = "bg-indigo-50 text-indigo-700 border-indigo-200";
+    strokeColor = "stroke-indigo-600";
+  }
+
   return (
     <div className="relative flex flex-col items-center justify-center py-2">
       <div className="relative" style={{ width: size, height: size / 2 + 12 }}>
         <svg className="overflow-visible" width={size} height={size}>
-          <path d={`M ${strokeWidth/2} ${size/2} A ${radius} ${radius} 0 0 1 ${size - strokeWidth/2} ${size/2}`} className="stroke-indigo-100" strokeWidth={strokeWidth} fill="none" strokeLinecap="round" />
-          <path d={`M ${strokeWidth/2} ${size/2} A ${radius} ${radius} 0 0 1 ${size - strokeWidth/2} ${size/2}`} className="stroke-[#4f46e5] transition-all duration-1000" strokeWidth={strokeWidth} strokeDasharray={circumference} strokeDashoffset={offset} fill="none" strokeLinecap="round" />
+          <path d={`M ${strokeWidth/2} ${size/2} A ${radius} ${radius} 0 0 1 ${size - strokeWidth/2} ${size/2}`} className="stroke-gray-100" strokeWidth={strokeWidth} fill="none" strokeLinecap="round" />
+          <path d={`M ${strokeWidth/2} ${size/2} A ${radius} ${radius} 0 0 1 ${size - strokeWidth/2} ${size/2}`} className={`${strokeColor} transition-all duration-1000`} strokeWidth={strokeWidth} strokeDasharray={circumference} strokeDashoffset={offset} fill="none" strokeLinecap="round" />
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-end pb-0.5">
           <span className="text-2xl font-black text-gray-900 tracking-tight font-display">{score}%</span>
           <span className="text-[9px] font-extrabold text-gray-400 uppercase tracking-wider">Resume Score</span>
         </div>
       </div>
-      <span className="mt-2.5 px-3 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-[10px] font-black uppercase tracking-wider">
-        Excellent
+      <span className={`mt-2.5 px-3 py-0.5 border rounded-full text-[10px] font-black uppercase tracking-wider ${badgeColor}`}>
+        {badgeText}
       </span>
     </div>
   );
@@ -414,26 +432,29 @@ export default function App() {
         if (error) throw error;
 
         if (data && data.length > 0) {
-          const mappedJobs: Job[] = data.map(dbJob => ({
-            id: dbJob.id,
-            title: dbJob.title,
-            company: dbJob.company,
-            logoUrl: dbJob.logo_url || 'https://www.google.com/s2/favicons?sz=128&domain=' + dbJob.company.toLowerCase().replace(/\s+/g, '') + '.com',
-            location: dbJob.location || 'Remote',
-            workType: dbJob.work_type || 'Remote',
-            jobType: dbJob.job_type || 'Full-time',
-            salaryRange: dbJob.salary_range || '₹10L – ₹18L PA',
-            experienceRequired: dbJob.experience_required || '0 – 2 Yrs',
-            postedTime: dbJob.posted_time || 'Recently',
-            skills: dbJob.tags || [],
-            description: dbJob.description || '',
-            companyAbout: dbJob.company_about || `${dbJob.company} is a leading innovator in technology services.`,
-            requirements: dbJob.requirements || [],
-            benefits: dbJob.benefits || [],
-            category: dbJob.category || 'Experienced',
-            applyUrl: dbJob.original_url || '',
-            viaSource: dbJob.via || (dbJob.company_about?.includes('via ') ? dbJob.company_about.match(/via [^.)]+/)?.[0] : undefined)
-          }));
+          const mappedJobs: Job[] = data.map(dbJob => {
+            const defaultSpecs = getRoleRealisticSpecs(dbJob.title, dbJob.category);
+            return {
+              id: dbJob.id,
+              title: dbJob.title,
+              company: dbJob.company,
+              logoUrl: dbJob.logo_url || 'https://www.google.com/s2/favicons?sz=128&domain=' + dbJob.company.toLowerCase().replace(/\s+/g, '') + '.com',
+              location: dbJob.location || 'Remote',
+              workType: dbJob.work_type || 'Remote',
+              jobType: dbJob.job_type || 'Full-time',
+              salaryRange: (dbJob.salary_range && dbJob.salary_range !== '₹10L – ₹18L PA') ? dbJob.salary_range : defaultSpecs.salaryRange,
+              experienceRequired: (dbJob.experience_required && dbJob.experience_required !== '0 – 2 Yrs') ? dbJob.experience_required : defaultSpecs.experienceRequired,
+              postedTime: dbJob.posted_time || 'Recently',
+              skills: dbJob.tags || [],
+              description: dbJob.description || '',
+              companyAbout: dbJob.company_about || `${dbJob.company} is a leading innovator in technology services.`,
+              requirements: dbJob.requirements || [],
+              benefits: dbJob.benefits || [],
+              category: dbJob.category || 'Experienced',
+              applyUrl: dbJob.original_url || '',
+              viaSource: dbJob.via || (dbJob.company_about?.includes('via ') ? dbJob.company_about.match(/via [^.)]+/)?.[0] : undefined)
+            };
+          });
 
           setJobs(mappedJobs);
           setSelectedJob(mappedJobs[0]);
@@ -1230,7 +1251,7 @@ export default function App() {
           </header>
 
           {/* Mobile App-Style Bottom Navigation Bar */}
-          <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t border-gray-200 z-40 px-2 py-1.5 flex justify-around items-center shadow-lg">
+          <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t border-gray-200 z-40 px-2 py-1.5 flex justify-around items-center shadow-lg">
             <button
               onClick={() => { setActiveDashboardTab('FindJobs'); setIsMobileMenuOpen(false); }}
               className={`flex flex-col items-center justify-center py-1 px-2 rounded-xl transition-all cursor-pointer min-w-[56px] ${
@@ -1598,7 +1619,7 @@ export default function App() {
           </aside>
 
           {/* Main Workspace Area */}
-          <main className={`flex-1 p-4 sm:p-6 lg:p-8 w-full max-w-full flex flex-col space-y-6 transition-all duration-300 lg:overflow-y-auto pb-24 lg:pb-8 ${
+          <main className={`flex-1 p-4 sm:p-6 lg:p-8 w-full max-w-full flex flex-col space-y-6 transition-all duration-300 lg:overflow-y-auto pb-32 sm:pb-36 md:pb-10 lg:pb-8 ${
             isSidebarCollapsed ? 'lg:ml-16' : 'lg:ml-64'
           }`}>
             
@@ -1728,8 +1749,10 @@ export default function App() {
                         <button 
                           key={tab}
                           onClick={() => setActiveFilterCategory(tab)}
-                          className={`px-3.5 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer shrink-0 whitespace-nowrap ${
-                            activeFilterCategory === tab ? 'bg-[#4f46e5] text-white shadow-xs' : 'text-gray-500 hover:text-gray-900'
+                          className={`px-4 py-2 rounded-xl text-xs font-black transition-all duration-200 cursor-pointer shrink-0 whitespace-nowrap ${
+                            activeFilterCategory === tab 
+                              ? 'bg-[#4f46e5] text-white shadow-md shadow-[#4f46e5]/20 ring-2 ring-[#4f46e5]/20 font-black' 
+                              : 'text-gray-600 hover:bg-white hover:text-gray-900 font-bold'
                           }`}
                         >
                           {tab}
@@ -1849,7 +1872,7 @@ export default function App() {
                                         </div>
                                         <div className="min-w-0 flex-1">
                                           <div className="flex items-center gap-2 flex-wrap">
-                                            <h3 className="text-base font-black text-gray-900 font-display group-hover:text-[#4f46e5] transition-colors truncate">{job.title}</h3>
+                                            <h3 className="text-base font-black text-gray-900 font-display group-hover:text-[#4f46e5] transition-colors line-clamp-2 min-h-[2.5rem] leading-snug" title={job.title}>{job.title}</h3>
                                             <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase border shrink-0 ${getPlatformInfo(job).badgeBg}`}>
                                               via {getPlatformInfo(job).name}
                                             </span>
@@ -1872,25 +1895,26 @@ export default function App() {
                                       </div>
                                     </div>
 
-                                    <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+                                    <div className="flex items-center justify-between pt-3 border-t border-gray-100 flex-wrap gap-2">
                                       <span className="text-[10px] font-bold text-gray-400">Posted {job.postedTime}</span>
-                                      <div className="flex items-center gap-2">
+                                      <div className="flex items-center gap-2.5 sm:gap-3">
                                         <button 
                                           onClick={(e) => handleToggleBookmark(job.id, e)}
-                                          className="p-2 bg-gray-50 border border-gray-200 rounded-xl text-gray-500 hover:text-[#4f46e5] cursor-pointer"
+                                          className="p-2.5 bg-gray-50 border border-gray-200 hover:border-gray-300 rounded-xl text-gray-500 hover:text-[#4f46e5] cursor-pointer transition-colors shrink-0"
+                                          title="Save Job"
                                         >
                                           <Bookmark className="w-4 h-4" />
                                         </button>
                                         <button 
                                           onClick={() => handleApplyJob(job)}
-                                          className="px-3.5 py-1.5 bg-[#4f46e5] hover:bg-[#3f37c9] text-white text-xs font-black rounded-xl shadow-xs cursor-pointer flex items-center gap-1.5"
+                                          className="px-4 py-2.5 bg-[#4f46e5] hover:bg-[#3f37c9] text-white text-xs font-black rounded-xl shadow-xs cursor-pointer flex items-center gap-1.5 transition-all shrink-0 active:scale-98"
                                         >
                                           <Zap className="w-3.5 h-3.5" />
                                           <span>Quick Apply</span>
                                         </button>
                                         <button 
                                           onClick={() => setSelectedJobDetailModal(job)}
-                                          className="px-3.5 py-1.5 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 text-xs font-bold rounded-xl cursor-pointer"
+                                          className="px-4 py-2.5 bg-gray-50 border border-gray-200 hover:bg-gray-100 text-gray-700 text-xs font-bold rounded-xl cursor-pointer transition-colors shrink-0"
                                         >
                                           Details →
                                         </button>
