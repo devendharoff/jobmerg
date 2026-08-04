@@ -4,40 +4,46 @@ import { X, Check, Sparkles, Zap, Award, ArrowRight } from 'lucide-react';
 interface PricingModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSelectPlan?: (planName: string) => void;
+  onSelectPlan?: (planTier: 'Free' | 'Pro' | 'Accelerator') => void;
+  currentPlan?: 'Free' | 'Pro' | 'Accelerator';
+  isOnboarding?: boolean;
 }
 
-export default function PricingModal({ isOpen, onClose, onSelectPlan }: PricingModalProps) {
+export default function PricingModal({ isOpen, onClose, onSelectPlan, currentPlan = 'Free', isOnboarding = false }: PricingModalProps) {
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly');
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-center justify-center p-4 overflow-y-auto animate-fade-in">
+    <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-md z-50 flex items-center justify-center p-4 overflow-y-auto animate-fade-in">
       <div className="bg-white rounded-3xl max-w-4xl w-full p-6 sm:p-8 border border-gray-150 shadow-2xl space-y-6 relative overflow-hidden my-8">
         
         {/* Background design glow */}
         <div className="absolute -top-20 -right-20 w-60 h-60 bg-gradient-to-br from-[#4f46e5]/20 via-purple-500/15 to-pink-500/10 rounded-full blur-3xl pointer-events-none" />
         
-        {/* Close Button */}
-        <button 
-          onClick={onClose}
-          className="absolute top-5 right-5 p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors cursor-pointer z-20"
-        >
-          <X className="w-5 h-5" />
-        </button>
+        {/* Close Button (Hidden during onboarding) */}
+        {!isOnboarding && (
+          <button 
+            onClick={onClose}
+            className="absolute top-5 right-5 p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors cursor-pointer z-20"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        )}
 
         {/* Modal Header */}
         <div className="text-center space-y-2 max-w-lg mx-auto pt-2">
           <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-indigo-50 text-[#4f46e5] text-xs font-black uppercase tracking-wider border border-indigo-100">
             <Sparkles className="w-3.5 h-3.5" />
-            <span>JobMerge Pricing & Plans</span>
+            <span>{isOnboarding ? 'Account Setup • Choose Plan' : 'JobMerge Pricing & Plans'}</span>
           </div>
           <h2 className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight font-display">
-            Supercharge Your Job Search
+            {isOnboarding ? 'Choose Your Plan to Get Started' : 'Supercharge Your Job Search'}
           </h2>
           <p className="text-xs sm:text-sm font-semibold text-gray-500">
-            Start 100% free with core application tools, or upgrade to Pro to unlock unlimited auto-applications & ATS resume scoring.
+            {isOnboarding 
+              ? 'Select a plan below to activate your candidate dashboard and begin applying.'
+              : 'Start 100% free with core application tools, or upgrade to Pro to unlock 100 auto-applications & 25 ATS scans.'}
           </p>
 
           {/* Billing Cycle Toggle */}
@@ -116,9 +122,13 @@ export default function PricingModal({ isOpen, onClose, onSelectPlan }: PricingM
             <button
               type="button"
               onClick={() => { onSelectPlan?.('Free'); onClose(); }}
-              className="w-full py-3 bg-white border border-gray-300 hover:bg-gray-100 text-gray-700 rounded-xl text-xs font-black transition-all cursor-pointer text-center"
+              className={`w-full py-3 border rounded-xl text-xs font-black transition-all cursor-pointer text-center ${
+                currentPlan === 'Free'
+                  ? 'bg-gray-200 text-gray-800 border-gray-300'
+                  : 'bg-white border-gray-300 hover:bg-gray-100 text-gray-700'
+              }`}
             >
-              Continue Free
+              {currentPlan === 'Free' ? '✓ Selected Free Starter' : 'Choose Free Starter'}
             </button>
           </div>
 
@@ -132,7 +142,7 @@ export default function PricingModal({ isOpen, onClose, onSelectPlan }: PricingM
               <div className="flex justify-between items-start">
                 <div>
                   <h3 className="text-lg font-black text-gray-900 font-display">Job Hunter Pro</h3>
-                  <p className="text-[11px] font-bold text-[#4f46e5] mt-0.5">Accelerate applications 10x</p>
+                  <p className="text-[11px] font-bold text-[#4f46e5] mt-0.5">Accelerate your job search 10x</p>
                 </div>
                 <span className="px-2.5 py-0.5 bg-indigo-50 text-[#4f46e5] border border-indigo-100 text-[9px] font-black uppercase rounded-full">
                   Best Value
@@ -173,9 +183,13 @@ export default function PricingModal({ isOpen, onClose, onSelectPlan }: PricingM
             <button
               type="button"
               onClick={() => { onSelectPlan?.('Pro'); onClose(); }}
-              className="w-full py-3 bg-[#4f46e5] hover:bg-[#3f37c9] text-white rounded-xl text-xs font-black shadow-md shadow-[#4f46e5]/20 transition-all cursor-pointer text-center active:scale-98"
+              className={`w-full py-3 rounded-xl text-xs font-black transition-all cursor-pointer text-center active:scale-98 ${
+                currentPlan === 'Pro'
+                  ? 'bg-indigo-700 text-white shadow-md'
+                  : 'bg-[#4f46e5] hover:bg-[#3f37c9] text-white shadow-md shadow-[#4f46e5]/20'
+              }`}
             >
-              Upgrade to Pro →
+              {currentPlan === 'Pro' ? '✓ Selected Job Hunter Pro' : 'Choose Job Hunter Pro →'}
             </button>
           </div>
 
@@ -230,9 +244,13 @@ export default function PricingModal({ isOpen, onClose, onSelectPlan }: PricingM
             <button
               type="button"
               onClick={() => { onSelectPlan?.('Accelerator'); onClose(); }}
-              className="w-full py-3 bg-gray-900 hover:bg-black text-white rounded-xl text-xs font-black transition-all cursor-pointer text-center"
+              className={`w-full py-3 rounded-xl text-xs font-black transition-all cursor-pointer text-center ${
+                currentPlan === 'Accelerator'
+                  ? 'bg-purple-800 text-white shadow-md'
+                  : 'bg-gray-900 hover:bg-black text-white'
+              }`}
             >
-              Get Accelerator
+              {currentPlan === 'Accelerator' ? '✓ Selected VIP Accelerator' : 'Choose VIP Accelerator'}
             </button>
           </div>
 

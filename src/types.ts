@@ -21,6 +21,42 @@ export interface Job {
   viaSource?: string;
 }
 
+export type UserPlanTier = 'Free' | 'Pro' | 'Accelerator';
+
+export interface PlanLimits {
+  maxResumes: number;
+  maxAtsScans: number;
+  maxAutoApplies: number;
+  hasAiCustomReport: boolean;
+}
+
+export interface UserUsage {
+  resumesCreated: number;
+  atsScansUsed: number;
+  autoAppliesUsed: number;
+}
+
+export const PLAN_LIMITS: Record<UserPlanTier, PlanLimits> = {
+  Free: {
+    maxResumes: 1,
+    maxAtsScans: 2,
+    maxAutoApplies: 5,
+    hasAiCustomReport: false
+  },
+  Pro: {
+    maxResumes: 15,
+    maxAtsScans: 25,
+    maxAutoApplies: 100,
+    hasAiCustomReport: false
+  },
+  Accelerator: {
+    maxResumes: Infinity,
+    maxAtsScans: Infinity,
+    maxAutoApplies: Infinity,
+    hasAiCustomReport: true
+  }
+};
+
 export interface UserProfile {
   name: string;
   email: string;
@@ -31,6 +67,9 @@ export interface UserProfile {
   desiredSalary: string;
   resumeText?: string;
   profileCompleteness: number;
+  plan?: UserPlanTier;
+  usage?: UserUsage;
+  hasSelectedInitialPlan?: boolean;
 }
 
 export interface JobApplication {

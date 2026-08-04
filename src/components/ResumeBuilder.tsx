@@ -8,6 +8,7 @@ import { UserProfile } from '../types';
 
 interface ResumeBuilderProps {
   userProfile: UserProfile;
+  onOpenPricing?: () => void;
 }
 
 interface WorkExp {
@@ -135,7 +136,7 @@ const TEMPLATE_OPTIONS: TemplateOption[] = [
   }
 ];
 
-export default function ResumeBuilder({ userProfile }: ResumeBuilderProps) {
+export default function ResumeBuilder({ userProfile, onOpenPricing }: ResumeBuilderProps) {
   // View mode switcher: 'split' | 'form' | 'preview'
   const [viewMode, setViewMode] = useState<'split' | 'form' | 'preview'>('split');
 
@@ -265,9 +266,25 @@ export default function ResumeBuilder({ userProfile }: ResumeBuilderProps) {
     ? TEMPLATE_OPTIONS 
     : TEMPLATE_OPTIONS.filter(t => t.category === categoryFilter);
 
+  const userPlan = userProfile.plan || 'Free';
+
   return (
     <div className="space-y-6 animate-fade-in flex-1 flex flex-col lg:overflow-hidden h-full">
       
+      {/* Active Plan Quota Banner */}
+      <div className="bg-gradient-to-r from-indigo-50 via-purple-50 to-indigo-100 border border-indigo-150 p-4 rounded-3xl flex flex-col sm:flex-row items-center justify-between gap-3 text-xs font-bold text-gray-800 shadow-xs print:hidden">
+        <div className="flex items-center gap-2">
+          <Sparkles className="w-4 h-4 text-[#4f46e5] shrink-0" />
+          <span>Active Plan: <strong className="text-gray-900">{userPlan === 'Accelerator' ? 'VIP Accelerator (Unlimited Resumes)' : userPlan === 'Pro' ? 'Job Hunter Pro (15 Resumes)' : 'Free Starter (1 Resume Limit)'}</strong></span>
+        </div>
+        <button
+          onClick={onOpenPricing}
+          className="px-3.5 py-1.5 bg-[#4f46e5] hover:bg-[#3f37c9] text-white rounded-xl font-black text-xs transition-all cursor-pointer shadow-xs active:scale-98"
+        >
+          {userPlan === 'Free' ? 'Upgrade to Pro →' : 'Manage Plan'}
+        </button>
+      </div>
+
       {/* Top Header & Compact Template Selector Toolbar */}
       <div className="bg-white rounded-3xl p-5 border border-gray-150 shadow-xs space-y-4 shrink-0 print:hidden">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">

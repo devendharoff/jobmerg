@@ -758,6 +758,13 @@ export const DEFAULT_USER: UserProfile = {
   experienceYears: 4,
   desiredSalary: '₹22L PA',
   profileCompleteness: 84,
+  plan: 'Free',
+  usage: {
+    resumesCreated: 1,
+    atsScansUsed: 1,
+    autoAppliesUsed: 5
+  },
+  hasSelectedInitialPlan: false,
   resumeText: `DEVENDER KUMAR
 Software Engineer | devender.kumar@gmail.com | +91 98765 43210
 

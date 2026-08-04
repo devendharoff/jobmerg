@@ -3,13 +3,14 @@ import {
   Sparkles, Check, Play, AlertCircle, RefreshCw, FileText, 
   ChevronRight, Award, CheckCircle, Info, Upload, X, ShieldCheck, Target, Zap, FileSpreadsheet
 } from 'lucide-react';
-import { UserProfile, Job } from '../types';
+import { UserProfile, Job, PLAN_LIMITS } from '../types';
 
 interface AIResumeReviewProps {
   userProfile: UserProfile;
   availableJobs: Job[];
   onUpdateUserProfile: (updated: Partial<UserProfile>) => void;
   onUpdateJobMatches: (matches: Array<{ jobId: string; matchPercent: number; matchExplanation: string }>) => void;
+  onOpenPricing?: () => void;
 }
 
 interface ReviewResult {
@@ -25,7 +26,8 @@ export default function AIResumeReview({
   userProfile,
   availableJobs,
   onUpdateUserProfile,
-  onUpdateJobMatches
+  onUpdateJobMatches,
+  onOpenPricing
 }: AIResumeReviewProps) {
   const [activeInputTab, setActiveInputTab] = useState<'pdf' | 'text'>('pdf');
   const [resumeText, setResumeText] = useState(userProfile.resumeText || '');
@@ -86,6 +88,16 @@ export default function AIResumeReview({
       return;
     }
 
+    const plan = userProfile.plan || 'Free';
+    const usage = userProfile.usage || { resumesCreated: 1, atsScansUsed: 1, autoAppliesUsed: 5 };
+    const maxScans = PLAN_LIMITS[plan].maxAtsScans;
+
+    if (usage.atsScansUsed >= maxScans) {
+      setError(`🔒 Plan Limit Reached: You have used all ${maxScans} ATS scans included in your ${plan} Plan. Upgrade to Pro (25 ATS Scans) or Accelerator (Unlimited) to continue!`);
+      onOpenPricing?.();
+      return;
+    }
+
     setIsLoading(true);
     setError('');
     setLoadingStep(0);
@@ -128,7 +140,13 @@ export default function AIResumeReview({
         onUpdateJobMatches(data.jobMatches);
       }
 
-      onUpdateUserProfile({ profileCompleteness: 100 });
+      onUpdateUserProfile({ 
+        profileCompleteness: 100,
+        usage: {
+          ...usage,
+          atsScansUsed: usage.atsScansUsed + 1
+        }
+      });
 
     } catch (err: any) {
       console.error(err);

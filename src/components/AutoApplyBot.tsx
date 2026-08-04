@@ -4,11 +4,12 @@ import {
   Sparkles, Sliders, User, ShieldCheck, UserCheck, Phone, DollarSign, Globe, Lock, Bookmark, Cpu,
   Search, MapPin, FileSpreadsheet, ChevronRight, HelpCircle, ArrowRight, ShieldAlert, Check
 } from 'lucide-react';
-import { JobApplication, UserProfile } from '../types';
+import { JobApplication, UserProfile, PLAN_LIMITS } from '../types';
 
 interface AutoApplyBotProps {
   userProfile?: UserProfile;
   onSyncApplications: (newApps: JobApplication[]) => void;
+  onOpenPricing?: () => void;
 }
 
 const PRESET_TEMPLATES = [
@@ -38,7 +39,7 @@ const PRESET_TEMPLATES = [
   }
 ];
 
-export default function AutoApplyBot({ userProfile, onSyncApplications }: AutoApplyBotProps) {
+export default function AutoApplyBot({ userProfile, onSyncApplications, onOpenPricing }: AutoApplyBotProps) {
   // Navigation wizard steps: 1. Setup Persona & Credentials -> 2. Job Targets -> 3. Live Bot Console
   const [activeStep, setActiveStep] = useState<'profile' | 'targets' | 'console'>('targets');
 
@@ -385,6 +386,16 @@ export default function AutoApplyBot({ userProfile, onSyncApplications }: AutoAp
 
   const handleStartBot = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    const plan = userProfile?.plan || 'Free';
+    const usage = userProfile?.usage || { resumesCreated: 1, atsScansUsed: 1, autoAppliesUsed: 5 };
+    const limit = PLAN_LIMITS[plan].maxAutoApplies;
+
+    if (usage.autoAppliesUsed >= limit) {
+      showToast(`🔒 Plan Limit Reached: You have used all ${limit} auto-applications included in your ${plan} Plan. Upgrade to Pro (100 apps) or Accelerator (Unlimited) to continue!`);
+      onOpenPricing?.();
+      return;
+    }
 
     // Dispatch custom event to notify local Chrome Extension to start automation
     window.dispatchEvent(new CustomEvent('JOBMERGE_START_BOT', {

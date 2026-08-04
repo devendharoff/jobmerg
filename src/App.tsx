@@ -155,13 +155,29 @@ export default function App() {
   const [activeFilterCategory, setActiveFilterCategory] = useState<string>('Recommended');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   
-  // Conversion Auth Modal State for Non-authenticated Visitors
+  // Conversion Auth Modal & Plan Selection Modal State
   const [showAuthModal, setShowAuthModal] = useState<boolean>(false);
   const [showPricingModal, setShowPricingModal] = useState<boolean>(false);
+  const [isOnboardingPlanSelection, setIsOnboardingPlanSelection] = useState<boolean>(false);
   const [authModalDetails, setAuthModalDetails] = useState<{ title: string; subtitle: string; targetJob?: Job | null }>({
     title: "Continue with Google to Apply Instantly",
     subtitle: "Create your free account to unlock 1-click quick apply, AI match scores, and automated applier tools."
   });
+
+  const handleSelectPlan = (planTier: 'Free' | 'Pro' | 'Accelerator') => {
+    setUserProfile(prev => ({
+      ...prev,
+      plan: planTier,
+      hasSelectedInitialPlan: true
+    }));
+    try {
+      localStorage.setItem('jobmerge_user_plan', planTier);
+      localStorage.setItem('jobmerge_has_selected_plan', 'true');
+    } catch (e) {}
+    setShowPricingModal(false);
+    setIsOnboardingPlanSelection(false);
+    showToast(`🎉 Plan Activated: ${planTier === 'Free' ? 'Free Starter' : planTier === 'Pro' ? 'Job Hunter Pro' : 'Career Accelerator'}!`);
+  };
 
   const triggerAuthModal = (title: string, subtitle: string, targetJob?: Job | null) => {
     setAuthModalDetails({ title, subtitle, targetJob: targetJob || null });
@@ -2054,19 +2070,24 @@ export default function App() {
                     availableJobs={jobs} 
                     onUpdateUserProfile={handleUpdateProfile} 
                     onUpdateJobMatches={handleUpdateJobMatches}
+                    onOpenPricing={() => { setIsOnboardingPlanSelection(false); setShowPricingModal(true); }}
                   />
                 </div>
               )}
 
               {/* Resume Builder View */}
               {activeDashboardTab === 'Resume' && (
-                <ResumeBuilder userProfile={userProfile} />
+                <ResumeBuilder 
+                  userProfile={userProfile} 
+                  onOpenPricing={() => { setIsOnboardingPlanSelection(false); setShowPricingModal(true); }}
+                />
               )}
 
               {/* LinkedIn Auto-Applier Bot View */}
               {activeDashboardTab === 'AutoApply' && (
                 <AutoApplyBot
                   userProfile={userProfile}
+                  onOpenPricing={() => { setIsOnboardingPlanSelection(false); setShowPricingModal(true); }}
                   onSyncApplications={(newApps) => {
                     setApplications(prev => {
                       const existingIds = new Set(prev.map(a => a.id));
@@ -2742,6 +2763,9 @@ export default function App() {
       <PricingModal
         isOpen={showPricingModal}
         onClose={() => setShowPricingModal(false)}
+        onSelectPlan={handleSelectPlan}
+        currentPlan={userProfile.plan || 'Free'}
+        isOnboarding={isOnboardingPlanSelection}
       />
     </div>
   );
