@@ -1717,17 +1717,6 @@ export default function App() {
                       </button>
                     </div>
                   </div>
-
-                  <div className="relative shrink-0 w-56 h-32 hidden sm:flex items-center justify-center">
-                    <div className="absolute w-44 h-28 bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 shadow-2xl p-4 flex flex-col items-center justify-center space-y-2 transform rotate-2">
-                      <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
-                        <User className="w-5 h-5 text-white" />
-                      </div>
-                      <div className="flex gap-1 text-amber-300 text-xs">
-                        ★★★★★
-                      </div>
-                    </div>
-                  </div>
                 </div>
 
                 {/* Search and Filters Toolbar */}
