@@ -14,6 +14,7 @@ import {
 import { INITIAL_JOBS, INITIAL_SALARY_INSIGHTS, DEFAULT_USER, getRoleRealisticSpecs } from './data';
 import LandingPage from './components/LandingPage';
 import ExternalRedirectModal from './components/ExternalRedirectModal';
+import PricingModal from './components/PricingModal';
 import { supabase, getSupabaseClient } from './supabaseClient';
 import { useUser, useAuth, SignIn as ClerkSignIn, SignUp as ClerkSignUp, SignInButton } from '@clerk/clerk-react';
 
@@ -156,6 +157,7 @@ export default function App() {
   
   // Conversion Auth Modal State for Non-authenticated Visitors
   const [showAuthModal, setShowAuthModal] = useState<boolean>(false);
+  const [showPricingModal, setShowPricingModal] = useState<boolean>(false);
   const [authModalDetails, setAuthModalDetails] = useState<{ title: string; subtitle: string; targetJob?: Job | null }>({
     title: "Continue with Google to Apply Instantly",
     subtitle: "Create your free account to unlock 1-click quick apply, AI match scores, and automated applier tools."
@@ -1556,6 +1558,31 @@ export default function App() {
                         <span>Salary Insights</span>
                       </div>
                     </button>
+
+                    {/* Free Plan Limits Widget Card */}
+                    <div className="my-3 p-3.5 bg-gradient-to-br from-indigo-50/90 via-purple-50/70 to-indigo-100/50 border border-indigo-150 rounded-2xl space-y-2.5 shadow-xs">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[9px] font-black uppercase text-indigo-700 tracking-wider">Free Starter Plan</span>
+                        <span className="px-2 py-0.5 bg-white border border-indigo-200 text-[#4f46e5] text-[9px] font-black rounded-full">Active</span>
+                      </div>
+                      <div className="space-y-1 text-[11px] font-bold text-gray-700">
+                        <div className="flex justify-between">
+                          <span>📄 Resume Limit:</span>
+                          <strong className="text-gray-900">1 Generated</strong>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>🚀 Auto Applications:</span>
+                          <strong className="text-indigo-700">5 / 5 Used</strong>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setShowPricingModal(true)}
+                        className="w-full py-2 bg-[#4f46e5] hover:bg-[#3f37c9] text-white rounded-xl text-xs font-black shadow-xs cursor-pointer flex items-center justify-center gap-1.5 transition-all active:scale-98"
+                      >
+                        <Sparkles className="w-3.5 h-3.5" />
+                        <span>Upgrade to Pro</span>
+                      </button>
+                    </div>
                   </div>
 
                   {/* TOOLS Section */}
@@ -2700,11 +2727,6 @@ export default function App() {
                 </button>
               </SignInButton>
 
-              <div className="flex items-center justify-between text-[10px] text-gray-400 font-bold px-1 pt-1">
-                <span>🔒 100% Free • No credit card</span>
-                <span>⚡ Join 50,000+ candidates</span>
-              </div>
-
               <button 
                 onClick={() => setShowAuthModal(false)}
                 className="w-full py-1.5 text-xs font-bold text-gray-400 hover:text-gray-700 transition-colors cursor-pointer text-center"
@@ -2716,6 +2738,11 @@ export default function App() {
         </div>
       )}
 
+      {/* Pricing & Upgrade Modal Overlay */}
+      <PricingModal
+        isOpen={showPricingModal}
+        onClose={() => setShowPricingModal(false)}
+      />
     </div>
   );
 }

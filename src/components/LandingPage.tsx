@@ -89,7 +89,7 @@ export default function LandingPage({ onNavigate, onSearch, jobs = [], onSelectJ
                 Resources <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
               </button>
               <a href="#" className="hover:text-[#4f46e5] transition-colors">For Employers</a>
-              <a href="#" className="hover:text-[#4f46e5] transition-colors">Pricing</a>
+              <button onClick={() => handleFeatureClick('pricing-section')} className="hover:text-[#4f46e5] transition-colors cursor-pointer">Pricing</button>
             </div>
           </div>
 
@@ -915,6 +915,186 @@ export default function LandingPage({ onNavigate, onSearch, jobs = [], onSelectJ
                 Explore salary trends, top skills and in-demand roles.
               </p>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Pricing Section (Free vs Pro vs Enterprise) */}
+      <section id="pricing-section" className="py-20 bg-white border-t border-gray-100">
+        <div className="max-w-7xl mx-auto px-6 space-y-12">
+          {/* Header */}
+          <div className="text-center space-y-3 max-w-2xl mx-auto">
+            <span className="px-3.5 py-1 rounded-full bg-indigo-50 text-[#4f46e5] text-xs font-black uppercase tracking-wider border border-indigo-100">
+              Transparent Pricing
+            </span>
+            <h2 className="text-3xl md:text-4xl font-black text-gray-900 tracking-tight font-display">
+              Simple, transparent plans for every job seeker
+            </h2>
+            <p className="text-sm font-semibold text-gray-500 leading-relaxed">
+              Start 100% free with core job tools, or upgrade to Pro to unlock unlimited auto-applications, AI ATS resume scoring, and recruiter referrals.
+            </p>
+          </div>
+
+          {/* Pricing Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch">
+            
+            {/* Plan 1: Starter Free Plan */}
+            <div className="bg-gray-50/80 border border-gray-200 rounded-3xl p-8 flex flex-col justify-between space-y-6 relative hover:shadow-lg transition-all">
+              <div className="space-y-4">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h3 className="text-xl font-black text-gray-900 font-display">Free Starter</h3>
+                    <p className="text-xs font-bold text-gray-400 mt-1">Perfect for casual job browsing</p>
+                  </div>
+                  <span className="px-3 py-1 bg-gray-200 text-gray-700 text-[10px] font-black uppercase rounded-full">
+                    Free Forever
+                  </span>
+                </div>
+
+                <div className="flex items-baseline gap-1">
+                  <span className="text-4xl font-black text-gray-900 font-display">₹0</span>
+                  <span className="text-xs font-bold text-gray-400">/ forever</span>
+                </div>
+
+                <div className="space-y-3 pt-4 border-t border-gray-200/80 text-xs font-bold text-gray-700">
+                  <div className="flex items-center gap-2.5">
+                    <Check className="w-4 h-4 text-emerald-600 shrink-0 stroke-[3]" />
+                    <span>📄 <strong>1 Generated Resume</strong> (Free Quota Limit)</span>
+                  </div>
+                  <div className="flex items-center gap-2.5">
+                    <Check className="w-4 h-4 text-emerald-600 shrink-0 stroke-[3]" />
+                    <span>🚀 <strong>5 Auto Applications</strong> (LinkedIn + Indeed Bot)</span>
+                  </div>
+                  <div className="flex items-center gap-2.5">
+                    <Check className="w-4 h-4 text-emerald-600 shrink-0 stroke-[3]" />
+                    <span>⚡ 10 Daily Job Searches & Details</span>
+                  </div>
+                  <div className="flex items-center gap-2.5 text-gray-400">
+                    <X className="w-4 h-4 text-gray-300 shrink-0" />
+                    <span className="line-through">Unlimited Auto Applications</span>
+                  </div>
+                  <div className="flex items-center gap-2.5 text-gray-400">
+                    <X className="w-4 h-4 text-gray-300 shrink-0" />
+                    <span className="line-through">AI ATS Resume Score & Matcher</span>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => onNavigate('SignUp')}
+                className="w-full py-3.5 bg-white border border-gray-300 hover:bg-gray-100 text-gray-900 rounded-2xl text-xs font-black transition-all cursor-pointer shadow-xs text-center"
+              >
+                Get Started Free
+              </button>
+            </div>
+
+            {/* Plan 2: Pro Plan (Highlighted / Most Popular) */}
+            <div className="bg-white border-2 border-[#4f46e5] rounded-3xl p-8 flex flex-col justify-between space-y-6 relative shadow-xl shadow-indigo-500/10 scale-105 z-10">
+              <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-4 py-1 bg-gradient-to-r from-[#4f46e5] to-indigo-600 text-white text-[10px] font-black uppercase tracking-wider rounded-full shadow-sm">
+                🔥 Most Popular — 85% Choose Pro
+              </div>
+
+              <div className="space-y-4 pt-2">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h3 className="text-xl font-black text-gray-900 font-display">Job Hunter Pro</h3>
+                    <p className="text-xs font-bold text-[#4f46e5] mt-1">Accelerate your job search 10x</p>
+                  </div>
+                  <span className="px-3 py-1 bg-indigo-50 text-[#4f46e5] border border-indigo-100 text-[10px] font-black uppercase rounded-full">
+                    Best Value
+                  </span>
+                </div>
+
+                <div className="flex items-baseline gap-1">
+                  <span className="text-4xl font-black text-gray-900 font-display">₹499</span>
+                  <span className="text-xs font-bold text-gray-400">/ month</span>
+                </div>
+
+                <div className="space-y-3 pt-4 border-t border-gray-100 text-xs font-bold text-gray-800">
+                  <div className="flex items-center gap-2.5">
+                    <Check className="w-4 h-4 text-[#4f46e5] shrink-0 stroke-[3]" />
+                    <span>📄 <strong>Unlimited Resumes</strong> (9 ATS Templates)</span>
+                  </div>
+                  <div className="flex items-center gap-2.5">
+                    <Check className="w-4 h-4 text-[#4f46e5] shrink-0 stroke-[3]" />
+                    <span>🚀 <strong>Unlimited Auto Applications</strong> (LinkedIn + Indeed Bot)</span>
+                  </div>
+                  <div className="flex items-center gap-2.5">
+                    <Check className="w-4 h-4 text-[#4f46e5] shrink-0 stroke-[3]" />
+                    <span>🤖 <strong>AI ATS Resume Score & Keyword Matcher</strong></span>
+                  </div>
+                  <div className="flex items-center gap-2.5">
+                    <Check className="w-4 h-4 text-[#4f46e5] shrink-0 stroke-[3]" />
+                    <span>⚡ Unlimited Job Searches & Salary Insights</span>
+                  </div>
+                  <div className="flex items-center gap-2.5">
+                    <Check className="w-4 h-4 text-[#4f46e5] shrink-0 stroke-[3]" />
+                    <span>🎯 Direct Recruiter Referral & Instant Email Alerts</span>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => onNavigate('SignUp')}
+                className="w-full py-3.5 bg-[#4f46e5] hover:bg-[#3f37c9] text-white rounded-2xl text-xs font-black shadow-md shadow-[#4f46e5]/20 transition-all cursor-pointer text-center active:scale-98"
+              >
+                Upgrade to Pro →
+              </button>
+            </div>
+
+            {/* Plan 3: Enterprise / Career Accelerator */}
+            <div className="bg-gray-50/80 border border-gray-200 rounded-3xl p-8 flex flex-col justify-between space-y-6 relative hover:shadow-lg transition-all">
+              <div className="space-y-4">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h3 className="text-xl font-black text-gray-900 font-display">Career Accelerator</h3>
+                    <p className="text-xs font-bold text-gray-400 mt-1">Full-suite VIP career support</p>
+                  </div>
+                  <span className="px-3 py-1 bg-purple-50 text-purple-700 border border-purple-200 text-[10px] font-black uppercase rounded-full">
+                    VIP Executive
+                  </span>
+                </div>
+
+                <div className="flex items-baseline gap-1">
+                  <span className="text-4xl font-black text-gray-900 font-display">₹1,499</span>
+                  <span className="text-xs font-bold text-gray-400">/ month</span>
+                </div>
+
+                <div className="space-y-3 pt-4 border-t border-gray-200/80 text-xs font-bold text-gray-700">
+                  <div className="flex items-center gap-2.5">
+                    <Check className="w-4 h-4 text-purple-600 shrink-0 stroke-[3]" />
+                    <span>Everything in Pro Plan included</span>
+                  </div>
+                  <div className="flex items-center gap-2.5">
+                    <Check className="w-4 h-4 text-purple-600 shrink-0 stroke-[3]" />
+                    <span>🎙️ <strong>1-on-1 AI Mock Interview Practice</strong></span>
+                  </div>
+                  <div className="flex items-center gap-2.5">
+                    <Check className="w-4 h-4 text-purple-600 shrink-0 stroke-[3]" />
+                    <span>👨‍💼 <strong>Senior Recruiter Human Resume Review</strong></span>
+                  </div>
+                  <div className="flex items-center gap-2.5">
+                    <Check className="w-4 h-4 text-purple-600 shrink-0 stroke-[3]" />
+                    <span>✍️ Custom AI Cover Letters for top companies</span>
+                  </div>
+                  <div className="flex items-center gap-2.5">
+                    <Check className="w-4 h-4 text-purple-600 shrink-0 stroke-[3]" />
+                    <span>💬 24/7 Priority VIP Support & Setup Guidance</span>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => onNavigate('SignUp')}
+                className="w-full py-3.5 bg-gray-900 hover:bg-black text-white rounded-2xl text-xs font-black transition-all cursor-pointer shadow-xs text-center"
+              >
+                Upgrade to Accelerator
+              </button>
+            </div>
+
           </div>
         </div>
       </section>
