@@ -1065,7 +1065,11 @@ export default function LandingPage({ onNavigate, onSearch, jobs = [], onSelectJ
                 <div className="space-y-3 pt-4 border-t border-gray-200/80 text-xs font-bold text-gray-700">
                   <div className="flex items-center gap-2.5">
                     <Check className="w-4 h-4 text-purple-600 shrink-0 stroke-[3]" />
-                    <span>Everything in Pro Plan included</span>
+                    <span>♾️ <strong>ALL UNLIMITED</strong> (Resumes, ATS & Auto-Apply)</span>
+                  </div>
+                  <div className="flex items-center gap-2.5">
+                    <Check className="w-4 h-4 text-purple-600 shrink-0 stroke-[3]" />
+                    <span>📊 <strong>Fully AI-enabled custom reports after applying jobs</strong></span>
                   </div>
                   <div className="flex items-center gap-2.5">
                     <Check className="w-4 h-4 text-purple-600 shrink-0 stroke-[3]" />

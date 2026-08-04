@@ -185,10 +185,10 @@ export default function PricingModal({ isOpen, onClose, onSelectPlan }: PricingM
               <div className="flex justify-between items-start">
                 <div>
                   <h3 className="text-lg font-black text-gray-900 font-display">Career Accelerator</h3>
-                  <p className="text-[11px] font-bold text-gray-400 mt-0.5">VIP human + AI mentoring</p>
+                  <p className="text-[11px] font-bold text-gray-400 mt-0.5">Full-suite VIP career support</p>
                 </div>
-                <span className="px-2.5 py-0.5 bg-purple-50 text-purple-700 border border-purple-200 text-[9px] font-black uppercase rounded-full">
-                  Executive
+                <span className="px-2.5 py-0.5 bg-purple-50 text-purple-700 border border-purple-200 text-[9px] font-black uppercase rounded-full font-extrabold">
+                  VIP Executive
                 </span>
               </div>
 
@@ -202,7 +202,11 @@ export default function PricingModal({ isOpen, onClose, onSelectPlan }: PricingM
               <div className="space-y-2.5 pt-3 border-t border-gray-200/80 text-xs font-bold text-gray-700">
                 <div className="flex items-center gap-2">
                   <Check className="w-4 h-4 text-purple-600 shrink-0 stroke-[3]" />
-                  <span>Everything in Pro Plan included</span>
+                  <span>♾️ <strong>ALL UNLIMITED</strong> (Resumes, ATS & Auto-Apply)</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Check className="w-4 h-4 text-purple-600 shrink-0 stroke-[3]" />
+                  <span>📊 <strong>Fully AI-enabled custom reports after applying jobs</strong></span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Check className="w-4 h-4 text-purple-600 shrink-0 stroke-[3]" />
@@ -215,6 +219,10 @@ export default function PricingModal({ isOpen, onClose, onSelectPlan }: PricingM
                 <div className="flex items-center gap-2">
                   <Check className="w-4 h-4 text-purple-600 shrink-0 stroke-[3]" />
                   <span>✍️ Custom AI Cover Letters for top companies</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Check className="w-4 h-4 text-purple-600 shrink-0 stroke-[3]" />
+                  <span>💬 24/7 Priority VIP Support & Setup Guidance</span>
                 </div>
               </div>
             </div>
