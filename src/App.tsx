@@ -152,7 +152,7 @@ export function getPlatformInfo(job: Job) {
 
 export default function App() {
   const [activeScreen, setActiveScreen] = useState<ActiveScreen>('Landing');
-  const [activeDashboardTab, setActiveDashboardTab] = useState<'FindJobs' | 'Salaries' | 'AIReview' | 'Applications' | 'Saved' | 'Resume' | 'AutoApply'>('FindJobs');
+  const [activeDashboardTab, setActiveDashboardTab] = useState<'Dashboard' | 'FindJobs' | 'Salaries' | 'AIReview' | 'Applications' | 'Saved' | 'Resume' | 'AutoApply'>('Dashboard');
   const [activeFilterCategory, setActiveFilterCategory] = useState<string>('Recommended');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   
@@ -1480,9 +1480,9 @@ export default function App() {
                     <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-3 mb-2">Overview</p>
                     
                     <button
-                      onClick={() => setActiveDashboardTab('FindJobs')}
+                      onClick={() => setActiveDashboardTab('Dashboard')}
                       className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
-                        activeDashboardTab === 'FindJobs'
+                        activeDashboardTab === 'Dashboard'
                           ? 'bg-[#4f46e5]/10 text-[#4f46e5] font-extrabold shadow-xs'
                           : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
                       }`}
@@ -1497,7 +1497,7 @@ export default function App() {
                       onClick={() => setActiveDashboardTab('FindJobs')}
                       className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
                         activeDashboardTab === 'FindJobs'
-                          ? 'text-[#4f46e5] font-extrabold'
+                          ? 'bg-[#4f46e5]/10 text-[#4f46e5] font-extrabold shadow-xs'
                           : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
                       }`}
                     >
@@ -1696,8 +1696,8 @@ export default function App() {
               </div>
             </header>
 
-            {/* Find Jobs View Main Feed */}
-            {activeDashboardTab === 'FindJobs' && (
+            {/* Full Dashboard View */}
+            {activeDashboardTab === 'Dashboard' && (
               <div className="space-y-6 flex-1 flex flex-col">
                 
                 {/* Royal Purple Hero Gradient Banner */}
@@ -2011,6 +2011,202 @@ export default function App() {
                                       );
                                     })}
                                   </div>
+
+                                  <button
+                                    disabled={currentPage >= totalPages}
+                                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                    className="px-3.5 py-1.5 bg-white border border-gray-200 hover:bg-gray-50 disabled:opacity-40 text-gray-700 text-xs font-extrabold rounded-xl transition-all cursor-pointer disabled:cursor-not-allowed flex items-center gap-1 shadow-xs"
+                                  >
+                                    Next <ChevronRight className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </>
+                        );
+                      })()}
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Dedicated Find Jobs View - Pure Job Search & Listings Only */}
+            {activeDashboardTab === 'FindJobs' && (
+              <div className="space-y-6 flex-1 flex flex-col">
+                <div>
+                  <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight font-display">Find Jobs & Opportunities</h1>
+                  <p className="text-sm font-semibold text-gray-500">Explore, search, and apply to active positions matching your criteria.</p>
+                </div>
+
+                {/* Search and Filters Toolbar */}
+                <div className="bg-white rounded-3xl p-4 sm:p-5 border border-gray-150 shadow-xs space-y-4">
+                  <div className="flex flex-col sm:flex-row gap-2.5">
+                    <div className="flex-1 flex items-center gap-2.5 bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 focus-within:bg-white focus-within:border-[#4f46e5] focus-within:ring-2 focus-within:ring-[#4f46e5]/10 transition-all">
+                      <Search className="w-4 h-4 text-gray-400 shrink-0" />
+                      <input 
+                        type="text" 
+                        placeholder="Search by title, skills, company or keywords..." 
+                        className="w-full bg-transparent border-none text-xs font-semibold focus:outline-none text-gray-800 placeholder-gray-400"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                      />
+                      <Mic className="w-4 h-4 text-gray-400 shrink-0 cursor-pointer" />
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button className="flex-1 sm:flex-none px-5 py-2.5 bg-[#4f46e5] hover:bg-[#3f37c9] text-white text-xs font-extrabold rounded-2xl shadow-md transition-all cursor-pointer">
+                        Search
+                      </button>
+
+                      <button 
+                        onClick={() => setIsAllFiltersOpen(!isAllFiltersOpen)}
+                        className="px-4 py-2.5 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 text-xs font-bold rounded-2xl flex items-center gap-2 cursor-pointer shadow-xs shrink-0"
+                      >
+                        <SlidersHorizontal className="w-4 h-4" />
+                        <span>Advanced</span>
+                        <ChevronDown className="w-3.5 h-3.5 opacity-60" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Filter Tabs & Easy Apply */}
+                  <div className="flex flex-col sm:flex-row gap-3 sm:items-center justify-between text-xs font-bold pt-1 border-t border-gray-100">
+                    <div className="flex items-center gap-2">
+                      <button 
+                        onClick={() => setEasyApplyOnly(!easyApplyOnly)}
+                        className={`px-3.5 py-1.5 rounded-full border text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                          easyApplyOnly ? 'bg-indigo-50 border-indigo-200 text-[#4f46e5] font-black' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                        }`}
+                      >
+                        <Zap className="w-3.5 h-3.5 text-[#4f46e5]" />
+                        <span>Easy Apply</span>
+                      </button>
+                    </div>
+
+                    {/* Category Selection Tabs */}
+                    <div className="flex items-center gap-1 bg-gray-100/80 p-1 rounded-2xl overflow-x-auto no-scrollbar max-w-full">
+                      {['Recommended', 'Recent Jobs', 'Saved Jobs', 'Applied Jobs'].map(tab => (
+                        <button 
+                          key={tab}
+                          onClick={() => setActiveFilterCategory(tab)}
+                          className={`px-4 py-2 rounded-xl text-xs font-black transition-all duration-200 cursor-pointer shrink-0 whitespace-nowrap ${
+                            activeFilterCategory === tab 
+                              ? 'bg-[#4f46e5] text-white shadow-md shadow-[#4f46e5]/20 ring-2 ring-[#4f46e5]/20 font-black' 
+                              : 'text-gray-600 hover:bg-white hover:text-gray-900 font-bold'
+                          }`}
+                        >
+                          {tab}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Job Cards Feed Grid (Jobs Only) */}
+                <div className="w-full space-y-4">
+                  {filteredJobs.length === 0 ? (
+                    <div className="bg-white rounded-3xl p-10 border border-gray-150 text-center space-y-3">
+                      <AlertCircle className="w-10 h-10 text-amber-500 mx-auto" />
+                      <h4 className="text-md font-bold font-display text-gray-900">No jobs found matching criteria</h4>
+                      <p className="text-xs text-gray-400 font-semibold max-w-xs mx-auto">Try resetting filters to explore all available job opportunities.</p>
+                    </div>
+                  ) : (
+                    <>
+                      {(() => {
+                        const totalPages = Math.max(1, Math.ceil(filteredJobs.length / jobsPerPage));
+                        const paginatedJobs = filteredJobs.slice((currentPage - 1) * jobsPerPage, currentPage * jobsPerPage);
+                        return (
+                          <>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              {paginatedJobs.map((job, idx) => {
+                                const matchPct = job.aiMatchPercent || (95 - idx * 3);
+                                return (
+                                  <div key={job.id} className="bg-white p-5 rounded-3xl border border-gray-150 shadow-xs hover:shadow-md transition-all space-y-4 relative group flex flex-col justify-between">
+                                    <div className="flex items-start justify-between gap-3">
+                                      <div className="flex items-start gap-3.5 min-w-0">
+                                        <div className="w-12 h-12 bg-gray-50 border border-gray-100 rounded-2xl flex items-center justify-center overflow-hidden shrink-0 shadow-inner">
+                                          <img alt={job.company} className="w-8 h-8 object-contain" src={job.logoUrl} />
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                          <div className="flex items-center gap-2 flex-wrap">
+                                            <h3 className="text-base font-black text-gray-900 font-display group-hover:text-[#4f46e5] transition-colors line-clamp-2 min-h-[2.5rem] leading-snug" title={job.title}>{job.title}</h3>
+                                            <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase border shrink-0 ${getPlatformInfo(job).badgeBg}`}>
+                                              via {getPlatformInfo(job).name}
+                                            </span>
+                                          </div>
+                                          <p className="text-xs text-gray-500 font-semibold mt-0.5 truncate">
+                                            {job.company} • {job.location} • {job.workType}
+                                          </p>
+                                          <div className="flex flex-wrap gap-1.5 text-[10px] font-bold text-gray-600 mt-2.5">
+                                            <span className="px-2.5 py-1 bg-gray-50 border border-gray-150 rounded-lg">{job.salaryRange}</span>
+                                            <span className="px-2.5 py-1 bg-gray-50 border border-gray-150 rounded-lg">{job.jobType}</span>
+                                            <span className="px-2.5 py-1 bg-gray-50 border border-gray-150 rounded-lg">{job.experienceRequired}</span>
+                                            <span className="px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg font-black">⚡ Easy Apply</span>
+                                          </div>
+                                        </div>
+                                      </div>
+
+                                      <div className="shrink-0">
+                                        <CircularProgress percentage={matchPct} />
+                                      </div>
+                                    </div>
+
+                                    <div className="flex items-center justify-between pt-3 border-t border-gray-100 flex-wrap gap-2">
+                                      <span className="text-[10px] font-bold text-gray-400">Posted {job.postedTime}</span>
+                                      <div className="flex items-center gap-2.5 sm:gap-3">
+                                        <button 
+                                          onClick={(e) => handleToggleBookmark(job.id, e)}
+                                          className="p-2.5 bg-gray-50 border border-gray-200 hover:border-gray-300 rounded-xl text-gray-500 hover:text-[#4f46e5] cursor-pointer transition-colors shrink-0"
+                                          title="Save Job"
+                                        >
+                                          <Bookmark className="w-4 h-4" />
+                                        </button>
+                                        <button 
+                                          onClick={() => handleApplyJob(job)}
+                                          className="px-4 py-2.5 bg-[#4f46e5] hover:bg-[#3f37c9] text-white text-xs font-black rounded-xl shadow-xs cursor-pointer flex items-center gap-1.5 transition-all shrink-0 active:scale-98"
+                                        >
+                                          <Zap className="w-3.5 h-3.5" />
+                                          <span>Quick Apply</span>
+                                        </button>
+                                        <button 
+                                          onClick={() => {
+                                            setSelectedJobForCoverLetter(job);
+                                            setShowCoverLetterModal(true);
+                                          }}
+                                          className="px-3 py-2.5 bg-indigo-50 border border-indigo-150 hover:bg-indigo-100 text-[#4f46e5] text-xs font-bold rounded-xl cursor-pointer transition-colors shrink-0 flex items-center gap-1"
+                                          title="Generate AI Cover Letter"
+                                        >
+                                          <FileText className="w-3.5 h-3.5" />
+                                          <span>Cover Letter</span>
+                                        </button>
+                                        <button 
+                                          onClick={() => setSelectedJobDetailModal(job)}
+                                          className="px-4 py-2.5 bg-gray-50 border border-gray-200 hover:bg-gray-100 text-gray-700 text-xs font-bold rounded-xl cursor-pointer transition-colors shrink-0"
+                                        >
+                                          Details →
+                                        </button>
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+
+                            {/* Pagination */}
+                            {filteredJobs.length > 0 && (
+                              <div className="bg-white p-4 rounded-3xl border border-gray-150 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4 mt-4 w-full">
+                                <div className="flex items-center gap-3 text-xs font-bold text-gray-500">
+                                  <span>Showing <strong className="text-gray-900">{Math.min(filteredJobs.length, (currentPage - 1) * jobsPerPage + 1)}-{Math.min(filteredJobs.length, currentPage * jobsPerPage)}</strong> of <strong className="text-gray-900">{filteredJobs.length}</strong> Opportunities</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    disabled={currentPage === 1}
+                                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                    className="px-3.5 py-1.5 bg-white border border-gray-200 hover:bg-gray-50 disabled:opacity-40 text-gray-700 text-xs font-extrabold rounded-xl transition-all cursor-pointer disabled:cursor-not-allowed flex items-center gap-1 shadow-xs"
+                                  >
+                                    <ChevronLeft className="w-3.5 h-3.5" /> Previous
+                                  </button>
 
                                   <button
                                     disabled={currentPage >= totalPages}
