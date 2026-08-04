@@ -1789,12 +1789,22 @@ export default function App() {
                   <div className="bg-white p-5 rounded-3xl border border-gray-150 shadow-xs space-y-4 flex flex-col justify-between">
                     <div className="flex items-center justify-between">
                       <h3 className="text-xs font-black text-gray-900 uppercase tracking-wider font-display">Your Profile Overview</h3>
-                      <span className="text-[10px] font-extrabold text-[#4f46e5] cursor-pointer">View full report →</span>
+                      <button 
+                        onClick={() => setActiveDashboardTab('AIReview')}
+                        className="text-[10px] font-extrabold text-[#4f46e5] hover:underline cursor-pointer"
+                      >
+                        View full report →
+                      </button>
                     </div>
 
-                    <ProfileGaugeRing score={userProfile.profileCompleteness || 91} />
+                    <div onClick={() => setActiveDashboardTab('AIReview')} className="cursor-pointer">
+                      <ProfileGaugeRing score={userProfile.profileCompleteness || 91} />
+                    </div>
 
-                    <div className="p-3 bg-indigo-50/60 border border-indigo-100 rounded-2xl flex items-center justify-between cursor-pointer">
+                    <button 
+                      onClick={() => setActiveDashboardTab('Resume')}
+                      className="p-3 bg-indigo-50/60 hover:bg-indigo-100/80 border border-indigo-100 rounded-2xl flex items-center justify-between cursor-pointer transition-colors text-left w-full"
+                    >
                       <div className="flex items-center gap-2.5">
                         <Sparkles className="w-4 h-4 text-[#4f46e5]" />
                         <div>
@@ -1803,14 +1813,22 @@ export default function App() {
                         </div>
                       </div>
                       <ChevronRight className="w-4 h-4 text-[#4f46e5]" />
-                    </div>
+                    </button>
                   </div>
 
                   {/* Widget 2: AI Recommendations */}
                   <div className="bg-white p-5 rounded-3xl border border-gray-150 shadow-xs space-y-4 flex flex-col justify-between">
                     <div className="flex items-center justify-between">
                       <h3 className="text-xs font-black text-gray-900 uppercase tracking-wider font-display">AI Recommendations</h3>
-                      <span className="text-[10px] font-extrabold text-[#4f46e5] cursor-pointer">View all</span>
+                      <button 
+                        onClick={() => {
+                          setActiveFilterCategory('Recommended');
+                          setActiveDashboardTab('FindJobs');
+                        }}
+                        className="text-[10px] font-extrabold text-[#4f46e5] hover:underline cursor-pointer"
+                      >
+                        View all →
+                      </button>
                     </div>
 
                     <div className="space-y-2 flex-1 flex flex-col justify-center">
@@ -1819,7 +1837,14 @@ export default function App() {
                         { title: 'Full Stack Developer', company: 'Zoho', location: 'Chennai', match: 93 },
                         { title: 'Software Engineer II', company: 'Swiggy', location: 'Bengaluru', match: 90 }
                       ].map((rec, idx) => (
-                        <div key={idx} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-2xl transition-colors cursor-pointer border border-transparent hover:border-gray-100">
+                        <div 
+                          key={idx} 
+                          onClick={() => {
+                            setSearchQuery(rec.title);
+                            setActiveDashboardTab('FindJobs');
+                          }}
+                          className="flex items-center justify-between p-2 hover:bg-indigo-50/50 rounded-2xl transition-colors cursor-pointer border border-transparent hover:border-indigo-100"
+                        >
                           <div className="flex items-center gap-2.5">
                             <div className="w-8 h-8 bg-[#4f46e5]/10 rounded-xl flex items-center justify-center font-black text-xs text-[#4f46e5]">
                               {rec.company[0]}
@@ -1841,10 +1866,18 @@ export default function App() {
                   <div className="bg-white p-5 rounded-3xl border border-gray-150 shadow-xs space-y-4 flex flex-col justify-between">
                     <div className="flex items-center justify-between">
                       <h3 className="text-xs font-black text-gray-900 uppercase tracking-wider font-display">Market Insights</h3>
-                      <span className="text-[10px] font-extrabold text-[#4f46e5] cursor-pointer">View all</span>
+                      <button 
+                        onClick={() => setActiveDashboardTab('Salaries')}
+                        className="text-[10px] font-extrabold text-[#4f46e5] hover:underline cursor-pointer"
+                      >
+                        View all →
+                      </button>
                     </div>
 
-                    <div className="space-y-1">
+                    <div 
+                      onClick={() => setActiveDashboardTab('Salaries')}
+                      className="space-y-1 cursor-pointer hover:opacity-90 transition-opacity"
+                    >
                       <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Avg. Salary (Your Role)</p>
                       <div className="flex items-baseline justify-between">
                         <span className="text-2xl font-black text-gray-900 font-display">₹18.7 LPA</span>
@@ -1856,9 +1889,16 @@ export default function App() {
                       <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Top Skills in Demand</p>
                       <div className="flex flex-wrap gap-1.5">
                         {['React.js', 'Node.js', 'TypeScript', 'AWS', 'SQL'].map(skill => (
-                          <span key={skill} className="px-2 py-0.5 bg-gray-50 border border-gray-200 rounded-xl text-[10px] font-black text-gray-700">
+                          <button 
+                            key={skill} 
+                            onClick={() => {
+                              setSearchQuery(skill);
+                              setActiveDashboardTab('FindJobs');
+                            }}
+                            className="px-2 py-0.5 bg-gray-50 border border-gray-200 hover:border-[#4f46e5] hover:text-[#4f46e5] rounded-xl text-[10px] font-black text-gray-700 transition-colors cursor-pointer"
+                          >
                             {skill}
-                          </span>
+                          </button>
                         ))}
                       </div>
                     </div>
