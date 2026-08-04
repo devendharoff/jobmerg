@@ -113,7 +113,7 @@ export default function AIResumeReview({
         }
         return prev;
       });
-    }, 1200);
+    }, 250);
 
     try {
       const response = await fetch('/api/resume-review', {
