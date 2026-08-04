@@ -1014,15 +1014,15 @@ export default function LandingPage({ onNavigate, onSearch, jobs = [], onSelectJ
                 <div className="space-y-3 pt-4 border-t border-gray-100 text-xs font-bold text-gray-800">
                   <div className="flex items-center gap-2.5">
                     <Check className="w-4 h-4 text-[#4f46e5] shrink-0 stroke-[3]" />
-                    <span>📄 <strong>Unlimited Resumes</strong> (9 ATS Templates)</span>
+                    <span>📄 <strong>15 Resumes with any template</strong></span>
                   </div>
                   <div className="flex items-center gap-2.5">
                     <Check className="w-4 h-4 text-[#4f46e5] shrink-0 stroke-[3]" />
-                    <span>🚀 <strong>Unlimited Auto Applications</strong> (LinkedIn + Indeed Bot)</span>
+                    <span>🤖 <strong>25 ATS Score Checkers</strong> & Optimizer</span>
                   </div>
                   <div className="flex items-center gap-2.5">
                     <Check className="w-4 h-4 text-[#4f46e5] shrink-0 stroke-[3]" />
-                    <span>🤖 <strong>AI ATS Resume Score & Keyword Matcher</strong></span>
+                    <span>🚀 <strong>100 Auto-Applying Jobs</strong> (LinkedIn + Indeed Bot)</span>
                   </div>
                   <div className="flex items-center gap-2.5">
                     <Check className="w-4 h-4 text-[#4f46e5] shrink-0 stroke-[3]" />
