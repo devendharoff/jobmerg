@@ -1613,20 +1613,6 @@ export default function App() {
                       <span>Career Paths</span>
                     </button>
                   </div>
-
-                  {/* Upgrade to Pro Card */}
-                  <div className="p-4 rounded-3xl bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-100/60 space-y-3">
-                    <div className="w-8 h-8 bg-[#4f46e5] rounded-xl flex items-center justify-center text-white shadow-xs">
-                      <Sparkles className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <h4 className="text-xs font-black text-gray-900">Upgrade to Pro</h4>
-                      <p className="text-[10px] text-gray-500 font-semibold leading-relaxed mt-0.5">Unlock advanced features and get hired faster.</p>
-                    </div>
-                    <button className="w-full py-2 bg-[#4f46e5] hover:bg-[#3f37c9] text-white rounded-xl text-xs font-extrabold shadow-sm transition-all cursor-pointer">
-                      Upgrade Now
-                    </button>
-                  </div>
                 </div>
 
                 {/* Footer User Profile Block */}
