@@ -69,7 +69,7 @@ export default function LandingPage({ onNavigate, onSearch, jobs = [], onSelectJ
             <button 
               type="button"
               onClick={() => onNavigate('Landing')}
-              className="flex items-center gap-2.5 cursor-pointer focus:outline-none group"
+              className="flex items-center gap-2 cursor-pointer focus:outline-none group"
               id="navbar-logo"
             >
               <img 
@@ -1162,7 +1162,7 @@ export default function LandingPage({ onNavigate, onSearch, jobs = [], onSelectJ
             <div className="md:col-span-4 space-y-4">
               <button 
                 onClick={() => onNavigate('Landing')}
-                className="flex items-center gap-2.5 text-left cursor-pointer focus:outline-none group"
+                className="flex items-center gap-2 text-left cursor-pointer focus:outline-none group"
               >
                 <img 
                   src="/jobmerge-icon.png" 

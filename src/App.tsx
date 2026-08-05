@@ -1485,7 +1485,7 @@ export default function App() {
                   <div className="flex items-center justify-between">
                     <button 
                       onClick={() => setActiveScreen('Landing')}
-                      className="flex items-center gap-2.5 focus:outline-none cursor-pointer group"
+                      className="flex items-center gap-2 focus:outline-none cursor-pointer group"
                     >
                       <img src="/jobmerge-icon.png" alt="JobMerge Logo" className="h-8 w-auto object-contain group-hover:scale-105 transition-transform" />
                       <span className="font-extrabold text-xl text-gray-900 tracking-tight font-display font-black">JobMerge</span>
