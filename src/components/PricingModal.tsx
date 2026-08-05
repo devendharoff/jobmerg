@@ -9,10 +9,127 @@ interface PricingModalProps {
   isOnboarding?: boolean;
 }
 
+declare global {
+  interface Window {
+    Razorpay?: any;
+  }
+}
+
 export default function PricingModal({ isOpen, onClose, onSelectPlan, currentPlan = 'Free', isOnboarding = false }: PricingModalProps) {
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly');
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
 
   if (!isOpen) return null;
+
+  const handleCheckout = async (planTier: 'Free' | 'Pro' | 'Accelerator') => {
+    if (planTier === 'Free') {
+      onSelectPlan?.('Free');
+      onClose();
+      return;
+    }
+
+    const priceMap: Record<string, number> = {
+      Pro: billingCycle === 'annual' ? 399 : 499,
+      Accelerator: billingCycle === 'annual' ? 1199 : 1499
+    };
+
+    const priceInRupees = priceMap[planTier] || 499;
+    const amountInPaise = priceInRupees * 100;
+
+    setIsProcessing(true);
+    setErrorMsg('');
+
+    try {
+      // Step 1: Create Order via Backend API
+      const res = await fetch('/api/create-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount: amountInPaise,
+          currency: 'INR',
+          planTier,
+          receipt: `rcpt_${planTier.toLowerCase()}_${Date.now()}`
+        })
+      });
+
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.error || 'Failed to create payment order');
+      }
+
+      const orderData = await res.json();
+      const razorpayKey = import.meta.env.VITE_RAZORPAY_KEY_ID || orderData.key_id || 'rzp_test_TM6SqU0EuP08lz';
+
+      if (!window.Razorpay) {
+        throw new Error('Razorpay SDK failed to load. Please refresh the page and try again.');
+      }
+
+      // Step 2: Open Razorpay Standard Web Checkout Modal
+      const options = {
+        key: razorpayKey,
+        amount: orderData.amount,
+        currency: orderData.currency,
+        name: "JobMerge",
+        description: `Upgrade to ${planTier === 'Pro' ? 'Job Hunter Pro' : 'Career Accelerator VIP'} (${billingCycle})`,
+        image: "https://lh3.googleusercontent.com/aida-public/AB6AXuDygoxBzgjRmZYQ4uIK-GWpjX_FRMByJYrQaV21iuO5-rVvqyFlrzVyxl_a1Vcm27q1W7sFuhkMlLVR0tTqYVJoQ_mPM9ClMRvetN0pCsTVbfoPUpak2f47mmUgJszUtvyU7xBedtbLVrFoIn914KkawqLINIJSkVz9Ued9DSm94XU2wea25YULzaNxYy7taAF-ScbG7PpLXXO0ds-Nvkdy27DQk0fsT8Ms7bQZIsO0Q25v5WbYfdSQB_bKWY4CWlCAwVzoiGXYg3RJ",
+        order_id: orderData.order_id,
+        prefill: {
+          name: "Devender Kumar",
+          email: "candidate@jobmerge.ai",
+          contact: "+919876543210"
+        },
+        theme: {
+          color: "#4f46e5"
+        },
+        handler: async (response: any) => {
+          try {
+            // Step 3: Verify Payment Signature via Backend API
+            const verifyRes = await fetch('/api/verify-payment', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+                planTier
+              })
+            });
+
+            const verifyData = await verifyRes.json();
+
+            if (verifyRes.ok && verifyData.success) {
+              onSelectPlan?.(planTier);
+              onClose();
+            } else {
+              setErrorMsg(verifyData.error || 'Payment signature verification failed.');
+            }
+          } catch (vErr: any) {
+            setErrorMsg('Error verifying payment signature: ' + vErr.message);
+          } finally {
+            setIsProcessing(false);
+          }
+        },
+        modal: {
+          ondismiss: () => {
+            setIsProcessing(false);
+          }
+        }
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.on('payment.failed', (response: any) => {
+        setErrorMsg(`Payment Failed: ${response.error?.description || 'Transaction declined'}`);
+        setIsProcessing(false);
+      });
+      rzp.open();
+
+    } catch (err: any) {
+      console.error("Razorpay Checkout Error:", err);
+      setErrorMsg(err.message || 'Payment checkout initialization failed.');
+      setIsProcessing(false);
+    }
+  };
 
   return (
     <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-md z-50 flex items-center justify-center p-4 overflow-y-auto animate-fade-in">
@@ -77,6 +194,14 @@ export default function PricingModal({ isOpen, onClose, onSelectPlan, currentPla
         {/* Pricing Cards Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5 items-stretch pt-2">
           
+          {/* Error Banner */}
+          {errorMsg && (
+            <div className="p-3.5 bg-red-50 border border-red-200 text-red-700 text-xs font-bold rounded-2xl flex items-center justify-between text-left">
+              <span>⚠️ {errorMsg}</span>
+              <button onClick={() => setErrorMsg('')} className="text-red-500 hover:text-red-800 text-xs font-black cursor-pointer ml-2">✕</button>
+            </div>
+          )}
+
           {/* 1. Free Starter Plan */}
           <div className="bg-gray-50/90 border border-gray-200 rounded-3xl p-6 flex flex-col justify-between space-y-6 relative hover:shadow-md transition-all">
             <div className="space-y-4">
@@ -121,7 +246,8 @@ export default function PricingModal({ isOpen, onClose, onSelectPlan, currentPla
 
             <button
               type="button"
-              onClick={() => { onSelectPlan?.('Free'); onClose(); }}
+              disabled={isProcessing}
+              onClick={() => handleCheckout('Free')}
               className={`w-full py-3 border rounded-xl text-xs font-black transition-all cursor-pointer text-center ${
                 currentPlan === 'Free'
                   ? 'bg-gray-200 text-gray-800 border-gray-300'
@@ -182,14 +308,15 @@ export default function PricingModal({ isOpen, onClose, onSelectPlan, currentPla
 
             <button
               type="button"
-              onClick={() => { onSelectPlan?.('Pro'); onClose(); }}
-              className={`w-full py-3 rounded-xl text-xs font-black transition-all cursor-pointer text-center active:scale-98 ${
+              disabled={isProcessing}
+              onClick={() => handleCheckout('Pro')}
+              className={`w-full py-3 rounded-xl text-xs font-black transition-all cursor-pointer text-center active:scale-98 disabled:opacity-50 ${
                 currentPlan === 'Pro'
                   ? 'bg-indigo-700 text-white shadow-md'
                   : 'bg-[#4f46e5] hover:bg-[#3f37c9] text-white shadow-md shadow-[#4f46e5]/20'
               }`}
             >
-              {currentPlan === 'Pro' ? '✓ Selected Job Hunter Pro' : 'Choose Job Hunter Pro →'}
+              {isProcessing ? 'Opening Razorpay Checkout...' : currentPlan === 'Pro' ? '✓ Selected Job Hunter Pro' : 'Pay & Upgrade Pro →'}
             </button>
           </div>
 
@@ -243,14 +370,15 @@ export default function PricingModal({ isOpen, onClose, onSelectPlan, currentPla
 
             <button
               type="button"
-              onClick={() => { onSelectPlan?.('Accelerator'); onClose(); }}
-              className={`w-full py-3 rounded-xl text-xs font-black transition-all cursor-pointer text-center ${
+              disabled={isProcessing}
+              onClick={() => handleCheckout('Accelerator')}
+              className={`w-full py-3 rounded-xl text-xs font-black transition-all cursor-pointer text-center disabled:opacity-50 ${
                 currentPlan === 'Accelerator'
                   ? 'bg-purple-800 text-white shadow-md'
                   : 'bg-gray-900 hover:bg-black text-white'
               }`}
             >
-              {currentPlan === 'Accelerator' ? '✓ Selected VIP Accelerator' : 'Choose VIP Accelerator'}
+              {isProcessing ? 'Opening Razorpay Checkout...' : currentPlan === 'Accelerator' ? '✓ Selected VIP Accelerator' : 'Pay & Upgrade VIP →'}
             </button>
           </div>
 

@@ -10,6 +10,8 @@ import { fileURLToPath } from "url";
 
 import compression from "compression";
 import rateLimit from "express-rate-limit";
+import Razorpay from "razorpay";
+import crypto from "crypto";
 
 const execAsync = promisify(exec);
 const __filename = fileURLToPath(import.meta.url);
@@ -22,6 +24,15 @@ dotenv.config();
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '';
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || '';
 const supabase = (SUPABASE_URL && SUPABASE_KEY) ? createClient(SUPABASE_URL, SUPABASE_KEY) : null;
+
+// Razorpay SDK Instance Initialization
+const razorpayKeyId = process.env.RAZORPAY_KEY_ID || 'rzp_test_TM6SqU0EuP08lz';
+const razorpayKeySecret = process.env.RAZORPAY_KEY_SECRET || 'Rr7nZl6NP4024V5UP5Qw5Xxa';
+
+const razorpayInstance = new Razorpay({
+  key_id: razorpayKeyId,
+  key_secret: razorpayKeySecret
+});
 
 const app = express();
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3001;
@@ -47,6 +58,84 @@ app.use("/api/", apiLimiter);
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
+
+// ==========================================
+// RAZORPAY PAYMENT GATEWAY ENDPOINTS
+// ==========================================
+
+// Endpoint 1: Create Razorpay Order
+app.post("/api/create-order", async (req, res) => {
+  try {
+    const { amount, currency = "INR", receipt, planTier } = req.body;
+
+    // Validate minimum amount (100 paise = 1 INR)
+    if (!amount || typeof amount !== "number" || amount < 100) {
+      return res.status(400).json({ error: "Invalid amount. Minimum amount is 100 paise (1 INR)." });
+    }
+
+    const options = {
+      amount: Math.round(amount),
+      currency: currency.toUpperCase(),
+      receipt: receipt || `rcpt_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+      notes: {
+        planTier: planTier || "Pro",
+        app: "JobMerge"
+      }
+    };
+
+    const order = await razorpayInstance.orders.create(options);
+    
+    return res.json({
+      order_id: order.id,
+      amount: order.amount,
+      currency: order.currency,
+      key_id: razorpayKeyId
+    });
+  } catch (err: any) {
+    console.error("Razorpay Order Creation Error:", err);
+    return res.status(500).json({ 
+      error: "Failed to create Razorpay payment order", 
+      details: err.message || err 
+    });
+  }
+});
+
+// Endpoint 2: Verify Razorpay Payment Signature
+app.post("/api/verify-payment", async (req, res) => {
+  try {
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, planTier } = req.body;
+
+    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+      return res.status(400).json({ error: "Missing required payment verification fields" });
+    }
+
+    const body = razorpay_order_id + "|" + razorpay_payment_id;
+    const expectedSignature = crypto
+      .createHmac("sha256", razorpayKeySecret)
+      .update(body.toString())
+      .digest("hex");
+
+    if (expectedSignature === razorpay_signature) {
+      console.log(`Razorpay Payment Verified! Order: ${razorpay_order_id}, Payment: ${razorpay_payment_id}`);
+      return res.json({
+        success: true,
+        message: "Payment verified successfully",
+        order_id: razorpay_order_id,
+        payment_id: razorpay_payment_id,
+        planTier: planTier || "Pro"
+      });
+    } else {
+      console.warn("Razorpay Signature Mismatch Warning!");
+      return res.status(400).json({ 
+        success: false, 
+        error: "Invalid signature. Payment verification failed." 
+      });
+    }
+  } catch (err: any) {
+    console.error("Razorpay Verification Error:", err);
+    return res.status(500).json({ error: "Server error during payment verification", details: err.message });
+  }
+});
 
 // Initialise GoogleGenAI client lazily
 let aiClient: GoogleGenAI | null = null;
