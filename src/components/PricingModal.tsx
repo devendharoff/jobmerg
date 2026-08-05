@@ -41,36 +41,24 @@ export default function PricingModal({ isOpen, onClose, onSelectPlan, currentPla
     setErrorMsg('');
 
     try {
-      let orderData: { order_id: string; amount: number; currency: string; key_id?: string };
-
-      try {
-        // Step 1: Create Order via Backend API
-        const res = await fetch('/api/create-order', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            amount: amountInPaise,
-            currency: 'INR',
-            planTier,
-            receipt: `rcpt_${planTier.toLowerCase()}_${Date.now()}`
-          })
-        });
-
-        if (res.ok) {
-          orderData = await res.json();
-        } else {
-          throw new Error('API server returned error');
-        }
-      } catch (apiErr) {
-        console.warn("Backend order creation fetch failed, using fallback test order ID:", apiErr);
-        orderData = {
-          order_id: `order_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
+      // Step 1: Create Real Razorpay Order via Backend API
+      const res = await fetch('/api/create-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           amount: amountInPaise,
           currency: 'INR',
-          key_id: 'rzp_test_TM6SqU0EuP08lz'
-        };
+          planTier,
+          receipt: `rcpt_${planTier.toLowerCase()}_${Date.now()}`
+        })
+      });
+
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.error || 'Failed to create payment order');
       }
 
+      const orderData = await res.json();
       const razorpayKey = import.meta.env.VITE_RAZORPAY_KEY_ID || orderData.key_id || 'rzp_test_TM6SqU0EuP08lz';
 
       if (!window.Razorpay) {
