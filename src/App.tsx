@@ -168,16 +168,36 @@ export default function App() {
     subtitle: "Create your free account to unlock 1-click quick apply, AI match scores, and automated applier tools."
   });
 
-  const handleSelectPlan = (planTier: 'Free' | 'Pro' | 'Accelerator') => {
-    setUserProfile(prev => ({
-      ...prev,
+  const handleSelectPlan = async (planTier: 'Free' | 'Pro' | 'Accelerator') => {
+    const updatedProfile = {
+      ...userProfile,
       plan: planTier,
       hasSelectedInitialPlan: true
-    }));
+    };
+    setUserProfile(updatedProfile);
     try {
       localStorage.setItem('jobmerge_user_plan', planTier);
       localStorage.setItem('jobmerge_has_selected_plan', 'true');
     } catch (e) {}
+
+    try {
+      await supabaseClient.from('profiles').upsert({
+        email: userProfile.email,
+        name: userProfile.name,
+        role: userProfile.role,
+        avatar_url: userProfile.avatarUrl,
+        skills: userProfile.skills,
+        experience_years: userProfile.experienceYears,
+        desired_salary: userProfile.desiredSalary,
+        resume_text: userProfile.resumeText,
+        profile_completeness: userProfile.profileCompleteness,
+        plan: planTier,
+        usage: userProfile.usage
+      });
+    } catch (err) {
+      console.error("Error syncing active plan to Supabase:", err);
+    }
+
     setShowPricingModal(false);
     setIsOnboardingPlanSelection(false);
     showToast(`🎉 Plan Activated: ${planTier === 'Free' ? 'Free Starter' : planTier === 'Pro' ? 'Job Hunter Pro' : 'Career Accelerator'}!`);
@@ -331,7 +351,9 @@ export default function App() {
               experienceYears: profile.experience_years || 0,
               desiredSalary: profile.desired_salary || '',
               resumeText: profile.resume_text || '',
-              profileCompleteness: profile.profile_completeness || 0
+              profileCompleteness: profile.profile_completeness || 0,
+              plan: profile.plan || (localStorage.getItem('jobmerge_user_plan') as any) || 'Free',
+              usage: profile.usage || { resumesCreated: 1, atsScansUsed: 1, autoAppliesUsed: 5 }
             });
           } else {
             // Create new profile if it doesn't exist
@@ -521,7 +543,9 @@ export default function App() {
           experienceYears: profile.experience_years || 0,
           desiredSalary: profile.desired_salary || '',
           resumeText: profile.resume_text || '',
-          profileCompleteness: profile.profile_completeness || 0
+          profileCompleteness: profile.profile_completeness || 0,
+          plan: profile.plan || (localStorage.getItem('jobmerge_user_plan') as any) || 'Free',
+          usage: profile.usage || { resumesCreated: 1, atsScansUsed: 1, autoAppliesUsed: 5 }
         });
       } else {
         const newProfile = {
@@ -844,7 +868,9 @@ export default function App() {
         experience_years: nextProfile.experienceYears,
         desired_salary: nextProfile.desiredSalary,
         resume_text: nextProfile.resumeText,
-        profile_completeness: nextProfile.profileCompleteness
+        profile_completeness: nextProfile.profileCompleteness,
+        plan: nextProfile.plan || 'Free',
+        usage: nextProfile.usage
       });
     } catch (err) {
       console.error("Error updating profile in Supabase:", err);

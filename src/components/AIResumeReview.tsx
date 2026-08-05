@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { 
   Sparkles, Check, Play, AlertCircle, RefreshCw, FileText, 
-  ChevronRight, Award, CheckCircle, Info, Upload, X, ShieldCheck, Target, Zap, FileSpreadsheet
+  ChevronRight, Award, CheckCircle, Info, Upload, X, ShieldCheck, Target, Zap, FileSpreadsheet, Download
 } from 'lucide-react';
 import { UserProfile, Job, PLAN_LIMITS } from '../types';
 
@@ -41,15 +41,17 @@ export default function AIResumeReview({
 
   const [isLoading, setIsLoading] = useState(false);
   const [loadingStep, setLoadingStep] = useState(0);
+  const [scanProgress, setScanProgress] = useState(0);
   const [result, setResult] = useState<ReviewResult | null>(null);
   const [error, setError] = useState('');
 
   const loadingSteps = [
-    "Scanning resume document structure & header contact details...",
-    "Parsing technical skills against ATS keyword index database...",
-    "Evaluating Google X-Y-Z quantifiable bullet point metric ratio...",
-    "Auditing section formatting, typography, & readability rules...",
-    "Computing final ATS Compatibility Score & job fit ratings..."
+    "📄 Phase 1: Stream Parsing & File Structure Audit...",
+    "📇 Phase 2: Contact Info & Security Header Scan...",
+    "📑 Phase 3: Section Hierarchy & Formatting Check...",
+    "🔍 Phase 4: Technical Keyword & Acronym Matching...",
+    "⚡ Phase 5: Action Verb & Metric Formula Density...",
+    "🎯 Phase 6: 5-Layer Mathematical Score Synthesis..."
   ];
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -104,17 +106,24 @@ export default function AIResumeReview({
     setIsLoading(true);
     setError('');
     setLoadingStep(0);
+    setScanProgress(0);
 
     if (activeInputTab === 'text') {
       onUpdateUserProfile({ resumeText });
     }
 
-    const interval = setInterval(() => {
-      setLoadingStep((prev) => {
-        if (prev < loadingSteps.length - 1) {
-          return prev + 1;
-        }
-        return prev;
+    // High-engagement progress journey (~25 seconds total scanning experience)
+    const progressInterval = setInterval(() => {
+      setScanProgress((prev) => {
+        const next = prev + 1;
+        if (next <= 15) setLoadingStep(0);
+        else if (next <= 35) setLoadingStep(1);
+        else if (next <= 55) setLoadingStep(2);
+        else if (next <= 75) setLoadingStep(3);
+        else if (next <= 90) setLoadingStep(4);
+        else setLoadingStep(5);
+        
+        return next >= 98 ? 98 : next;
       });
     }, 250);
 
@@ -263,8 +272,12 @@ export default function AIResumeReview({
         }
       });
     } finally {
-      clearInterval(interval);
-      setIsLoading(false);
+      clearInterval(progressInterval);
+      setScanProgress(100);
+      setLoadingStep(5);
+      setTimeout(() => {
+        setIsLoading(false);
+      }, 500);
     }
   };
 
@@ -436,35 +449,55 @@ export default function AIResumeReview({
         {/* Right Column: Dynamic Output Panel */}
         <div className="lg:col-span-7">
           {isLoading ? (
-            /* Premium Radar Scanner Loading screen */
-            <div className="bg-white rounded-3xl p-8 border border-gray-100 shadow-premium flex flex-col items-center justify-center text-center h-[548px] space-y-8">
+            /* Premium Radar Scanner Loading screen with Live Progress Bar */
+            <div className="bg-white rounded-3xl p-8 border border-gray-100 shadow-premium flex flex-col items-center justify-center text-center space-y-6 animate-fade-in">
+              
               {/* Rotating radar / scanning visual animation */}
-              <div className="relative w-32 h-32 flex items-center justify-center">
-                <div className="absolute inset-0 border border-dashed border-[#4f46e5]/10 rounded-full"></div>
-                <div className="absolute inset-4 border border-[#4f46e5]/15 rounded-full"></div>
-                <div className="absolute inset-8 border border-dashed border-[#4f46e5]/25 rounded-full"></div>
-                <div className="absolute inset-12 border border-[#4f46e5]/35 rounded-full"></div>
+              <div className="relative w-36 h-36 flex items-center justify-center">
+                <div className="absolute inset-0 border-2 border-dashed border-[#4f46e5]/15 rounded-full animate-spin [animation-duration:12s]"></div>
+                <div className="absolute inset-4 border border-[#4f46e5]/20 rounded-full"></div>
+                <div className="absolute inset-8 border border-dashed border-[#4f46e5]/30 rounded-full"></div>
+                <div className="absolute inset-12 border border-[#4f46e5]/40 rounded-full"></div>
                 
-                <div className="absolute inset-0 rounded-full border-t-2 border-r-2 border-t-[#4f46e5] border-r-transparent border-b-transparent border-l-transparent animate-radar"></div>
+                <div className="absolute inset-0 rounded-full border-t-4 border-r-2 border-t-[#4f46e5] border-r-[#818cf8] border-b-transparent border-l-transparent animate-radar"></div>
                 
-                <div className="w-10 h-10 bg-[#4f46e5] text-white rounded-2xl flex items-center justify-center shadow-lg shadow-[#4f46e5]/30">
-                  <ShieldCheck className="w-5.5 h-5.5" />
+                <div className="w-12 h-12 bg-gradient-to-tr from-[#3f37c9] to-[#4f46e5] text-white rounded-2xl flex flex-col items-center justify-center shadow-lg shadow-[#4f46e5]/30">
+                  <ShieldCheck className="w-6 h-6" />
                 </div>
 
-                <div className="absolute top-2 left-6 w-2 h-2 bg-green-400 rounded-full animate-ping"></div>
-                <div className="absolute bottom-6 right-3 w-1.5 h-1.5 bg-[#4f46e5] rounded-full animate-ping [animation-delay:0.8s]"></div>
+                <div className="absolute top-2 left-6 w-2.5 h-2.5 bg-green-400 rounded-full animate-ping"></div>
+                <div className="absolute bottom-6 right-3 w-2 h-2 bg-[#4f46e5] rounded-full animate-ping [animation-delay:0.8s]"></div>
                 <div className="absolute top-10 right-8 w-2 h-2 bg-blue-400 rounded-full animate-ping [animation-delay:1.5s]"></div>
               </div>
 
-              <div className="space-y-2.5 max-w-sm">
-                <h3 className="text-md font-black font-display text-gray-900">Scanning Resume for ATS Compliance</h3>
-                <p className="text-xs text-gray-400 font-bold leading-relaxed uppercase tracking-wider">
-                  Our ATS engine is verifying formatting, keywords, contact details, and metric density.
+              <div className="space-y-2 max-w-md">
+                <div className="inline-flex items-center gap-2 bg-[#4f46e5]/10 border border-[#4f46e5]/20 px-3 py-1 rounded-full text-xs font-black text-[#4f46e5]">
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  <span>5-Layer ATS Audit in Progress</span>
+                  <span className="bg-[#4f46e5] text-white px-2 py-0.5 rounded-full text-[10px] ml-1">{scanProgress}%</span>
+                </div>
+                <h3 className="text-lg font-black font-display text-gray-900">Conducting High-Fidelity Resume Scan</h3>
+                <p className="text-xs text-gray-400 font-bold leading-relaxed">
+                  Auditing format parseability, contact headers, section flow, technical keywords, & metric formulas.
                 </p>
               </div>
 
+              {/* Live Animated Progress Bar */}
+              <div className="w-full max-w-md space-y-1.5">
+                <div className="flex justify-between items-center text-[11px] font-bold text-gray-500">
+                  <span>ATS Audit Journey</span>
+                  <span className="text-[#4f46e5] font-black">{scanProgress}% • {Math.max(1, Math.ceil((100 - scanProgress) * 0.25))}s remaining</span>
+                </div>
+                <div className="w-full h-3 bg-gray-100 rounded-full overflow-hidden p-0.5 border border-gray-150">
+                  <div 
+                    className="h-full bg-gradient-to-r from-[#3f37c9] via-[#4f46e5] to-indigo-400 rounded-full transition-all duration-300 shadow-sm"
+                    style={{ width: `${scanProgress}%` }}
+                  />
+                </div>
+              </div>
+
               {/* Progress steps animation list */}
-              <div className="w-full max-w-md space-y-2 pt-2">
+              <div className="w-full max-w-md space-y-2 pt-1 text-left">
                 {loadingSteps.map((step, idx) => {
                   const isCompleted = idx < loadingStep;
                   const isActive = idx === loadingStep;
@@ -474,19 +507,19 @@ export default function AIResumeReview({
                       key={idx}
                       className={`p-3 rounded-xl border flex items-center justify-between text-left transition-all duration-300 ${
                         isCompleted 
-                          ? 'bg-green-50/50 border-green-100 text-green-700 font-bold' 
+                          ? 'bg-green-50/60 border-green-200 text-green-800 font-bold shadow-xs' 
                           : isActive 
-                            ? 'bg-[#4f46e5]/5 border-[#4f46e5]/10 text-[#4f46e5] font-bold shadow-sm' 
-                            : 'bg-gray-50/40 border-gray-100 text-gray-400 font-semibold'
+                            ? 'bg-[#4f46e5]/10 border-[#4f46e5]/30 text-[#4f46e5] font-black shadow-sm scale-[1.01]' 
+                            : 'bg-gray-50/40 border-gray-100 text-gray-400 font-medium opacity-60'
                       }`}
                     >
-                      <span className="text-[11px]">{step}</span>
+                      <span className="text-xs">{step}</span>
                       {isCompleted ? (
                         <CheckCircle className="w-4 h-4 text-green-600 shrink-0" />
                       ) : isActive ? (
-                        <div className="w-3.5 h-3.5 border-2 border-[#4f46e5]/30 border-t-[#4f46e5] rounded-full animate-spin shrink-0"></div>
+                        <div className="w-4 h-4 border-2 border-[#4f46e5]/30 border-t-[#4f46e5] rounded-full animate-spin shrink-0"></div>
                       ) : (
-                        <div className="w-3.5 h-3.5 rounded-full bg-gray-100 shrink-0"></div>
+                        <div className="w-3.5 h-3.5 rounded-full bg-gray-200 shrink-0"></div>
                       )}
                     </div>
                   );
@@ -532,9 +565,20 @@ export default function AIResumeReview({
                 </div>
 
                 <div className="md:col-span-8 space-y-3">
-                  <div className="inline-flex items-center gap-1.5 bg-indigo-50 border border-indigo-100 text-[#4f46e5] text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider">
-                    <ShieldCheck className="w-3.5 h-3.5" />
-                    ATS Audit Summary
+                  <div className="flex items-center justify-between">
+                    <div className="inline-flex items-center gap-1.5 bg-indigo-50 border border-indigo-100 text-[#4f46e5] text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                      <ShieldCheck className="w-3.5 h-3.5" />
+                      ATS Audit Summary
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => window.print()}
+                      className="px-3 py-1 bg-white border border-gray-200 hover:border-[#4f46e5] text-gray-700 hover:text-[#4f46e5] rounded-xl text-[11px] font-bold shadow-2xs hover:shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <Download className="w-3.5 h-3.5 text-[#4f46e5]" />
+                      Download Certificate (PDF)
+                    </button>
                   </div>
                   <p className="text-xs text-gray-500 leading-relaxed font-semibold">
                     {result.summary}
