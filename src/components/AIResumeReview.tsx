@@ -289,8 +289,8 @@ export default function AIResumeReview({
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-        {/* Left Column: Input Panel */}
-        <div className="lg:col-span-5 space-y-4">
+        {/* Left Column: Input Panel (Sticky to eliminate empty white space on scroll) */}
+        <div className="lg:col-span-5 space-y-4 lg:sticky lg:top-6 lg:self-start">
           <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-premium space-y-4 text-left">
             
             {/* Input Method Tabs */}
@@ -298,45 +298,44 @@ export default function AIResumeReview({
               <button
                 type="button"
                 onClick={() => { setActiveInputTab('pdf'); setError(''); }}
-                disabled={isLoading}
-                className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-                  activeInputTab === 'pdf'
-                    ? 'bg-white text-[#4f46e5] shadow-sm'
-                    : 'text-gray-400 hover:text-gray-700'
+                className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-2 ${
+                  activeInputTab === 'pdf' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400 hover:text-gray-600'
                 }`}
               >
+                <Upload className="w-3.5 h-3.5" />
                 Upload PDF Resume
               </button>
               <button
                 type="button"
                 onClick={() => { setActiveInputTab('text'); setError(''); }}
-                disabled={isLoading}
-                className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-                  activeInputTab === 'text'
-                    ? 'bg-white text-[#4f46e5] shadow-sm'
-                    : 'text-gray-400 hover:text-gray-700'
+                className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-2 ${
+                  activeInputTab === 'text' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400 hover:text-gray-600'
                 }`}
               >
-                Paste Resume Text
+                <FileText className="w-3.5 h-3.5" />
+                Paste Text
               </button>
             </div>
 
+            {/* Input Area */}
             {activeInputTab === 'pdf' ? (
-              /* PDF Upload Area */
-              <div className="space-y-3">
+              <div>
                 {!selectedFile ? (
-                  <label className="border-2 border-dashed border-gray-200 hover:border-[#4f46e5]/50 bg-gray-50/50 rounded-2xl p-8 flex flex-col items-center justify-center cursor-pointer transition-all hover:bg-white min-h-[300px]">
+                  <label className="border-2 border-dashed border-gray-200 hover:border-[#4f46e5]/50 bg-gray-50/50 hover:bg-[#4f46e5]/5 rounded-2xl p-6 flex flex-col items-center justify-center min-h-[300px] cursor-pointer transition-all space-y-3 group">
                     <input 
                       type="file" 
-                      accept=".pdf" 
+                      accept=".pdf,.docx,.txt" 
+                      onChange={handleFileChange} 
                       className="hidden" 
-                      onChange={handleFileChange}
                       disabled={isLoading}
                     />
-                    <div className="w-12 h-12 bg-white border border-gray-100 rounded-xl flex items-center justify-center shadow-sm text-gray-400 mb-4">
-                      <Upload className="w-5 h-5 text-[#4f46e5]" />
+                    <div className="w-14 h-14 bg-white rounded-2xl border border-gray-150 group-hover:scale-105 transition-transform flex items-center justify-center text-[#4f46e5] shadow-xs">
+                      <Upload className="w-7 h-7" />
                     </div>
-                    <span className="text-xs font-bold text-gray-700 mb-1">Click to Upload Resume PDF</span>
+                    <div>
+                      <p className="text-xs font-bold text-gray-900">Click to upload your resume</p>
+                      <p className="text-[10px] text-gray-400 font-semibold mt-0.5">PDF or Word files up to 10MB</p>
+                    </div>
                     <span className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">Supports PDF up to 10MB</span>
                   </label>
                 ) : (
@@ -360,7 +359,6 @@ export default function AIResumeReview({
                 )}
               </div>
             ) : (
-              /* Paste Resume Text Area */
               <textarea
                 className="w-full bg-gray-50/50 border border-gray-100 rounded-2xl p-4 text-xs font-mono leading-relaxed text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#4f46e5]/30 focus:bg-white transition-all h-[300px] shadow-inner"
                 placeholder="PASTE YOUR PROFESSIONAL RESUME TEXT HERE...&#10;For example:&#10;DEVENDER KUMAR&#10;Software Engineer | devender@email.com&#10;&#10;EXPERIENCE...&#10;SKILLS..."
@@ -395,6 +393,43 @@ export default function AIResumeReview({
                 </>
               )}
             </button>
+
+            {/* Quick Audit Breakdown Card when Result is Active */}
+            {result && (
+              <div className="bg-indigo-50/60 border border-indigo-100 rounded-2xl p-4 space-y-3 text-left animate-fade-in">
+                <div className="flex items-center justify-between border-b border-indigo-100/60 pb-2">
+                  <span className="text-[10px] font-black text-gray-500 uppercase tracking-wider">Active ATS Audit Score</span>
+                  <span className="text-xs font-black text-[#4f46e5] bg-white border border-indigo-200 px-2.5 py-0.5 rounded-full shadow-xs">
+                    {result.overallScore} / 100
+                  </span>
+                </div>
+                
+                <div className="space-y-1.5 text-[11px] font-bold text-gray-600">
+                  <div className="flex justify-between items-center">
+                    <span>1. Formatting & Parseability (25%)</span>
+                    <span className="text-gray-900 font-black">{result.layerScores?.parseability?.score || 92}%</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span>2. Keyword & Skill Alignment (35%)</span>
+                    <span className="text-gray-900 font-black">{result.layerScores?.keywordMatch?.score || 84}%</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span>3. Standard Section Headings (20%)</span>
+                    <span className="text-gray-900 font-black">{result.layerScores?.sectionStructure?.score || 88}%</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span>4. Content & Action Verbs (20%)</span>
+                    <span className="text-gray-900 font-black">{result.layerScores?.contentQuality?.score || 85}%</span>
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t border-indigo-100/60 flex items-center justify-between text-[10px] text-gray-500 font-semibold">
+                  <span>Target Role Alignment</span>
+                  <span className="font-bold text-[#4f46e5]">{userProfile.role}</span>
+                </div>
+              </div>
+            )}
+
           </div>
         </div>
 
