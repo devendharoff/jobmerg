@@ -25,9 +25,9 @@ const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL |
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || '';
 const supabase = (SUPABASE_URL && SUPABASE_KEY) ? createClient(SUPABASE_URL, SUPABASE_KEY) : null;
 
-// Razorpay SDK Instance Initialization
-const razorpayKeyId = process.env.RAZORPAY_KEY_ID || 'rzp_test_TM6SqU0EuP08lz';
-const razorpayKeySecret = process.env.RAZORPAY_KEY_SECRET || 'Rr7nZl6NP4024V5UP5Qw5Xxa';
+// Razorpay SDK Instance Initialization (Live Production)
+const razorpayKeyId = process.env.RAZORPAY_KEY_ID || 'rzp_live_TM6tA1CJqXOTRA';
+const razorpayKeySecret = process.env.RAZORPAY_KEY_SECRET || 'f4DlGXGAXitXvO1mcXzZYaJp';
 
 const razorpayInstance = new Razorpay({
   key_id: razorpayKeyId,

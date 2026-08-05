@@ -59,7 +59,7 @@ export default function PricingModal({ isOpen, onClose, onSelectPlan, currentPla
       }
 
       const orderData = await res.json();
-      const razorpayKey = import.meta.env.VITE_RAZORPAY_KEY_ID || orderData.key_id || 'rzp_test_TM6SqU0EuP08lz';
+      const razorpayKey = import.meta.env.VITE_RAZORPAY_KEY_ID || orderData.key_id || 'rzp_live_TM6tA1CJqXOTRA';
 
       if (!window.Razorpay) {
         throw new Error('Razorpay SDK failed to load. Please refresh the page and try again.');
