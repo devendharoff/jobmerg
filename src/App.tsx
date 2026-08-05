@@ -25,6 +25,7 @@ const AIResumeReview = lazy(() => import('./components/AIResumeReview'));
 const ResumeBuilder = lazy(() => import('./components/ResumeBuilder'));
 const AutoApplyBot = lazy(() => import('./components/AutoApplyBot'));
 import CoverLetterGenerator from './components/CoverLetterGenerator';
+import UserProfileManager from './components/UserProfileManager';
 
 function CircularProgress({ percentage, size = 48, strokeWidth = 4 }: { percentage: number; size?: number; strokeWidth?: number }) {
   const radius = (size - strokeWidth) / 2;
@@ -152,7 +153,7 @@ export function getPlatformInfo(job: Job) {
 
 export default function App() {
   const [activeScreen, setActiveScreen] = useState<ActiveScreen>('Landing');
-  const [activeDashboardTab, setActiveDashboardTab] = useState<'Dashboard' | 'FindJobs' | 'Salaries' | 'AIReview' | 'Applications' | 'Saved' | 'Resume' | 'AutoApply'>('Dashboard');
+  const [activeDashboardTab, setActiveDashboardTab] = useState<'Dashboard' | 'FindJobs' | 'Salaries' | 'AIReview' | 'Applications' | 'Saved' | 'Resume' | 'AutoApply' | 'Profile'>('Dashboard');
   const [activeFilterCategory, setActiveFilterCategory] = useState<string>('Recommended');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   
@@ -1508,6 +1509,20 @@ export default function App() {
                     </button>
 
                     <button
+                      onClick={() => setActiveDashboardTab('Profile')}
+                      className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
+                        activeDashboardTab === 'Profile'
+                          ? 'bg-[#4f46e5]/10 text-[#4f46e5] font-extrabold shadow-xs'
+                          : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <User className="w-4 h-4" />
+                        <span>My Profile</span>
+                      </div>
+                    </button>
+
+                    <button
                       onClick={() => setActiveDashboardTab('Saved')}
                       className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
                         activeDashboardTab === 'Saved'
@@ -1620,7 +1635,10 @@ export default function App() {
 
                 {/* Footer User Profile Block */}
                 <div className="pt-4 border-t border-gray-100 flex items-center justify-between">
-                  <div className="flex items-center gap-3 min-w-0">
+                  <div 
+                    onClick={() => setActiveDashboardTab('Profile')}
+                    className="flex items-center gap-3 min-w-0 cursor-pointer hover:opacity-80 transition-opacity"
+                  >
                     <div className="relative shrink-0">
                       <img 
                         alt={userProfile.name} 
@@ -1685,14 +1703,17 @@ export default function App() {
                 </button>
 
                 {/* Profile Pill Dropdown */}
-                <div className="flex items-center gap-2.5 bg-white border border-gray-200 rounded-full p-1.5 pr-3 shadow-xs">
+                <button 
+                  onClick={() => setActiveDashboardTab('Profile')}
+                  className="flex items-center gap-2.5 bg-white border border-gray-200 hover:border-indigo-300 rounded-full p-1.5 pr-3 shadow-xs cursor-pointer transition-colors"
+                >
                   <img alt={userProfile.name} className="w-7 h-7 rounded-full object-cover" src={userProfile.avatarUrl} />
                   <div className="hidden sm:block text-left">
                     <p className="text-[11px] font-black text-gray-900 leading-tight">{userProfile.name}</p>
                     <p className="text-[9px] font-bold text-gray-400 leading-tight">{userProfile.role}</p>
                   </div>
                   <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
-                </div>
+                </button>
               </div>
             </header>
 
@@ -2071,7 +2092,15 @@ export default function App() {
               </div>
             )}
 
-            {/* Dedicated Find Jobs View - Pure Job Search & Listings Only */}
+            {/* User Profile Manager View */}
+            {activeDashboardTab === 'Profile' && (
+              <UserProfileManager
+                userProfile={userProfile}
+                onUpdateUserProfile={handleUpdateProfile}
+                onOpenPricing={() => setShowPricingModal(true)}
+                showToast={showToast}
+              />
+            )}
             {activeDashboardTab === 'FindJobs' && (
               <div className="space-y-6 flex-1 flex flex-col">
                 <div>
