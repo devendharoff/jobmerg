@@ -102,3 +102,18 @@ export interface SavedSearch {
 }
 
 export type ActiveScreen = 'Landing' | 'Dashboard' | 'SignIn' | 'SignUp';
+
+export interface LayerScoreDetail {
+  score: number;
+  weight: string;
+  status: 'PASS' | 'WARNING' | 'FLAG';
+  details: string;
+}
+
+export interface AtsLayerBreakdown {
+  parseability: LayerScoreDetail;
+  contactInfo: LayerScoreDetail;
+  sectionStructure: LayerScoreDetail;
+  keywordMatch: LayerScoreDetail;
+  contentQuality: LayerScoreDetail;
+}
