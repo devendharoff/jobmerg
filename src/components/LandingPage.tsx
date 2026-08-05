@@ -69,14 +69,15 @@ export default function LandingPage({ onNavigate, onSearch, jobs = [], onSelectJ
             <button 
               type="button"
               onClick={() => onNavigate('Landing')}
-              className="flex items-center gap-2 cursor-pointer focus:outline-none group"
+              className="flex items-center gap-2.5 cursor-pointer focus:outline-none group"
               id="navbar-logo"
             >
               <img 
-                src="/jobmerge-logo.png" 
-                alt="JobMerge" 
-                className="h-9 md:h-[42px] w-auto object-contain group-hover:scale-105 transition-transform" 
+                src="/jobmerge-icon.png" 
+                alt="JobMerge Logo" 
+                className="h-8 md:h-9 w-auto object-contain group-hover:scale-105 transition-transform" 
               />
+              <span className="font-extrabold text-xl text-gray-900 tracking-tight font-display font-black">JobMerge</span>
             </button>
 
             {/* Menu items */}
@@ -1161,13 +1162,14 @@ export default function LandingPage({ onNavigate, onSearch, jobs = [], onSelectJ
             <div className="md:col-span-4 space-y-4">
               <button 
                 onClick={() => onNavigate('Landing')}
-                className="flex items-center gap-2 text-left cursor-pointer focus:outline-none group"
+                className="flex items-center gap-2.5 text-left cursor-pointer focus:outline-none group"
               >
                 <img 
-                  src="/jobmerge-logo.png" 
-                  alt="JobMerge" 
-                  className="h-10 w-auto object-contain group-hover:scale-105 transition-transform" 
+                  src="/jobmerge-icon.png" 
+                  alt="JobMerge Logo" 
+                  className="h-9 w-auto object-contain group-hover:scale-105 transition-transform" 
                 />
+                <span className="font-extrabold text-xl text-gray-900 tracking-tight font-display font-black">JobMerge</span>
               </button>
               <p className="text-gray-400 text-xs font-bold leading-relaxed max-w-xs">
                 Simplifying the job search by aggregating the world's best opportunities into one powerful interface.

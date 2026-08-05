@@ -1272,12 +1272,13 @@ export default function App() {
           
           {/* Mobile Sticky Top Header */}
           <header className="lg:hidden sticky top-0 bg-white/95 backdrop-blur-md border-b border-gray-150 z-40 px-4 py-3 flex items-center justify-between shadow-xs">
-            <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-2">
               <button 
                 onClick={() => setActiveScreen('Landing')}
-                className="cursor-pointer focus:outline-none"
+                className="flex items-center gap-2 cursor-pointer focus:outline-none group"
               >
-                <img src="/jobmerge-logo.png" alt="JobMerge" className="h-8 w-auto object-contain" />
+                <img src="/jobmerge-icon.png" alt="JobMerge Logo" className="h-7 w-auto object-contain" />
+                <span className="font-extrabold text-lg text-gray-900 tracking-tight font-display font-black">JobMerge</span>
               </button>
             </div>
 
@@ -1376,10 +1377,10 @@ export default function App() {
                   {/* Top Logo Icon */}
                   <button 
                     onClick={() => setActiveScreen('Landing')}
-                    className="w-10 h-10 bg-[#4f46e5] rounded-2xl flex items-center justify-center shadow-md shadow-[#4f46e5]/20 hover:scale-105 transition-transform cursor-pointer"
+                    className="w-10 h-10 rounded-2xl flex items-center justify-center hover:scale-105 transition-transform cursor-pointer"
                     title="JobMerge Home"
                   >
-                    <Sparkles className="text-white w-5 h-5" />
+                    <img src="/jobmerge-icon.png" alt="JobMerge Logo" className="h-8 w-auto object-contain" />
                   </button>
 
                   {/* Vertical Dock Nav Stack */}
@@ -1486,7 +1487,8 @@ export default function App() {
                       onClick={() => setActiveScreen('Landing')}
                       className="flex items-center gap-2.5 focus:outline-none cursor-pointer group"
                     >
-                      <img src="/jobmerge-logo.png" alt="JobMerge" className="h-9 w-auto object-contain group-hover:scale-105 transition-transform" />
+                      <img src="/jobmerge-icon.png" alt="JobMerge Logo" className="h-8 w-auto object-contain group-hover:scale-105 transition-transform" />
+                      <span className="font-extrabold text-xl text-gray-900 tracking-tight font-display font-black">JobMerge</span>
                     </button>
 
                     <button 

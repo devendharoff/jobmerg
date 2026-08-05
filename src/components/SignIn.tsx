@@ -51,9 +51,10 @@ export default function SignIn({ onNavigate, onLoginSuccess }: SignInProps) {
         {/* Branding header */}
         <button 
           onClick={() => onNavigate('Landing')}
-          className="flex items-center gap-2 cursor-pointer text-white self-start focus:outline-none group"
+          className="flex items-center gap-2.5 cursor-pointer text-white self-start focus:outline-none group"
         >
-          <img src="/jobmerge-logo.png" alt="JobMerge" className="h-10 w-auto object-contain bg-white/90 p-1.5 rounded-xl shadow-lg group-hover:scale-105 transition-transform" />
+          <img src="/jobmerge-icon.png" alt="JobMerge Logo" className="h-9 w-auto object-contain group-hover:scale-105 transition-transform" />
+          <span className="font-extrabold text-2xl font-display tracking-tight text-white font-black">JobMerge</span>
         </button>
 
         {/* Interactive mock user feedback visual card in center */}
