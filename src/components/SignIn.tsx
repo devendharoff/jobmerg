@@ -53,10 +53,7 @@ export default function SignIn({ onNavigate, onLoginSuccess }: SignInProps) {
           onClick={() => onNavigate('Landing')}
           className="flex items-center gap-2 cursor-pointer text-white self-start focus:outline-none group"
         >
-          <div className="w-9 h-9 bg-white text-[#3f37c9] rounded-xl flex items-center justify-center shadow-lg shadow-black/10 group-hover:scale-105 transition-transform">
-            <Sparkles className="w-5 h-5" />
-          </div>
-          <span className="font-extrabold text-2xl font-display tracking-tight text-white font-black">JobMerge</span>
+          <img src="/jobmerge-logo.png" alt="JobMerge" className="h-10 w-auto object-contain bg-white/90 p-1.5 rounded-xl shadow-lg group-hover:scale-105 transition-transform" />
         </button>
 
         {/* Interactive mock user feedback visual card in center */}
@@ -111,12 +108,9 @@ export default function SignIn({ onNavigate, onLoginSuccess }: SignInProps) {
         <div className="w-full flex justify-between lg:justify-end items-center mb-8">
           <button 
             onClick={() => onNavigate('Landing')}
-            className="flex lg:hidden items-center gap-2 cursor-pointer focus:outline-none"
+            className="flex items-center gap-2 cursor-pointer focus:outline-none group mb-2"
           >
-            <div className="w-8 h-8 bg-[#4f46e5] rounded-xl flex items-center justify-center">
-              <Sparkles className="text-white w-4.5 h-4.5" />
-            </div>
-            <span className="font-extrabold text-xl text-gray-900 font-display font-black">JobMerge</span>
+            <img src="/jobmerge-logo.png" alt="JobMerge" className="h-9 w-auto object-contain group-hover:scale-105 transition-transform" />
           </button>
           
           <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">

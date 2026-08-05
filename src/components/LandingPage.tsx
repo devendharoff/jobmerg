@@ -67,14 +67,16 @@ export default function LandingPage({ onNavigate, onSearch, jobs = [], onSelectJ
           <div className="flex items-center gap-10">
             {/* Logo */}
             <button 
+              type="button"
               onClick={() => onNavigate('Landing')}
-              className="text-2xl font-extrabold flex items-center gap-2 cursor-pointer focus:outline-none group"
+              className="flex items-center gap-2 cursor-pointer focus:outline-none group"
               id="navbar-logo"
             >
-              <div className="w-8 h-8 bg-[#4f46e5] rounded-xl flex items-center justify-center shadow-md shadow-[#4f46e5]/25 group-hover:scale-105 transition-transform">
-                <Sparkles className="text-white w-4.5 h-4.5" />
-              </div>
-              <span className="font-display tracking-tight text-gray-900 font-black">JobMerge</span>
+              <img 
+                src="/jobmerge-logo.png" 
+                alt="JobMerge" 
+                className="h-9 w-auto object-contain group-hover:scale-105 transition-transform" 
+              />
             </button>
 
             {/* Menu items */}
@@ -1159,13 +1161,13 @@ export default function LandingPage({ onNavigate, onSearch, jobs = [], onSelectJ
             <div className="md:col-span-4 space-y-4">
               <button 
                 onClick={() => onNavigate('Landing')}
-                className="flex items-center gap-2 cursor-pointer focus:outline-none"
+                className="flex items-center gap-2 text-left cursor-pointer focus:outline-none group"
               >
-                <svg className="w-7 h-7 text-[#353df6] fill-none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 2a4 4 0 0 1 4 4v12a4 4 0 0 1-8 0V6a4 4 0 0 1 4-4z" />
-                  <path d="M2 12a4 4 0 0 1 4-4h12a4 4 0 0 1 0 8H6a4 4 0 0 1-4-4z" />
-                </svg>
-                <span className="font-display tracking-tight text-xl font-extrabold text-gray-900">JobMerge</span>
+                <img 
+                  src="/jobmerge-logo.png" 
+                  alt="JobMerge" 
+                  className="h-10 w-auto object-contain group-hover:scale-105 transition-transform" 
+                />
               </button>
               <p className="text-gray-400 text-xs font-bold leading-relaxed max-w-xs">
                 Simplifying the job search by aggregating the world's best opportunities into one powerful interface.

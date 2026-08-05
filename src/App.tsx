@@ -1275,11 +1275,10 @@ export default function App() {
             <div className="flex items-center gap-2.5">
               <button 
                 onClick={() => setActiveScreen('Landing')}
-                className="w-9 h-9 bg-[#4f46e5] rounded-xl flex items-center justify-center shadow-md shadow-[#4f46e5]/15 cursor-pointer"
+                className="cursor-pointer focus:outline-none"
               >
-                <Sparkles className="text-white w-4.5 h-4.5" />
+                <img src="/jobmerge-logo.png" alt="JobMerge" className="h-8 w-auto object-contain" />
               </button>
-              <span className="font-extrabold text-lg text-gray-900 tracking-tight font-display">JobMerge</span>
             </div>
 
             <div className="flex items-center gap-2">
@@ -1487,10 +1486,7 @@ export default function App() {
                       onClick={() => setActiveScreen('Landing')}
                       className="flex items-center gap-2.5 focus:outline-none cursor-pointer group"
                     >
-                      <div className="w-9 h-9 bg-[#4f46e5] rounded-2xl flex items-center justify-center shadow-md shadow-[#4f46e5]/15 group-hover:scale-105 transition-transform">
-                        <Sparkles className="text-white w-5 h-5" />
-                      </div>
-                      <span className="font-extrabold text-xl text-gray-900 tracking-tight font-display">JobMerge</span>
+                      <img src="/jobmerge-logo.png" alt="JobMerge" className="h-9 w-auto object-contain group-hover:scale-105 transition-transform" />
                     </button>
 
                     <button 
