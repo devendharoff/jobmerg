@@ -75,7 +75,7 @@ export default function LandingPage({ onNavigate, onSearch, jobs = [], onSelectJ
               <img 
                 src="/jobmerge-logo.png" 
                 alt="JobMerge" 
-                className="h-9 w-auto object-contain group-hover:scale-105 transition-transform" 
+                className="h-9 md:h-[42px] w-auto object-contain group-hover:scale-105 transition-transform" 
               />
             </button>
 
