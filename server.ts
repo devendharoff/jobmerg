@@ -1001,16 +1001,28 @@ app.get("/api/admin/users", async (req, res) => {
     if (dbUsers.length === 0) {
       dbUsers = [
         {
+          id: 'usr_admin',
+          name: 'Super Admin',
+          email: 'avasarama04@gmail.com',
+          avatarUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDygoxBzgjRmZYQ4uIK-GWpjX_FRMByJYrQaV21iuO5-rVvqyFlrzVyxl_a1Vcm27q1W7sFuhkMlLVR0tTqYVJoQ_mPM9ClMRvetN0pCsTVbfoPUpak2f47mmUgJszUtvyU7xBedtbLVrFoIn914KkawqLINIJSkVz9Ued9DSm94XU2wea25YULzaNxYy7taAF-ScbG7PpLXXO0ds-Nvkdy27DQk0fsT8Ms7bQZIsO0Q25v5WbYfdSQB_bKWY4CWlCAwVzoiGXYg3RJ',
+          role: 'Platform Owner',
+          plan: 'VIP',
+          joinedDate: new Date().toISOString().split('T')[0],
+          atsScansUsed: 100,
+          autoApplyStatus: 'Active',
+          lastActive: 'Just now'
+        },
+        {
           id: 'usr_devender',
           name: 'Devender Kumar',
           email: 'candidate@jobmerge.ai',
           avatarUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDygoxBzgjRmZYQ4uIK-GWpjX_FRMByJYrQaV21iuO5-rVvqyFlrzVyxl_a1Vcm27q1W7sFuhkMlLVR0tTqYVJoQ_mPM9ClMRvetN0pCsTVbfoPUpak2f47mmUgJszUtvyU7xBedtbLVrFoIn914KkawqLINIJSkVz9Ued9DSm94XU2wea25YULzaNxYy7taAF-ScbG7PpLXXO0ds-Nvkdy27DQk0fsT8Ms7bQZIsO0Q25v5WbYfdSQB_bKWY4CWlCAwVzoiGXYg3RJ',
           role: 'Senior Software Engineer',
-          plan: 'VIP',
+          plan: 'Pro',
           joinedDate: new Date().toISOString().split('T')[0],
           atsScansUsed: 18,
           autoApplyStatus: 'Active',
-          lastActive: 'Just now'
+          lastActive: '10 mins ago'
         }
       ];
     }

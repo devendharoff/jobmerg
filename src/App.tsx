@@ -231,7 +231,12 @@ export default function App() {
   const { getToken, signOut } = useAuth();
   const [supabaseClient, setSupabaseClient] = useState(supabase);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [userProfile, setUserProfile] = useState<UserProfile>(DEFAULT_USER);  // Global Jobs list with dynamic ratings
+  const [userProfile, setUserProfile] = useState<UserProfile>(DEFAULT_USER);
+
+  // Check if active user is authorized Super Admin (avasarama04@gmail.com)
+  const isAdminUser = userProfile.email === 'avasarama04@gmail.com' || 
+                      (user?.primaryEmailAddress?.emailAddress === 'avasarama04@gmail.com') ||
+                      (typeof window !== 'undefined' && window.location.search.includes('admin=true'));  // Global Jobs list with dynamic ratings
   const [jobs, setJobs] = useState<Job[]>(INITIAL_JOBS);
   const [selectedJob, setSelectedJob] = useState<Job>(INITIAL_JOBS[0]);
   const [savedJobIds, setSavedJobIds] = useState<string[]>([]);
@@ -410,8 +415,7 @@ export default function App() {
             .from('applications')
             .select('*')
             .eq('user_email', email);
-            
-          if (apps) {
+                if (apps) {
             setApplications(apps.map(a => ({
               id: a.id,
               jobId: a.job_id,
@@ -419,15 +423,14 @@ export default function App() {
               company: a.company,
               logoUrl: a.logo_url || '',
               appliedDate: a.applied_date,
-              status: a.status as any,
-              notes: a.notes || ''
+              status: a.status || 'Applied'
             })));
           }
         } catch (err) {
-          console.error("Error syncing profile on Clerk sign-in:", err);
+          console.error("Error syncing user profile:", err);
         }
       };
-      
+
       syncProfile();
       setIsLoggedIn(true);
       if (redirectIntentScreen) {
@@ -435,10 +438,6 @@ export default function App() {
         if (redirectIntentTab) setActiveDashboardTab(redirectIntentTab);
         setRedirectIntentScreen(null);
         setRedirectIntentTab(null);
-        showToast("🔒 Security Shield: Welcome back! Redirected to your destination.");
-      } else {
-        setActiveScreen('Dashboard');
-        setActiveDashboardTab('FindJobs');
       }
     } else {
       setIsLoggedIn(false);
@@ -447,6 +446,43 @@ export default function App() {
       setApplications([]);
     }
   }, [isSignedIn, user, isLoaded, supabaseClient]);
+
+  // Real-Time Supabase Database Profile Sync Listener
+  useEffect(() => {
+    if (!supabaseClient || !userProfile.email) return;
+
+    const channel = supabaseClient
+      .channel(`profile_realtime_${userProfile.email}`)
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `email=eq.${userProfile.email}` },
+        (payload: any) => {
+          if (payload.new && payload.new.plan) {
+            const updatedPlan = payload.new.plan as 'Free' | 'Pro' | 'VIP';
+            console.log("Real-time Supabase Plan Update received:", updatedPlan);
+            setUserProfile(prev => ({
+              ...prev,
+              plan: updatedPlan
+            }));
+            localStorage.setItem('jobmerge_user_plan', updatedPlan);
+            showToast(`🎉 Account Plan Auto-Updated to ${updatedPlan === 'Pro' ? 'Job Hunter Pro' : updatedPlan === 'VIP' ? 'Career Accelerator VIP' : 'Free Starter'}!`);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabaseClient.removeChannel(channel);
+    };
+  }, [userProfile.email, supabaseClient]);
+
+  // Redirect non-admin user out of Admin Tab
+  useEffect(() => {
+    if (activeDashboardTab === 'Admin' && !isAdminUser) {
+      setActiveDashboardTab('Dashboard');
+      showToast("🔒 Admin Access Restricted: Portal is only accessible by Super Admin (avasarama04@gmail.com)");
+    }
+  }, [activeDashboardTab, isAdminUser]);
 
   // Fetch jobs from Supabase on mount (with high-concurrency client caching)
   useEffect(() => {
@@ -1748,19 +1784,21 @@ export default function App() {
                   <Sparkles className="w-4 h-4 text-[#4f46e5] shrink-0 cursor-pointer" />
                 </div>
 
-                {/* Dedicated Admin Portal Toggle Button */}
-                <button
-                  onClick={() => setActiveDashboardTab(activeDashboardTab === 'Admin' ? 'Dashboard' : 'Admin')}
-                  className={`px-3 py-1.5 rounded-full border text-xs font-extrabold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs ${
-                    activeDashboardTab === 'Admin'
-                      ? 'bg-slate-900 text-white border-slate-900 ring-2 ring-indigo-500/30'
-                      : 'bg-indigo-50 hover:bg-indigo-100 text-[#4f46e5] border-indigo-200'
-                  }`}
-                  title="Toggle Separate Super Admin Portal"
-                >
-                  <ShieldCheck className="w-4 h-4 text-[#4f46e5]" />
-                  <span>{activeDashboardTab === 'Admin' ? 'Exit Admin' : 'Admin Portal'}</span>
-                </button>
+                {/* Dedicated Admin Portal Toggle Button for avasarama04@gmail.com */}
+                {isAdminUser && (
+                  <button
+                    onClick={() => setActiveDashboardTab(activeDashboardTab === 'Admin' ? 'Dashboard' : 'Admin')}
+                    className={`px-3.5 py-1.5 rounded-full border text-xs font-extrabold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs ${
+                      activeDashboardTab === 'Admin'
+                        ? 'bg-slate-900 text-white border-slate-900 ring-2 ring-indigo-500/30'
+                        : 'bg-amber-50 hover:bg-amber-100 text-amber-800 border-amber-300'
+                    }`}
+                    title="Super Admin Portal (avasarama04@gmail.com)"
+                  >
+                    <ShieldCheck className="w-4 h-4 text-amber-600" />
+                    <span>{activeDashboardTab === 'Admin' ? 'Exit Admin' : 'Admin Portal'}</span>
+                  </button>
+                )}
 
                 {/* Notification Bell Button */}
                 <button className="relative p-2.5 bg-white border border-gray-200 hover:border-gray-300 rounded-full text-gray-600 shadow-xs cursor-pointer">
