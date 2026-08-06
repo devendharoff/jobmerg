@@ -26,6 +26,7 @@ const ResumeBuilder = lazy(() => import('./components/ResumeBuilder'));
 const AutoApplyBot = lazy(() => import('./components/AutoApplyBot'));
 import CoverLetterGenerator from './components/CoverLetterGenerator';
 import UserProfileManager from './components/UserProfileManager';
+import { AdminPanel } from './components/AdminPanel';
 
 function CircularProgress({ percentage, size = 48, strokeWidth = 4 }: { percentage: number; size?: number; strokeWidth?: number }) {
   const radius = (size - strokeWidth) / 2;
@@ -208,7 +209,7 @@ export default function App() {
     setShowAuthModal(true);
   };
 
-  const handleTabSelect = (tab: 'FindJobs' | 'Salaries' | 'AIReview' | 'Applications' | 'Saved' | 'Resume' | 'AutoApply') => {
+  const handleTabSelect = (tab: 'FindJobs' | 'Salaries' | 'AIReview' | 'Applications' | 'Saved' | 'Resume' | 'AutoApply' | 'Admin') => {
     if (!isSignedIn && (tab === 'AIReview' || tab === 'Resume' || tab === 'AutoApply' || tab === 'Saved')) {
       const titles: Record<string, string> = {
         AIReview: "Continue with Google for ATS Score Checker",
@@ -1457,6 +1458,18 @@ export default function App() {
                     >
                       <BarChart3 className="w-5 h-5" />
                     </button>
+
+                    <button
+                      onClick={() => setActiveDashboardTab('Admin')}
+                      className={`p-2.5 rounded-2xl transition-all cursor-pointer relative ${
+                        activeDashboardTab === 'Admin'
+                          ? 'bg-[#4f46e5]/10 text-[#4f46e5] shadow-xs'
+                          : 'text-gray-400 hover:text-gray-800 hover:bg-gray-50'
+                      }`}
+                      title="Super Admin Portal"
+                    >
+                      <ShieldCheck className="w-5 h-5 text-[#4f46e5]" />
+                    </button>
                   </nav>
                 </div>
 
@@ -1615,6 +1628,21 @@ export default function App() {
                         <BarChart3 className="w-4 h-4" />
                         <span>Salary Insights</span>
                       </div>
+                    </button>
+
+                    <button
+                      onClick={() => setActiveDashboardTab('Admin')}
+                      className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
+                        activeDashboardTab === 'Admin'
+                          ? 'bg-[#4f46e5]/10 text-[#4f46e5] font-extrabold border border-[#4f46e5]/20'
+                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <ShieldCheck className="w-4 h-4 text-[#4f46e5]" />
+                        <span>Admin Portal</span>
+                      </div>
+                      <span className="px-2 py-0.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-full text-[9px] font-black uppercase">Live</span>
                     </button>
 
                     {/* Free Plan Limits Widget Card */}
@@ -2458,6 +2486,17 @@ export default function App() {
                         ))}
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* Super Admin Management Portal */}
+            {activeDashboardTab === 'Admin' && (
+              <div className="flex-1 lg:overflow-y-auto pb-6">
+                <AdminPanel 
+                  currentPlan={userProfile.plan} 
+                  onPromoteUserPlan={(uId, p) => handleSelectPlan(p)} 
+                  showToast={showToast} 
+                />
               </div>
             )}
           </main>

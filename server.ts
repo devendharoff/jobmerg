@@ -972,6 +972,31 @@ Years of experience: ${experienceYears || "Not specified"}`;
 });
 
 // Server-Sent Events (SSE) clients list
+// Admin User Plan Promotion Endpoint
+app.post("/api/admin/promote-user", async (req, res) => {
+  try {
+    const { userId, newPlan } = req.body;
+    if (!userId || !newPlan) {
+      return res.status(400).json({ error: "Missing userId or newPlan parameter" });
+    }
+
+    if (supabase) {
+      try {
+        await supabase.from("profiles").update({ 
+          plan: newPlan, 
+          updated_at: new Date().toISOString() 
+        }).eq("id", userId);
+      } catch (sbErr) {
+        console.warn("Supabase profile update note:", sbErr);
+      }
+    }
+
+    return res.json({ success: true, message: `User ${userId} promoted to ${newPlan} plan.` });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 let sseClients: any[] = [];
 
 app.get("/api/user/subscription-status", (req, res) => {
