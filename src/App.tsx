@@ -473,8 +473,8 @@ export default function App() {
 
       syncProfile();
       setIsLoggedIn(true);
-      if (redirectIntentScreen) {
-        setActiveScreen(redirectIntentScreen);
+      if (activeScreen === 'SignIn' || activeScreen === 'SignUp' || activeScreen === 'Landing' || redirectIntentScreen) {
+        setActiveScreen(redirectIntentScreen || 'Dashboard');
         if (redirectIntentTab) setActiveDashboardTab(redirectIntentTab);
         setRedirectIntentScreen(null);
         setRedirectIntentTab(null);
@@ -486,6 +486,17 @@ export default function App() {
       setApplications([]);
     }
   }, [isSignedIn, user, isLoaded, supabaseClient]);
+
+  // Auto-navigate signed-in candidate straight to Dashboard
+  useEffect(() => {
+    if (isSignedIn && (activeScreen === 'SignIn' || activeScreen === 'SignUp')) {
+      setActiveScreen('Dashboard');
+      if (activeDashboardTab === 'Admin' && !isAdminUser) {
+        setActiveDashboardTab('FindJobs');
+      }
+      showToast(`👋 Welcome, ${user?.firstName || user?.fullName || 'Candidate'}!`);
+    }
+  }, [isSignedIn, activeScreen, user]);
 
   // Real-Time Supabase Database Profile Sync Listener
   useEffect(() => {
@@ -1313,13 +1324,25 @@ export default function App() {
       )}
 
       {activeScreen === 'SignIn' && (
-        <div className="flex-1 flex items-center justify-center min-h-[85vh] py-12 bg-[#f8f9fa]">
+        <div className="flex-1 flex flex-col items-center justify-center min-h-[85vh] py-12 px-4 bg-[#f8f9fa] relative">
+          <button 
+            onClick={() => setActiveScreen('Landing')}
+            className="absolute top-6 left-6 text-xs font-bold text-gray-500 hover:text-gray-900 bg-white border border-gray-200 px-3.5 py-2 rounded-xl flex items-center gap-1.5 shadow-xs cursor-pointer"
+          >
+            ← Back to JobMerge
+          </button>
           <ClerkSignIn routing="hash" />
         </div>
       )}
 
       {activeScreen === 'SignUp' && (
-        <div className="flex-1 flex items-center justify-center min-h-[85vh] py-12 bg-[#f8f9fa]">
+        <div className="flex-1 flex flex-col items-center justify-center min-h-[85vh] py-12 px-4 bg-[#f8f9fa] relative">
+          <button 
+            onClick={() => setActiveScreen('Landing')}
+            className="absolute top-6 left-6 text-xs font-bold text-gray-500 hover:text-gray-900 bg-white border border-gray-200 px-3.5 py-2 rounded-xl flex items-center gap-1.5 shadow-xs cursor-pointer"
+          >
+            ← Back to JobMerge
+          </button>
           <ClerkSignUp routing="hash" />
         </div>
       )}
