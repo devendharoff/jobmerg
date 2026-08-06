@@ -402,6 +402,7 @@ async function handleApplicationFlow(title, company) {
     if (actionBtn) {
       actionBtn.click();
       await delay(1800);
+      dismissPostApplyUpgradePrompts();
     } else {
       dismissModal(currentModal);
       return false;
@@ -454,8 +455,66 @@ function getSmartLocalFallback(field, questionText) {
   return "Yes";
 }
 
+function dismissPostApplyUpgradePrompts() {
+  try {
+    const dismissTexts = [
+      "not now", "no thanks", "no, thanks", "maybe later", "dismiss", 
+      "skip", "cancel", "done", "got it", "close", "no thank you"
+    ];
+
+    const clickableElements = document.querySelectorAll('button, a, span, div[role="button"], button[type="button"]');
+    for (const el of clickableElements) {
+      if (!el || !el.offsetWidth || !el.offsetHeight) continue;
+      
+      const txt = el.textContent.trim().toLowerCase();
+      if (dismissTexts.includes(txt)) {
+        const isDialogChild = el.closest('[role="dialog"], [role="alertdialog"], .artdeco-modal, .artdeco-toast-item, .modal, .popup, .overlay, [aria-modal="true"]');
+        if (isDialogChild || txt === 'not now' || txt === 'no thanks' || txt === 'maybe later') {
+          console.log(`[JobMerge Auto-Dismiss] Clicking '${el.textContent.trim()}' to dismiss post-apply / plan upgrade prompt.`);
+          el.click();
+          return true;
+        }
+      }
+    }
+
+    const closeSelectors = [
+      'button[aria-label="Dismiss"]',
+      'button[aria-label="Close"]',
+      'button[aria-label="close"]',
+      'button.artdeco-modal__dismiss',
+      'button.artdeco-toast-item__dismiss',
+      'button[data-test-modal-close-btn]',
+      'button[data-test-icon="close-small"]',
+      'button.modal__close',
+      'button.close-button',
+      '.icl-CloseButton',
+      '[data-testid="close-button"]'
+    ];
+
+    for (const selector of closeSelectors) {
+      const closeBtns = document.querySelectorAll(selector);
+      for (const closeBtn of closeBtns) {
+        if (closeBtn && closeBtn.offsetWidth && closeBtn.offsetHeight) {
+          console.log(`[JobMerge Auto-Dismiss] Clicking Close ('X') icon button to dismiss popup.`);
+          closeBtn.click();
+          return true;
+        }
+      }
+    }
+  } catch (e) {}
+  return false;
+}
+
+// Continuous watcher to automatically dismiss upgrade plan popups and 'X' icons
+setInterval(() => {
+  if (isCrawling) {
+    dismissPostApplyUpgradePrompts();
+  }
+}, 1500);
+
 function dismissModal(modal) {
-  const closeBtn = modal.querySelector('button[aria-label="Dismiss"], button.artdeco-modal__dismiss');
+  dismissPostApplyUpgradePrompts();
+  const closeBtn = modal ? modal.querySelector('button[aria-label="Dismiss"], button.artdeco-modal__dismiss') : null;
   if (closeBtn) {
     closeBtn.click();
     setTimeout(() => {
