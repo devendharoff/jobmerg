@@ -305,6 +305,27 @@ export default function App() {
     return () => clearTimeout(handler);
   }, [searchQuery]);
 
+  // Auto-Login as Admin if URL has ?admin=true or ?admin=avasarama04@gmail.com
+  useEffect(() => {
+    if (typeof window !== 'undefined' && (window.location.search.includes('admin=true') || window.location.search.includes('admin=avasarama04@gmail.com'))) {
+      setUserProfile({
+        name: 'Super Admin (avasarama04)',
+        email: 'avasarama04@gmail.com',
+        role: 'Platform Owner',
+        avatarUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDygoxBzgjRmZYQ4uIK-GWpjX_FRMByJYrQaV21iuO5-rVvqyFlrzVyxl_a1Vcm27q1W7sFuhkMlLVR0tTqYVJoQ_mPM9ClMRvetN0pCsTVbfoPUpak2f47mmUgJszUtvyU7xBedtbLVrFoIn914KkawqLINIJSkVz9Ued9DSm94XU2wea25YULzaNxYy7taAF-ScbG7PpLXXO0ds-Nvkdy27DQk0fsT8Ms7bQZIsO0Q25v5WbYfdSQB_bKWY4CWlCAwVzoiGXYg3RJ',
+        skills: ['Admin', 'Supabase', 'Analytics'],
+        experienceYears: 10,
+        desiredSalary: '₹50L PA',
+        resumeText: 'Super Admin Profile',
+        profileCompleteness: 100,
+        plan: 'VIP',
+        usage: { resumesCreated: 100, atsScansUsed: 100, autoAppliesUsed: 500 }
+      });
+      setActiveDashboardTab('Admin');
+      showToast('👑 Super Admin Mode Activated: Logged in as avasarama04@gmail.com');
+    }
+  }, []);
+
   useEffect(() => {
     const handler = setTimeout(() => {
       setDebouncedLocationQuery(locationQuery);
@@ -1785,7 +1806,7 @@ export default function App() {
                 </div>
 
                 {/* Dedicated Admin Portal Toggle Button for avasarama04@gmail.com */}
-                {isAdminUser && (
+                {isAdminUser ? (
                   <button
                     onClick={() => setActiveDashboardTab(activeDashboardTab === 'Admin' ? 'Dashboard' : 'Admin')}
                     className={`px-3.5 py-1.5 rounded-full border text-xs font-extrabold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs ${
@@ -1797,6 +1818,31 @@ export default function App() {
                   >
                     <ShieldCheck className="w-4 h-4 text-amber-600" />
                     <span>{activeDashboardTab === 'Admin' ? 'Exit Admin' : 'Admin Portal'}</span>
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => {
+                      setUserProfile({
+                        name: 'Super Admin (avasarama04)',
+                        email: 'avasarama04@gmail.com',
+                        role: 'Platform Owner',
+                        avatarUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDygoxBzgjRmZYQ4uIK-GWpjX_FRMByJYrQaV21iuO5-rVvqyFlrzVyxl_a1Vcm27q1W7sFuhkMlLVR0tTqYVJoQ_mPM9ClMRvetN0pCsTVbfoPUpak2f47mmUgJszUtvyU7xBedtbLVrFoIn914KkawqLINIJSkVz9Ued9DSm94XU2wea25YULzaNxYy7taAF-ScbG7PpLXXO0ds-Nvkdy27DQk0fsT8Ms7bQZIsO0Q25v5WbYfdSQB_bKWY4CWlCAwVzoiGXYg3RJ',
+                        skills: ['Admin', 'Supabase', 'Analytics'],
+                        experienceYears: 10,
+                        desiredSalary: '₹50L PA',
+                        resumeText: 'Super Admin Profile',
+                        profileCompleteness: 100,
+                        plan: 'VIP',
+                        usage: { resumesCreated: 100, atsScansUsed: 100, autoAppliesUsed: 500 }
+                      });
+                      setActiveDashboardTab('Admin');
+                      showToast('👑 Logged in as Super Admin (avasarama04@gmail.com)');
+                    }}
+                    className="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-full text-xs font-extrabold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs border border-slate-700"
+                    title="Log in as Super Admin (avasarama04@gmail.com)"
+                  >
+                    <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Admin Login</span>
                   </button>
                 )}
 
