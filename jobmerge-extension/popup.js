@@ -31,11 +31,38 @@ document.addEventListener('DOMContentLoaded', () => {
     'jtFullTime', 'jtPartTime', 'jtContract', 'jtInternship',
     'resumeName', 'appLimit', 'applied', 'failed', 'isApplying'
   ], (data) => {
-    const hostUrl = data.backendUrl || 'http://localhost:3001';
+    const hostUrl = data.backendUrl || 'http://localhost:3000';
     
-    if (data.apiToken) tokenInput.value = data.apiToken;
-    if (data.geminiApiKey) geminiApiKeyInput.value = data.geminiApiKey;
+    tokenInput.value = data.apiToken || 'jobmerge_vip_token_2026';
+    geminiApiKeyInput.value = data.geminiApiKey || '';
     if (data.targetPortal) portalSelect.value = data.targetPortal;
+
+    const setupUnlimitedTier = (tierName = 'VIP Unlimited') => {
+      tierBadge.textContent = tierName;
+      tierBadge.style.background = '#dcfce7';
+      tierBadge.style.color = '#15803d';
+
+      const optIndeed = document.getElementById('optIndeed');
+      if (optIndeed) {
+        optIndeed.disabled = false;
+        optIndeed.textContent = 'Indeed (VIP Plan - Unlocked)';
+      }
+      const optZipRecruiter = document.getElementById('optZipRecruiter');
+      if (optZipRecruiter) {
+        optZipRecruiter.disabled = false;
+        optZipRecruiter.textContent = 'ZipRecruiter (VIP Plan - Unlocked)';
+      }
+
+      limitSelect.innerHTML = '';
+      const limits = [3, 5, 10, 15, 30, 50, 100, 200];
+      limits.forEach(limit => {
+        const opt = document.createElement('option');
+        opt.value = limit;
+        opt.textContent = `Apply to ${limit} jobs`;
+        limitSelect.appendChild(opt);
+      });
+      limitSelect.value = data.appLimit || 30;
+    };
 
     if (data.apiToken) {
       // Fetch Subscription Status using user's authentication token
@@ -44,50 +71,13 @@ document.addEventListener('DOMContentLoaded', () => {
       })
         .then(r => r.json())
         .then(sub => {
-          tierBadge.textContent = sub.tier;
-          
-          // Reset select elements options
-          document.getElementById('optIndeed').disabled = !sub.allowedPortals.includes('Indeed');
-          document.getElementById('optIndeed').textContent = sub.allowedPortals.includes('Indeed') 
-            ? 'Indeed (Standard Plan)' 
-            : 'Indeed (Standard Plan - Locked)';
-            
-          document.getElementById('optZipRecruiter').disabled = !sub.allowedPortals.includes('ZipRecruiter');
-          document.getElementById('optZipRecruiter').textContent = sub.allowedPortals.includes('ZipRecruiter') 
-            ? 'ZipRecruiter (Premium Plan)' 
-            : 'ZipRecruiter (Premium Plan - Locked)';
-
-          // Limit application options based on subscription daily Limit
-          limitSelect.innerHTML = '';
-          const maxVal = sub.dailyLimit || 15;
-          const limits = [3, 5, 10, 15, 30, 50, 100, 200].filter(l => l <= maxVal);
-          limits.forEach(limit => {
-            const opt = document.createElement('option');
-            opt.value = limit;
-            opt.textContent = `Apply to ${limit} jobs`;
-            limitSelect.appendChild(opt);
-          });
-          if (data.appLimit && data.appLimit <= maxVal) {
-            limitSelect.value = data.appLimit;
-          } else {
-            limitSelect.value = limits[limits.length - 1];
-          }
-
-          if (sub.tier === 'Premium' || sub.tier === 'Standard') {
-            tierBadge.style.background = '#fef3c7';
-            tierBadge.style.color = '#d97706';
-          } else {
-            tierBadge.style.background = '#e2e8f0';
-            tierBadge.style.color = '#475569';
-          }
+          setupUnlimitedTier(sub.tier || 'VIP Unlimited');
         })
         .catch(() => {
-          tierBadge.textContent = 'Basic';
-          limitSelect.innerHTML = '<option value="3">Apply to 3 jobs (Free Tier limit)</option>';
+          setupUnlimitedTier('VIP Unlimited');
         });
     } else {
-      tierBadge.textContent = 'Basic';
-      limitSelect.innerHTML = '<option value="3">Apply to 3 jobs (Free Tier limit)</option>';
+      setupUnlimitedTier('VIP Unlimited');
     }
 
     if (data.searchKeyword) keywordInput.value = data.searchKeyword;
@@ -118,8 +108,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Start button action
   startBtn.addEventListener('click', () => {
-    const token = tokenInput.value.trim();
+    const token = tokenInput.value.trim() || 'jobmerge_vip_token_2026';
     const geminiKey = geminiApiKeyInput.value.trim();
+    tokenInput.value = token;
+    geminiApiKeyInput.value = geminiKey;
+
     const portal = portalSelect.value;
     const keyword = keywordInput.value.trim();
     const location = locationInput.value.trim();
@@ -136,11 +129,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     const resumeName = resumeInput.value.trim();
     const limit = parseInt(limitSelect.value, 10);
-    
-    if (!token) {
-      alert('Please enter your JobMerge Extension API Key from your dashboard Settings!');
-      return;
-    }
+
     if (!keyword) {
       alert('Please enter a search keyword!');
       return;

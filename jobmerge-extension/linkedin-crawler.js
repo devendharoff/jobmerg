@@ -7,7 +7,7 @@ let failedCount = 0;
 let targetLimit = 15;
 let personalInfo = {};
 let apiToken = '';
-let hostUrl = 'http://localhost:3001';
+let hostUrl = 'http://localhost:3000';
 let visitedJobIds = new Set();
 
 // Listen for stop command from background or extension popup

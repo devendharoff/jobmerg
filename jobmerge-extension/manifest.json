@@ -12,6 +12,8 @@
     "https://*.linkedin.com/*",
     "https://*.indeed.com/*",
     "https://*.ziprecruiter.com/*",
+    "http://localhost:3000/*",
+    "http://127.0.0.1:3000/*",
     "http://localhost:3001/*",
     "http://127.0.0.1:3001/*",
     "https://*.vercel.app/*",
@@ -26,6 +28,8 @@
   "content_scripts": [
     {
       "matches": [
+        "http://localhost:3000/*",
+        "http://127.0.0.1:3000/*",
         "http://localhost:3001/*",
         "http://127.0.0.1:3001/*",
         "https://*.loca.lt/*",

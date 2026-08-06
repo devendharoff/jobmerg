@@ -38,16 +38,16 @@ export interface UserUsage {
 
 export const PLAN_LIMITS: Record<UserPlanTier, PlanLimits> = {
   Free: {
-    maxResumes: 1,
-    maxAtsScans: 2,
-    maxAutoApplies: 5,
-    hasAiCustomReport: false
+    maxResumes: Infinity,
+    maxAtsScans: Infinity,
+    maxAutoApplies: Infinity,
+    hasAiCustomReport: true
   },
   Pro: {
-    maxResumes: 15,
-    maxAtsScans: 25,
-    maxAutoApplies: 100,
-    hasAiCustomReport: false
+    maxResumes: Infinity,
+    maxAtsScans: Infinity,
+    maxAutoApplies: Infinity,
+    hasAiCustomReport: true
   },
   Accelerator: {
     maxResumes: Infinity,

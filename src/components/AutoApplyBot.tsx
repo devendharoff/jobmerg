@@ -488,7 +488,7 @@ export default function AutoApplyBot({ userProfile, onSyncApplications, onOpenPr
       <div 
         id="jobmerge-sync-auth" 
         data-token="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.dummy_premium_token" 
-        data-api-url={typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3001'}
+        data-api-url={typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'}
         style={{ display: 'none' }} 
       />
       

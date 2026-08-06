@@ -23,130 +23,8 @@ export default function PricingModal({ isOpen, onClose, onSelectPlan, currentPla
   if (!isOpen) return null;
 
   const handleCheckout = async (planTier: 'Free' | 'Pro' | 'Accelerator') => {
-    if (planTier === 'Free') {
-      onSelectPlan?.('Free');
-      onClose();
-      return;
-    }
-
-    const priceMap: Record<string, number> = {
-      Pro: billingCycle === 'annual' ? 399 : 499,
-      Accelerator: billingCycle === 'annual' ? 1199 : 1499
-    };
-
-    const priceInRupees = priceMap[planTier] || 499;
-    const amountInPaise = priceInRupees * 100;
-
-    setIsProcessing(true);
-    setErrorMsg('');
-
-    try {
-      let orderData: { order_id?: string; amount: number; currency: string; key_id?: string } = {
-        amount: amountInPaise,
-        currency: 'INR',
-        key_id: 'rzp_live_TM6tA1CJqXOTRA'
-      };
-
-      try {
-        // Step 1: Create Real Razorpay Order via Backend API
-        const res = await fetch('/api/create-order', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            amount: amountInPaise,
-            currency: 'INR',
-            planTier,
-            receipt: `rcpt_${planTier.toLowerCase()}_${Date.now()}`
-          })
-        });
-
-        if (res.ok) {
-          const apiOrder = await res.json();
-          if (apiOrder && apiOrder.order_id) {
-            orderData = apiOrder;
-          }
-        } else {
-          console.warn("Backend /api/create-order returned non-200, opening Razorpay Direct Checkout Mode");
-        }
-      } catch (fetchErr) {
-        console.warn("Backend order creation fetch unavailable, using Direct Checkout Mode:", fetchErr);
-      }
-
-      const razorpayKey = import.meta.env.VITE_RAZORPAY_KEY_ID || orderData.key_id || 'rzp_live_TM6tA1CJqXOTRA';
-
-      if (!window.Razorpay) {
-        throw new Error('Razorpay SDK failed to load. Please refresh the page and try again.');
-      }
-
-      // Step 2: Open Razorpay Standard Web Checkout Modal
-      const options: any = {
-        key: razorpayKey,
-        amount: orderData.amount,
-        currency: orderData.currency,
-        name: "JobMerge",
-        description: `Upgrade to ${planTier === 'Pro' ? 'Job Hunter Pro' : 'Career Accelerator VIP'} (${billingCycle})`,
-        image: "https://lh3.googleusercontent.com/aida-public/AB6AXuDygoxBzgjRmZYQ4uIK-GWpjX_FRMByJYrQaV21iuO5-rVvqyFlrzVyxl_a1Vcm27q1W7sFuhkMlLVR0tTqYVJoQ_mPM9ClMRvetN0pCsTVbfoPUpak2f47mmUgJszUtvyU7xBedtbLVrFoIn914KkawqLINIJSkVz9Ued9DSm94XU2wea25YULzaNxYy7taAF-ScbG7PpLXXO0ds-Nvkdy27DQk0fsT8Ms7bQZIsO0Q25v5WbYfdSQB_bKWY4CWlCAwVzoiGXYg3RJ",
-        prefill: {
-          name: "Devender Kumar",
-          email: "candidate@jobmerge.ai",
-          contact: "+919876543210"
-        },
-        theme: {
-          color: "#4f46e5"
-        },
-        handler: async (response: any) => {
-          try {
-            // Step 3: Verify Payment Signature via Backend API if order_id was present
-            if (response.razorpay_order_id && response.razorpay_signature) {
-              const verifyRes = await fetch('/api/verify-payment', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  razorpay_order_id: response.razorpay_order_id,
-                  razorpay_payment_id: response.razorpay_payment_id,
-                  razorpay_signature: response.razorpay_signature,
-                  planTier
-                })
-              });
-              const verifyData = await verifyRes.json();
-              if (!verifyRes.ok || !verifyData.success) {
-                console.warn("Payment verification note:", verifyData.error);
-              }
-            }
-
-            onSelectPlan?.(planTier);
-            onClose();
-          } catch (vErr: any) {
-            console.warn("Verification handler fallback:", vErr);
-            onSelectPlan?.(planTier);
-            onClose();
-          } finally {
-            setIsProcessing(false);
-          }
-        },
-        modal: {
-          ondismiss: () => {
-            setIsProcessing(false);
-          }
-        }
-      };
-
-      if (orderData.order_id) {
-        options.order_id = orderData.order_id;
-      }
-
-      const rzp = new window.Razorpay(options);
-      rzp.on('payment.failed', (response: any) => {
-        setErrorMsg(`Payment Failed: ${response.error?.description || 'Transaction declined'}`);
-        setIsProcessing(false);
-      });
-      rzp.open();
-
-    } catch (err: any) {
-      console.error("Razorpay Checkout Error:", err);
-      setErrorMsg(err.message || 'Payment checkout initialization failed.');
-      setIsProcessing(false);
-    }
+    onSelectPlan?.(planTier);
+    onClose();
   };
 
   return (
@@ -295,9 +173,9 @@ export default function PricingModal({ isOpen, onClose, onSelectPlan, currentPla
 
               <div className="flex items-baseline gap-1">
                 <span className="text-3xl font-black text-gray-900 font-display">
-                  {billingCycle === 'annual' ? '₹399' : '₹499'}
+                  ₹0
                 </span>
-                <span className="text-xs font-bold text-gray-400">/ month</span>
+                <span className="text-xs font-bold text-emerald-600 font-black">/ 100% Free</span>
               </div>
 
               <div className="space-y-2.5 pt-3 border-t border-gray-100 text-xs font-bold text-gray-800">
@@ -334,7 +212,7 @@ export default function PricingModal({ isOpen, onClose, onSelectPlan, currentPla
                   : 'bg-[#4f46e5] hover:bg-[#3f37c9] text-white shadow-md shadow-[#4f46e5]/20'
               }`}
             >
-              {isProcessing ? 'Opening Razorpay Checkout...' : currentPlan === 'Pro' ? '✓ Selected Job Hunter Pro' : 'Pay & Upgrade Pro →'}
+              {currentPlan === 'Pro' ? '✓ Selected Job Hunter Pro' : 'Activate Job Hunter Pro (Free)'}
             </button>
           </div>
 
@@ -353,9 +231,9 @@ export default function PricingModal({ isOpen, onClose, onSelectPlan, currentPla
 
               <div className="flex items-baseline gap-1">
                 <span className="text-3xl font-black text-gray-900 font-display">
-                  {billingCycle === 'annual' ? '₹1,199' : '₹1,499'}
+                  ₹0
                 </span>
-                <span className="text-xs font-bold text-gray-400">/ month</span>
+                <span className="text-xs font-bold text-emerald-600 font-black">/ 100% Free VIP</span>
               </div>
 
               <div className="space-y-2.5 pt-3 border-t border-gray-200/80 text-xs font-bold text-gray-700">
@@ -396,7 +274,7 @@ export default function PricingModal({ isOpen, onClose, onSelectPlan, currentPla
                   : 'bg-gray-900 hover:bg-black text-white'
               }`}
             >
-              {isProcessing ? 'Opening Razorpay Checkout...' : currentPlan === 'Accelerator' ? '✓ Selected VIP Accelerator' : 'Pay & Upgrade VIP →'}
+              {currentPlan === 'Accelerator' ? '✓ Selected VIP Accelerator' : 'Activate VIP Accelerator (Free)'}
             </button>
           </div>
 

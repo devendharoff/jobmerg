@@ -5,7 +5,7 @@ let jobIndex = 0;
 let currentLimit = 30;
 let personalInfo = {};
 let apiToken = '';
-let hostUrl = 'http://localhost:3001';
+let hostUrl = 'http://localhost:3000';
 
 // Listen for stop command
 chrome.runtime.onMessage.addListener((message) => {

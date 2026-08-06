@@ -210,19 +210,6 @@ export default function App() {
   };
 
   const handleTabSelect = (tab: 'FindJobs' | 'Salaries' | 'AIReview' | 'Applications' | 'Saved' | 'Resume' | 'AutoApply' | 'Admin') => {
-    if (!isSignedIn && (tab === 'AIReview' || tab === 'Resume' || tab === 'AutoApply' || tab === 'Saved')) {
-      const titles: Record<string, string> = {
-        AIReview: "Continue with Google for ATS Score Checker",
-        Resume: "Continue with Google for AI Resume Builder",
-        AutoApply: "Continue with Google for Auto-Apply Bot",
-        Saved: "Continue with Google to Save Jobs"
-      };
-      triggerAuthModal(
-        titles[tab] || "Sign In to Access Feature",
-        "Create your free account to access AI tools and saved jobs."
-      );
-      return;
-    }
     setActiveDashboardTab(tab);
   };
   
@@ -398,7 +385,7 @@ export default function App() {
               desiredSalary: profile.desired_salary || '',
               resumeText: profile.resume_text || '',
               profileCompleteness: profile.profile_completeness || 0,
-              plan: profile.plan || (localStorage.getItem('jobmerge_user_plan') as any) || 'Free',
+              plan: profile.plan || (localStorage.getItem('jobmerge_user_plan') as any) || 'Accelerator',
               usage: profile.usage || { resumesCreated: 1, atsScansUsed: 1, autoAppliesUsed: 5 }
             });
           } else {
@@ -632,7 +619,7 @@ export default function App() {
           desiredSalary: profile.desired_salary || '',
           resumeText: profile.resume_text || '',
           profileCompleteness: profile.profile_completeness || 0,
-          plan: profile.plan || (localStorage.getItem('jobmerge_user_plan') as any) || 'Free',
+          plan: profile.plan || (localStorage.getItem('jobmerge_user_plan') as any) || 'Accelerator',
           usage: profile.usage || { resumesCreated: 1, atsScansUsed: 1, autoAppliesUsed: 5 }
         });
       } else {
@@ -764,13 +751,6 @@ export default function App() {
 
   const handleToggleBookmark = async (jobId: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
-    if (!isSignedIn) {
-      triggerAuthModal(
-        "Continue with Google to Save Jobs",
-        "Create your free account to bookmark jobs and track applications."
-      );
-      return;
-    }
     if (savedJobIds.includes(jobId)) {
       setSavedJobIds(savedJobIds.filter(id => id !== jobId));
       showToast("Removed from saved jobs.");
@@ -791,15 +771,6 @@ export default function App() {
   };
 
   const handleApplyJob = (job: Job) => {
-    if (!isSignedIn) {
-      setPendingRedirectJob(job);
-      triggerAuthModal(
-        "Continue with Google to Apply Instantly",
-        `Apply for ${job.title} at ${job.company} with 1-click quick apply.`,
-        job
-      );
-      return;
-    }
     // Check if already applied
     const alreadyApplied = applications.some(app => app.jobId === job.id);
     if (alreadyApplied) {
@@ -1293,6 +1264,15 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#f8f9fa] text-gray-900 flex flex-col font-sans">
       
+      {/* Silent Sync Authentication Element for Chrome Extension */}
+      <div 
+        id="jobmerge-sync-auth" 
+        data-token="jobmerge_vip_token_2026" 
+        data-api-url={typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'}
+        data-gemini-key={import.meta.env.VITE_GEMINI_API_KEY || ''}
+        style={{ display: 'none' }} 
+      />
+      
       {/* Universal feedback toast notice */}
       {toastMessage && (
         <div className="fixed bottom-6 right-6 bg-slate-900 text-white px-5 py-3.5 rounded-2xl text-[11px] font-bold shadow-glow-indigo border border-slate-800 z-50 flex items-center gap-2.5 animate-slide-in">
@@ -1348,27 +1328,6 @@ export default function App() {
       )}
 
       {activeScreen === 'Dashboard' && (
-        (!isSignedIn && !isAdminUser) ? (
-          <div className="flex-1 flex items-center justify-center min-h-[85vh] py-12 px-4 bg-[#f8f9fa] animate-fade-in">
-            <div className="max-w-md w-full p-8 bg-white rounded-3xl border border-gray-150 shadow-2xl text-center space-y-6">
-              <div className="w-14 h-14 bg-indigo-50 text-[#353df6] rounded-2xl flex items-center justify-center mx-auto shadow-sm border border-indigo-100">
-                <Lock className="w-7 h-7" />
-              </div>
-              <div className="space-y-2">
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-extrabold uppercase tracking-wider border border-emerald-200">
-                  <ShieldCheck className="w-3.5 h-3.5" /> 100% Security Guard Active
-                </div>
-                <h2 className="text-2xl font-black text-gray-900 font-display tracking-tight">Authentication Required</h2>
-                <p className="text-xs text-gray-500 font-semibold leading-relaxed">
-                  JobMerge Dashboard is protected. Please sign in to access live aggregated job listings, application tracking pipelines, and AI resume builder tools.
-                </p>
-              </div>
-              <div className="pt-2 flex justify-center">
-                <ClerkSignIn routing="hash" />
-              </div>
-            </div>
-          </div>
-        ) : (
         <div className="flex-1 flex flex-col lg:flex-row lg:h-screen lg:overflow-hidden bg-[#f8f9fa] relative">
           
           {/* Mobile Sticky Top Header */}
@@ -1745,20 +1704,20 @@ export default function App() {
                       <span className="px-2 py-0.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-full text-[9px] font-black uppercase">Live</span>
                     </button>
 
-                    {/* Free Plan Limits Widget Card */}
+                    {/* VIP Unlimited Plan Widget Card */}
                     <div className="my-3 p-3.5 bg-gradient-to-br from-indigo-50/90 via-purple-50/70 to-indigo-100/50 border border-indigo-150 rounded-2xl space-y-2.5 shadow-xs">
                       <div className="flex items-center justify-between">
-                        <span className="text-[9px] font-black uppercase text-indigo-700 tracking-wider">Free Starter Plan</span>
-                        <span className="px-2 py-0.5 bg-white border border-indigo-200 text-[#4f46e5] text-[9px] font-black rounded-full">Active</span>
+                        <span className="text-[9px] font-black uppercase text-indigo-700 tracking-wider">VIP Accelerator Plan</span>
+                        <span className="px-2 py-0.5 bg-emerald-100 border border-emerald-300 text-emerald-800 text-[9px] font-black rounded-full">100% Free</span>
                       </div>
                       <div className="space-y-1 text-[11px] font-bold text-gray-700">
                         <div className="flex justify-between">
                           <span>📄 Resume Limit:</span>
-                          <strong className="text-gray-900">1 Generated</strong>
+                          <strong className="text-emerald-700">Unlimited</strong>
                         </div>
                         <div className="flex justify-between">
                           <span>🚀 Auto Applications:</span>
-                          <strong className="text-indigo-700">5 / 5 Used</strong>
+                          <strong className="text-indigo-700">Unlimited</strong>
                         </div>
                       </div>
                       <button
@@ -1766,7 +1725,7 @@ export default function App() {
                         className="w-full py-2 bg-[#4f46e5] hover:bg-[#3f37c9] text-white rounded-xl text-xs font-black shadow-xs cursor-pointer flex items-center justify-center gap-1.5 transition-all active:scale-98"
                       >
                         <Sparkles className="w-3.5 h-3.5" />
-                        <span>Upgrade to Pro</span>
+                        <span>Plan Details & Status</span>
                       </button>
                     </div>
                   </div>
@@ -2617,8 +2576,7 @@ export default function App() {
             )}
           </main>
         </div>
-      )
-    )}
+      )}
 
       {/* All Filters Drawer/Modal rendering */}
       {isAllFiltersOpen && (

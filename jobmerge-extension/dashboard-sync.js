@@ -1,20 +1,23 @@
 // dashboard-sync.js - Bidirectional Dashboard <-> Chrome Extension Data Pipeline
 
-const authSyncEl = document.getElementById('jobmerge-sync-auth');
-if (authSyncEl) {
-  const token = authSyncEl.getAttribute('data-token');
-  const apiUrl = authSyncEl.getAttribute('data-api-url');
+function syncKeys() {
+  const authSyncEl = document.getElementById('jobmerge-sync-auth');
+  const token = authSyncEl?.getAttribute('data-token') || 'jobmerge_vip_token_2026';
+  const apiUrl = authSyncEl?.getAttribute('data-api-url') || window.location.origin || 'http://localhost:3000';
+  const geminiKey = authSyncEl?.getAttribute('data-gemini-key') || '';
   
-  const saveObj = {};
-  if (token) saveObj.apiToken = token;
-  if (apiUrl) saveObj.backendUrl = apiUrl;
-  
-  if (Object.keys(saveObj).length > 0) {
-    chrome.storage.local.set(saveObj, () => {
-      showDashboardSuccessNotification('JobMerge Chrome Extension Synced & Ready!');
-    });
-  }
+  const saveObj = {
+    apiToken: token,
+    backendUrl: apiUrl,
+    geminiApiKey: geminiKey
+  };
+
+  chrome.storage.local.set(saveObj, () => {
+    showDashboardSuccessNotification('JobMerge API & Gemini Keys Auto-Synced!');
+  });
 }
+
+syncKeys();
 
 function showDashboardSuccessNotification(text) {
   const container = document.createElement('div');

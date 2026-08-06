@@ -928,14 +928,14 @@ export default function LandingPage({ onNavigate, onSearch, jobs = [], onSelectJ
         <div className="max-w-7xl mx-auto px-6 space-y-12">
           {/* Header */}
           <div className="text-center space-y-3 max-w-2xl mx-auto">
-            <span className="px-3.5 py-1 rounded-full bg-indigo-50 text-[#4f46e5] text-xs font-black uppercase tracking-wider border border-indigo-100">
-              Transparent Pricing
+            <span className="px-3.5 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-black uppercase tracking-wider border border-emerald-200">
+              100% Free VIP Access
             </span>
             <h2 className="text-3xl md:text-4xl font-black text-gray-900 tracking-tight font-display">
-              Simple, transparent plans for every job seeker
+              All features unlocked for every job seeker
             </h2>
             <p className="text-sm font-semibold text-gray-500 leading-relaxed">
-              Start 100% free with core job tools, or upgrade to Pro to unlock unlimited auto-applications, AI ATS resume scoring, and recruiter referrals.
+              No credit card required. Enjoy unlimited auto-applications, AI ATS resume scoring, resume downloads, and full suite tools completely free.
             </p>
           </div>
 
@@ -948,38 +948,34 @@ export default function LandingPage({ onNavigate, onSearch, jobs = [], onSelectJ
                 <div className="flex justify-between items-start">
                   <div>
                     <h3 className="text-xl font-black text-gray-900 font-display">Free Starter</h3>
-                    <p className="text-xs font-bold text-gray-400 mt-1">Perfect for casual job browsing</p>
+                    <p className="text-xs font-bold text-gray-400 mt-1">Full core features unlocked</p>
                   </div>
-                  <span className="px-3 py-1 bg-gray-200 text-gray-700 text-[10px] font-black uppercase rounded-full">
-                    Free Forever
+                  <span className="px-3 py-1 bg-emerald-100 text-emerald-800 text-[10px] font-black uppercase rounded-full">
+                    100% Free
                   </span>
                 </div>
 
                 <div className="flex items-baseline gap-1">
                   <span className="text-4xl font-black text-gray-900 font-display">₹0</span>
-                  <span className="text-xs font-bold text-gray-400">/ forever</span>
+                  <span className="text-xs font-bold text-emerald-600 font-black">/ forever</span>
                 </div>
 
                 <div className="space-y-3 pt-4 border-t border-gray-200/80 text-xs font-bold text-gray-700">
                   <div className="flex items-center gap-2.5">
                     <Check className="w-4 h-4 text-emerald-600 shrink-0 stroke-[3]" />
-                    <span>📄 <strong>1 Generated Resume</strong> (Free Quota Limit)</span>
+                    <span>📄 <strong>Unlimited Resumes</strong></span>
                   </div>
                   <div className="flex items-center gap-2.5">
                     <Check className="w-4 h-4 text-emerald-600 shrink-0 stroke-[3]" />
-                    <span>🚀 <strong>5 Auto Applications</strong> (LinkedIn + Indeed Bot)</span>
+                    <span>🚀 <strong>Unlimited Auto Applications</strong> (LinkedIn + Indeed Bot)</span>
                   </div>
                   <div className="flex items-center gap-2.5">
                     <Check className="w-4 h-4 text-emerald-600 shrink-0 stroke-[3]" />
-                    <span>⚡ 10 Daily Job Searches & Details</span>
+                    <span>⚡ Unlimited Job Searches & Details</span>
                   </div>
-                  <div className="flex items-center gap-2.5 text-gray-400">
-                    <X className="w-4 h-4 text-gray-300 shrink-0" />
-                    <span className="line-through">Unlimited Auto Applications</span>
-                  </div>
-                  <div className="flex items-center gap-2.5 text-gray-400">
-                    <X className="w-4 h-4 text-gray-300 shrink-0" />
-                    <span className="line-through">AI ATS Resume Score & Matcher</span>
+                  <div className="flex items-center gap-2.5">
+                    <Check className="w-4 h-4 text-emerald-600 shrink-0 stroke-[3]" />
+                    <span>🤖 AI ATS Resume Score & Matcher</span>
                   </div>
                 </div>
               </div>
@@ -996,7 +992,7 @@ export default function LandingPage({ onNavigate, onSearch, jobs = [], onSelectJ
             {/* Plan 2: Pro Plan (Highlighted / Most Popular) */}
             <div className="bg-white border-2 border-[#4f46e5] rounded-3xl p-8 flex flex-col justify-between space-y-6 relative shadow-xl shadow-indigo-500/10 scale-105 z-10">
               <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-4 py-1 bg-gradient-to-r from-[#4f46e5] to-indigo-600 text-white text-[10px] font-black uppercase tracking-wider rounded-full shadow-sm">
-                🔥 Most Popular — 85% Choose Pro
+                🔥 Popular Candidate Choice
               </div>
 
               <div className="space-y-4 pt-2">
@@ -1005,28 +1001,28 @@ export default function LandingPage({ onNavigate, onSearch, jobs = [], onSelectJ
                     <h3 className="text-xl font-black text-gray-900 font-display">Job Hunter Pro</h3>
                     <p className="text-xs font-bold text-[#4f46e5] mt-1">Accelerate your job search 10x</p>
                   </div>
-                  <span className="px-3 py-1 bg-indigo-50 text-[#4f46e5] border border-indigo-100 text-[10px] font-black uppercase rounded-full">
-                    Best Value
+                  <span className="px-3 py-1 bg-emerald-100 text-emerald-800 border border-emerald-200 text-[10px] font-black uppercase rounded-full">
+                    Free VIP
                   </span>
                 </div>
 
                 <div className="flex items-baseline gap-1">
-                  <span className="text-4xl font-black text-gray-900 font-display">₹499</span>
-                  <span className="text-xs font-bold text-gray-400">/ month</span>
+                  <span className="text-4xl font-black text-gray-900 font-display">₹0</span>
+                  <span className="text-xs font-bold text-emerald-600 font-black">/ 100% Free</span>
                 </div>
 
                 <div className="space-y-3 pt-4 border-t border-gray-100 text-xs font-bold text-gray-800">
                   <div className="flex items-center gap-2.5">
                     <Check className="w-4 h-4 text-[#4f46e5] shrink-0 stroke-[3]" />
-                    <span>📄 <strong>15 Resumes with any template</strong></span>
+                    <span>📄 <strong>Unlimited Resumes with any template</strong></span>
                   </div>
                   <div className="flex items-center gap-2.5">
                     <Check className="w-4 h-4 text-[#4f46e5] shrink-0 stroke-[3]" />
-                    <span>🤖 <strong>25 ATS Score Checkers</strong> & Optimizer</span>
+                    <span>🤖 <strong>Unlimited ATS Score Checkers</strong> & Optimizer</span>
                   </div>
                   <div className="flex items-center gap-2.5">
                     <Check className="w-4 h-4 text-[#4f46e5] shrink-0 stroke-[3]" />
-                    <span>🚀 <strong>100 Auto-Applying Jobs</strong> (LinkedIn + Indeed Bot)</span>
+                    <span>🚀 <strong>Unlimited Auto-Applying Jobs</strong> (LinkedIn + Indeed Bot)</span>
                   </div>
                   <div className="flex items-center gap-2.5">
                     <Check className="w-4 h-4 text-[#4f46e5] shrink-0 stroke-[3]" />
@@ -1044,7 +1040,7 @@ export default function LandingPage({ onNavigate, onSearch, jobs = [], onSelectJ
                 onClick={() => onNavigate('SignUp')}
                 className="w-full py-3.5 bg-[#4f46e5] hover:bg-[#3f37c9] text-white rounded-2xl text-xs font-black shadow-md shadow-[#4f46e5]/20 transition-all cursor-pointer text-center active:scale-98"
               >
-                Upgrade to Pro →
+                Access Pro Free →
               </button>
             </div>
 
@@ -1062,8 +1058,8 @@ export default function LandingPage({ onNavigate, onSearch, jobs = [], onSelectJ
                 </div>
 
                 <div className="flex items-baseline gap-1">
-                  <span className="text-4xl font-black text-gray-900 font-display">₹1,499</span>
-                  <span className="text-xs font-bold text-gray-400">/ month</span>
+                  <span className="text-4xl font-black text-gray-900 font-display">₹0</span>
+                  <span className="text-xs font-bold text-emerald-600 font-black">/ 100% Free VIP</span>
                 </div>
 
                 <div className="space-y-3 pt-4 border-t border-gray-200/80 text-xs font-bold text-gray-700">
@@ -1099,7 +1095,7 @@ export default function LandingPage({ onNavigate, onSearch, jobs = [], onSelectJ
                 onClick={() => onNavigate('SignUp')}
                 className="w-full py-3.5 bg-gray-900 hover:bg-black text-white rounded-2xl text-xs font-black transition-all cursor-pointer shadow-xs text-center"
               >
-                Upgrade to Accelerator
+                Access VIP Accelerator Free
               </button>
             </div>
 
