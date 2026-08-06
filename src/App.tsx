@@ -1748,6 +1748,20 @@ export default function App() {
                   <Sparkles className="w-4 h-4 text-[#4f46e5] shrink-0 cursor-pointer" />
                 </div>
 
+                {/* Dedicated Admin Portal Toggle Button */}
+                <button
+                  onClick={() => setActiveDashboardTab(activeDashboardTab === 'Admin' ? 'Dashboard' : 'Admin')}
+                  className={`px-3 py-1.5 rounded-full border text-xs font-extrabold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs ${
+                    activeDashboardTab === 'Admin'
+                      ? 'bg-slate-900 text-white border-slate-900 ring-2 ring-indigo-500/30'
+                      : 'bg-indigo-50 hover:bg-indigo-100 text-[#4f46e5] border-indigo-200'
+                  }`}
+                  title="Toggle Separate Super Admin Portal"
+                >
+                  <ShieldCheck className="w-4 h-4 text-[#4f46e5]" />
+                  <span>{activeDashboardTab === 'Admin' ? 'Exit Admin' : 'Admin Portal'}</span>
+                </button>
+
                 {/* Notification Bell Button */}
                 <button className="relative p-2.5 bg-white border border-gray-200 hover:border-gray-300 rounded-full text-gray-600 shadow-xs cursor-pointer">
                   <Bell className="w-4 h-4" />

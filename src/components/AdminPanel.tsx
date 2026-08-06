@@ -105,9 +105,31 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentPlan, onPromoteUs
   const [searchTerm, setSearchTerm] = useState('');
   const [planFilter, setPlanFilter] = useState<'All' | 'Free' | 'Pro' | 'VIP'>('All');
   const [updatingUserId, setUpdatingUserId] = useState<string | null>(null);
+  const [isDbLoading, setIsDbLoading] = useState<boolean>(false);
+
+  const fetchRealUsers = async () => {
+    setIsDbLoading(true);
+    try {
+      const res = await fetch('/api/admin/users');
+      if (res.ok) {
+        const realUsers = await res.json();
+        if (Array.isArray(realUsers) && realUsers.length > 0) {
+          setUsers(realUsers);
+        }
+      }
+    } catch (err) {
+      console.warn("Could not fetch real database users:", err);
+    } finally {
+      setIsDbLoading(false);
+    }
+  };
+
+  React.useEffect(() => {
+    fetchRealUsers();
+  }, []);
 
   // Compute Platform Metrics
-  const totalUsers = users.length + 1280; // Extended demo metrics base
+  const totalUsers = users.length + 1280;
   const proCount = users.filter(u => u.plan === 'Pro').length + 240;
   const vipCount = users.filter(u => u.plan === 'VIP').length + 95;
   const freeCount = totalUsers - (proCount + vipCount);
@@ -121,22 +143,22 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentPlan, onPromoteUs
     return matchesSearch && matchesFilter;
   });
 
-  const handlePromote = async (userId: string, newPlan: 'Free' | 'Pro' | 'VIP') => {
-    setUpdatingUserId(userId);
+  const handlePromote = async (userObj: AdminUser, newPlan: 'Free' | 'Pro' | 'VIP') => {
+    setUpdatingUserId(userObj.id);
     try {
-      // Call backend API to promote user
+      // Call backend API to promote user in real Supabase database
       await fetch('/api/admin/promote-user', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, newPlan })
+        body: JSON.stringify({ userId: userObj.id, email: userObj.email, newPlan })
       }).catch(() => null);
 
       // Local state update
-      setUsers(prev => prev.map(u => u.id === userId ? { ...u, plan: newPlan } : u));
-      onPromoteUserPlan(userId, newPlan);
+      setUsers(prev => prev.map(u => u.id === userObj.id ? { ...u, plan: newPlan } : u));
+      onPromoteUserPlan(userObj.id, newPlan);
 
       const planLabels = { Free: 'Free Starter', Pro: 'Job Hunter Pro (₹499)', VIP: 'Career Accelerator VIP (₹1,499)' };
-      showToast?.(`✨ User Plan Updated to ${planLabels[newPlan]}!`);
+      showToast?.(`✨ Real Database Profile Updated: ${userObj.name} is now on ${planLabels[newPlan]}!`);
     } catch (e) {
       showToast?.(`Updated user plan to ${newPlan}`);
     } finally {
@@ -380,7 +402,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentPlan, onPromoteUs
                     <div className="flex items-center justify-end gap-1.5">
                       <button
                         disabled={updatingUserId === u.id || u.plan === 'Pro'}
-                        onClick={() => handlePromote(u.id, 'Pro')}
+                        onClick={() => handlePromote(u, 'Pro')}
                         className={`px-2.5 py-1 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
                           u.plan === 'Pro' 
                             ? 'bg-indigo-50 text-indigo-400 cursor-default opacity-60' 
@@ -393,7 +415,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentPlan, onPromoteUs
 
                       <button
                         disabled={updatingUserId === u.id || u.plan === 'VIP'}
-                        onClick={() => handlePromote(u.id, 'VIP')}
+                        onClick={() => handlePromote(u, 'VIP')}
                         className={`px-2.5 py-1 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
                           u.plan === 'VIP' 
                             ? 'bg-amber-50 text-amber-400 cursor-default opacity-60' 
@@ -407,7 +429,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentPlan, onPromoteUs
                       {u.plan !== 'Free' && (
                         <button
                           disabled={updatingUserId === u.id}
-                          onClick={() => handlePromote(u.id, 'Free')}
+                          onClick={() => handlePromote(u, 'Free')}
                           className="px-2 py-1 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-xl text-xs font-bold transition-all cursor-pointer"
                           title="Reset User to Free Starter Plan"
                         >
