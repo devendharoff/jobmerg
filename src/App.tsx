@@ -236,7 +236,26 @@ export default function App() {
   // Check if active user is authorized Super Admin (avasarama04@gmail.com)
   const isAdminUser = userProfile.email === 'avasarama04@gmail.com' || 
                       (user?.primaryEmailAddress?.emailAddress === 'avasarama04@gmail.com') ||
-                      (typeof window !== 'undefined' && window.location.search.includes('admin=true'));  // Global Jobs list with dynamic ratings
+                      (typeof window !== 'undefined' && window.location.search.includes('admin=true'));
+
+  const handleAdminQuickLogin = () => {
+    setUserProfile({
+      name: 'Super Admin (avasarama04)',
+      email: 'avasarama04@gmail.com',
+      role: 'Platform Owner',
+      avatarUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDygoxBzgjRmZYQ4uIK-GWpjX_FRMByJYrQaV21iuO5-rVvqyFlrzVyxl_a1Vcm27q1W7sFuhkMlLVR0tTqYVJoQ_mPM9ClMRvetN0pCsTVbfoPUpak2f47mmUgJszUtvyU7xBedtbLVrFoIn914KkawqLINIJSkVz9Ued9DSm94XU2wea25YULzaNxYy7taAF-ScbG7PpLXXO0ds-Nvkdy27DQk0fsT8Ms7bQZIsO0Q25v5WbYfdSQB_bKWY4CWlCAwVzoiGXYg3RJ',
+      skills: ['Admin', 'Supabase', 'Analytics'],
+      experienceYears: 10,
+      desiredSalary: '₹50L PA',
+      resumeText: 'Super Admin Profile',
+      profileCompleteness: 100,
+      plan: 'VIP',
+      usage: { resumesCreated: 100, atsScansUsed: 100, autoAppliesUsed: 500 }
+    });
+    setActiveScreen('Dashboard');
+    setActiveDashboardTab('Admin');
+    showToast('👑 Logged in as Super Admin (avasarama04@gmail.com)');
+  };
   const [jobs, setJobs] = useState<Job[]>(INITIAL_JOBS);
   const [selectedJob, setSelectedJob] = useState<Job>(INITIAL_JOBS[0]);
   const [savedJobIds, setSavedJobIds] = useState<string[]>([]);
@@ -1278,6 +1297,7 @@ export default function App() {
           onSearch={handleLandingSearch} 
           jobs={jobs} 
           isSignedIn={isSignedIn}
+          onAdminLogin={handleAdminQuickLogin}
           onSelectJob={(job) => {
             setSelectedJob(job);
             if (job.category) {
@@ -1305,7 +1325,7 @@ export default function App() {
       )}
 
       {activeScreen === 'Dashboard' && (
-        !isSignedIn ? (
+        (!isSignedIn && !isAdminUser) ? (
           <div className="flex-1 flex items-center justify-center min-h-[85vh] py-12 px-4 bg-[#f8f9fa] animate-fade-in">
             <div className="max-w-md w-full p-8 bg-white rounded-3xl border border-gray-150 shadow-2xl text-center space-y-6">
               <div className="w-14 h-14 bg-indigo-50 text-[#353df6] rounded-2xl flex items-center justify-center mx-auto shadow-sm border border-indigo-100">
@@ -1821,23 +1841,7 @@ export default function App() {
                   </button>
                 ) : (
                   <button
-                    onClick={() => {
-                      setUserProfile({
-                        name: 'Super Admin (avasarama04)',
-                        email: 'avasarama04@gmail.com',
-                        role: 'Platform Owner',
-                        avatarUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDygoxBzgjRmZYQ4uIK-GWpjX_FRMByJYrQaV21iuO5-rVvqyFlrzVyxl_a1Vcm27q1W7sFuhkMlLVR0tTqYVJoQ_mPM9ClMRvetN0pCsTVbfoPUpak2f47mmUgJszUtvyU7xBedtbLVrFoIn914KkawqLINIJSkVz9Ued9DSm94XU2wea25YULzaNxYy7taAF-ScbG7PpLXXO0ds-Nvkdy27DQk0fsT8Ms7bQZIsO0Q25v5WbYfdSQB_bKWY4CWlCAwVzoiGXYg3RJ',
-                        skills: ['Admin', 'Supabase', 'Analytics'],
-                        experienceYears: 10,
-                        desiredSalary: '₹50L PA',
-                        resumeText: 'Super Admin Profile',
-                        profileCompleteness: 100,
-                        plan: 'VIP',
-                        usage: { resumesCreated: 100, atsScansUsed: 100, autoAppliesUsed: 500 }
-                      });
-                      setActiveDashboardTab('Admin');
-                      showToast('👑 Logged in as Super Admin (avasarama04@gmail.com)');
-                    }}
+                    onClick={handleAdminQuickLogin}
                     className="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-full text-xs font-extrabold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs border border-slate-700"
                     title="Log in as Super Admin (avasarama04@gmail.com)"
                   >
