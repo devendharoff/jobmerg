@@ -1276,33 +1276,40 @@ app.post("/api/auto-apply/sync", async (req, res) => {
 
 // Serve static public assets (logos, images) across all environments
 app.use('/assets', express.static(path.join(process.cwd(), 'public', 'assets')));
+app.use(express.static(path.join(process.cwd(), 'public')));
 
 // Setup development server or static asset serving in production
 async function startServer() {
-  if (process.env.NODE_ENV !== "production") {
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: "spa",
-    });
-    app.use(vite.middlewares);
-  } else {
-    const distPath = path.join(process.cwd(), 'dist');
+  const distPath = path.join(process.cwd(), 'dist');
+
+  if (fs.existsSync(distPath)) {
     app.use(express.static(distPath, {
-      maxAge: '1y',
+      maxAge: '1d',
       etag: true,
-      lastModified: true,
-      setHeaders: (res, filePath) => {
-        if (filePath.endsWith('.html')) {
-          res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');
-        } else {
-          res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
-        }
-      }
+      lastModified: true
     }));
-    app.get('*', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
-    });
   }
+
+  if (process.env.NODE_ENV !== "production") {
+    try {
+      const vite = await createViteServer({
+        server: { middlewareMode: true },
+        appType: "spa",
+      });
+      app.use(vite.middlewares);
+    } catch (viteErr) {
+      console.warn("Vite middleware note:", viteErr);
+    }
+  }
+
+  // SPA Route Fallback: Any non-API route serves index.html
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api')) return next();
+    const htmlFile = fs.existsSync(path.join(distPath, 'index.html'))
+      ? path.join(distPath, 'index.html')
+      : path.join(process.cwd(), 'index.html');
+    return res.sendFile(htmlFile);
+  });
 
   if (!process.env.VERCEL) {
     app.listen(PORT, "0.0.0.0", () => {
