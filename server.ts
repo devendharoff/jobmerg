@@ -35,7 +35,7 @@ const razorpayInstance = new Razorpay({
 });
 
 const app = express();
-const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3001;
+const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
 // Enable HTTP response compression (gzip/brotli) for high throughput (1000+ active users)
 app.use(compression({
