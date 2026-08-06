@@ -99,15 +99,6 @@ export default function LandingPage({ onNavigate, onSearch, jobs = [], onSelectJ
 
           <div className="flex items-center gap-2 sm:gap-4">
             <button 
-              onClick={onAdminLogin}
-              className="hidden sm:flex items-center gap-1 px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-amber-400 font-extrabold text-[12px] rounded-xl transition-all cursor-pointer border border-slate-700 shadow-xs"
-              id="btn-admin-nav"
-              title="Log in as Super Admin (avasarama04@gmail.com)"
-            >
-              <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
-              <span>Admin</span>
-            </button>
-            <button 
               onClick={() => onNavigate('SignIn')}
               className="hidden sm:block px-4 py-2 text-gray-600 font-bold text-[13px] hover:text-[#4f46e5] transition-colors cursor-pointer"
               id="btn-signin-nav"

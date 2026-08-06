@@ -1826,7 +1826,7 @@ export default function App() {
                 </div>
 
                 {/* Dedicated Admin Portal Toggle Button for avasarama04@gmail.com */}
-                {isAdminUser ? (
+                {isAdminUser && (
                   <button
                     onClick={() => setActiveDashboardTab(activeDashboardTab === 'Admin' ? 'Dashboard' : 'Admin')}
                     className={`px-3.5 py-1.5 rounded-full border text-xs font-extrabold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs ${
@@ -1838,15 +1838,6 @@ export default function App() {
                   >
                     <ShieldCheck className="w-4 h-4 text-amber-600" />
                     <span>{activeDashboardTab === 'Admin' ? 'Exit Admin' : 'Admin Portal'}</span>
-                  </button>
-                ) : (
-                  <button
-                    onClick={handleAdminQuickLogin}
-                    className="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-full text-xs font-extrabold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs border border-slate-700"
-                    title="Log in as Super Admin (avasarama04@gmail.com)"
-                  >
-                    <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
-                    <span>Admin Login</span>
                   </button>
                 )}
 
