@@ -22,8 +22,7 @@ import { useUser, useAuth, SignIn as ClerkSignIn, SignUp as ClerkSignUp, SignInB
 // High-concurrency bundle optimization: Lazy load heavy secondary tab components
 const SalaryInsights = lazy(() => import('./components/SalaryInsights'));
 const ApplicationTracker = lazy(() => import('./components/ApplicationTracker'));
-const AIResumeReview = lazy(() => import('./components/AIResumeReview'));
-const ResumeBuilder = lazy(() => import('./components/ResumeBuilder'));
+const JobStudio = lazy(() => import('./components/JobStudio'));
 const AutoApplyBot = lazy(() => import('./components/AutoApplyBot'));
 import CoverLetterGenerator from './components/CoverLetterGenerator';
 import UserProfileManager from './components/UserProfileManager';
@@ -155,7 +154,7 @@ export function getPlatformInfo(job: Job) {
 
 export default function App() {
   const [activeScreen, setActiveScreen] = useState<ActiveScreen>('Landing');
-  const [activeDashboardTab, setActiveDashboardTab] = useState<'Dashboard' | 'FindJobs' | 'Salaries' | 'AIReview' | 'Applications' | 'Saved' | 'Resume' | 'AutoApply' | 'Profile'>('Dashboard');
+  const [activeDashboardTab, setActiveDashboardTab] = useState<'Dashboard' | 'FindJobs' | 'Salaries' | 'JobStudio' | 'Applications' | 'Saved' | 'AutoApply' | 'Profile'>('Dashboard');
   const [activeFilterCategory, setActiveFilterCategory] = useState<string>('Recommended');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   
@@ -210,8 +209,8 @@ export default function App() {
     setShowAuthModal(true);
   };
 
-  const handleTabSelect = (tab: 'FindJobs' | 'Salaries' | 'AIReview' | 'Applications' | 'Saved' | 'Resume' | 'AutoApply' | 'Admin') => {
-    setActiveDashboardTab(tab);
+  const handleTabSelect = (tab: 'FindJobs' | 'Salaries' | 'JobStudio' | 'Applications' | 'Saved' | 'AutoApply' | 'Admin') => {
+    setActiveDashboardTab(tab === 'JobStudio' ? 'JobStudio' : tab as any);
   };
   
   // User Authentication States
@@ -1372,23 +1371,13 @@ export default function App() {
             </button>
 
             <button
-              onClick={() => { setActiveDashboardTab('AIReview'); setIsMobileMenuOpen(false); }}
+              onClick={() => { setActiveDashboardTab('JobStudio'); setIsMobileMenuOpen(false); }}
               className={`flex flex-col items-center justify-center py-1 px-2 rounded-xl transition-all cursor-pointer min-w-[56px] ${
-                activeDashboardTab === 'AIReview' ? 'text-[#4f46e5] font-extrabold' : 'text-gray-400 hover:text-gray-700'
+                activeDashboardTab === 'JobStudio' ? 'text-[#4f46e5] font-extrabold' : 'text-gray-400 hover:text-gray-700'
               }`}
             >
-              <FileText className="w-5 h-5" />
-              <span className="text-[10px] font-bold mt-0.5">ATS Score</span>
-            </button>
-
-            <button
-              onClick={() => { setActiveDashboardTab('Resume'); setIsMobileMenuOpen(false); }}
-              className={`flex flex-col items-center justify-center py-1 px-2 rounded-xl transition-all cursor-pointer min-w-[56px] ${
-                activeDashboardTab === 'Resume' ? 'text-[#4f46e5] font-extrabold' : 'text-gray-400 hover:text-gray-700'
-              }`}
-            >
-              <BookOpen className="w-5 h-5" />
-              <span className="text-[10px] font-bold mt-0.5">Resume</span>
+              <Zap className="w-5 h-5" />
+              <span className="text-[10px] font-bold mt-0.5">Job Studio</span>
             </button>
 
             <button
@@ -1484,27 +1473,15 @@ export default function App() {
                     </button>
 
                     <button
-                      onClick={() => setActiveDashboardTab('AIReview')}
+                      onClick={() => setActiveDashboardTab('JobStudio')}
                       className={`p-2.5 rounded-2xl transition-all cursor-pointer relative ${
-                        activeDashboardTab === 'AIReview'
+                        activeDashboardTab === 'JobStudio'
                           ? 'bg-[#4f46e5]/10 text-[#4f46e5] shadow-xs'
                           : 'text-gray-400 hover:text-gray-800 hover:bg-gray-50'
                       }`}
-                      title="ATS Score Checker"
+                      title="AI Job Studio"
                     >
-                      <FileText className="w-5 h-5" />
-                    </button>
-
-                    <button
-                      onClick={() => setActiveDashboardTab('Resume')}
-                      className={`p-2.5 rounded-2xl transition-all cursor-pointer relative ${
-                        activeDashboardTab === 'Resume'
-                          ? 'bg-[#4f46e5]/10 text-[#4f46e5] shadow-xs'
-                          : 'text-gray-400 hover:text-gray-800 hover:bg-gray-50'
-                      }`}
-                      title="Resume Builder"
-                    >
-                      <BookOpen className="w-5 h-5" />
+                      <Zap className="w-5 h-5" />
                     </button>
 
                     <button
@@ -1638,30 +1615,16 @@ export default function App() {
                     </button>
 
                     <button
-                      onClick={() => setActiveDashboardTab('AIReview')}
+                      onClick={() => setActiveDashboardTab('JobStudio')}
                       className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
-                        activeDashboardTab === 'AIReview'
+                        activeDashboardTab === 'JobStudio'
                           ? 'bg-[#4f46e5]/10 text-[#4f46e5] font-extrabold'
                           : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
                       }`}
                     >
                       <div className="flex items-center gap-3">
-                        <FileText className="w-4 h-4" />
-                        <span>ATS Score Checker</span>
-                      </div>
-                    </button>
-
-                    <button
-                      onClick={() => setActiveDashboardTab('Resume')}
-                      className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
-                        activeDashboardTab === 'Resume'
-                          ? 'bg-[#4f46e5]/10 text-[#4f46e5] font-extrabold'
-                          : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <BookOpen className="w-4 h-4" />
-                        <span>Resume Builder</span>
+                        <Zap className="w-4 h-4 text-[#4f46e5]" />
+                        <span>AI Job Studio</span>
                       </div>
                     </button>
 
@@ -1899,19 +1862,19 @@ export default function App() {
                     <div className="flex items-center justify-between">
                       <h3 className="text-xs font-black text-gray-900 uppercase tracking-wider font-display">Your Profile Overview</h3>
                       <button 
-                        onClick={() => setActiveDashboardTab('AIReview')}
+                        onClick={() => setActiveDashboardTab('JobStudio')}
                         className="text-[10px] font-extrabold text-[#4f46e5] hover:underline cursor-pointer"
                       >
                         View full report →
                       </button>
                     </div>
 
-                    <div onClick={() => setActiveDashboardTab('AIReview')} className="cursor-pointer">
+                    <div onClick={() => setActiveDashboardTab('JobStudio')} className="cursor-pointer">
                       <ProfileGaugeRing score={userProfile.profileCompleteness || 91} />
                     </div>
 
                     <button 
-                      onClick={() => setActiveDashboardTab('Resume')}
+                      onClick={() => setActiveDashboardTab('JobStudio')}
                       className="p-3 bg-indigo-50/60 hover:bg-indigo-100/80 border border-indigo-100 rounded-2xl flex items-center justify-between cursor-pointer transition-colors text-left w-full"
                     >
                       <div className="flex items-center gap-2.5">
@@ -2404,26 +2367,14 @@ export default function App() {
                 </div>
               )}
 
-              {/* AI Resume Reviewer View */}
-              {activeDashboardTab === 'AIReview' && (
-                <div className="flex-1 lg:overflow-y-auto pb-6">
-                  <AIResumeReview 
+              {/* AI Job Studio View */}
+              {activeDashboardTab === 'JobStudio' && (
+                <div className="flex-1 flex flex-col min-h-0 lg:overflow-hidden">
+                  <JobStudio 
                     userProfile={userProfile} 
-                    availableJobs={jobs} 
-                    onUpdateUserProfile={handleUpdateProfile} 
-                    onUpdateJobMatches={handleUpdateJobMatches}
                     onOpenPricing={() => { setIsOnboardingPlanSelection(false); setShowPricingModal(true); }}
-                    onSwitchToResumeBuilder={() => setActiveDashboardTab('Resume')}
                   />
                 </div>
-              )}
-
-              {/* Resume Builder View */}
-              {activeDashboardTab === 'Resume' && (
-                <ResumeBuilder 
-                  userProfile={userProfile} 
-                  onOpenPricing={() => { setIsOnboardingPlanSelection(false); setShowPricingModal(true); }}
-                />
               )}
 
               {/* LinkedIn Auto-Applier Bot View */}
