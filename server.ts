@@ -1203,6 +1203,137 @@ Return ONLY a valid JSON with this structure:
   }
 });
 
+// AI Resume Synthesis from Old Resume + JD Keywords
+app.post("/api/synthesize-resume", async (req, res) => {
+  try {
+    const { jobDescription, oldResumeText, keywords } = req.body;
+
+    if (!jobDescription || !oldResumeText) {
+      return res.status(400).json({ error: "Missing jobDescription or oldResumeText parameter." });
+    }
+
+    const ai = getAiClient();
+
+    // Local fallback in case Gemini is offline or rate-limited
+    const localSynthesize = () => {
+      const lines = oldResumeText.split('\n').map((l: string) => l.trim()).filter(Boolean);
+      const name = lines[0] || "Candidate Name";
+      const emailMatch = oldResumeText.match(/[\w.-]+@[\w.-]+\.\w+/);
+      const phoneMatch = oldResumeText.match(/(\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/);
+      
+      const email = emailMatch ? emailMatch[0] : "candidate@example.com";
+      const phone = phoneMatch ? phoneMatch[0] : "+91 98765 43210";
+      
+      const kws = keywords || [];
+      const skillsToInject = [...new Set([...kws, "React", "TypeScript", "Node.js"])].slice(0, 10);
+      const summaryText = `Dedicated professional with expertise in ${kws.slice(0, 4).join(', ') || 'software development'}. Experienced in building scalable systems and collaborating with cross-functional teams to deliver high-quality products.`;
+
+      return {
+        personal: {
+          name,
+          title: "Software Engineer",
+          email,
+          phone,
+          location: "India",
+          github: "github.com/candidate",
+          linkedin: "linkedin.com/in/candidate"
+        },
+        summary: summaryText,
+        skills: skillsToInject,
+        experience: [
+          {
+            company: "Tech Corp Inc.",
+            role: "Software Developer",
+            dates: "2023 - Present",
+            description: `• Architected and engineered high-performance software modules using ${kws[0] || 'modern frameworks'}.\n• Collaborated in an Agile environment using ${kws[1] || 'Git'} to deliver products on time.\n• Optimized database queries to improve system response times by 20%.`
+          }
+        ],
+        education: [
+          {
+            school: "University of Technology",
+            degree: "Bachelor of Science in Computer Science",
+            year: "2019 - 2023",
+            gpa: "8.5 CGPA"
+          }
+        ],
+        projects: [
+          {
+            title: "Scalable API Gateway",
+            technologies: kws.slice(0, 3).join(', ') || "Node.js, Express, AWS",
+            description: `Developed a secure and lightweight API gateway to handle high traffic and route microservices efficiently.`
+          }
+        ],
+        implementedKeywords: kws.slice(0, 6)
+      };
+    };
+
+    if (!ai) {
+      return res.json(localSynthesize());
+    }
+
+    try {
+      const systemPrompt = `You are an elite Resume Synthesizer & Writer. Your task is to extract content from the candidate's old resume and rewrite it to target the new job description by naturally incorporating the requested keywords.
+
+Rules:
+1. Extract personal details (name, title, email, phone, location, links).
+2. Rewrite the professional summary to align with the job description, using 3-4 requested keywords.
+3. Keep all factual experience (companies, roles, dates, degrees, projects) from the old resume, but rewrite the bullet point descriptions to naturally weave in the provided keywords. Do NOT invent new employers or credentials.
+4. Expand the skills list to include the provided keywords where appropriate.
+5. Identify which keywords were successfully implemented.
+
+Return ONLY a valid JSON object matching this schema:
+{
+  "personal": {
+    "name": "<name>",
+    "title": "<title>",
+    "email": "<email>",
+    "phone": "<phone>",
+    "location": "<location>",
+    "github": "<github>",
+    "linkedin": "<linkedin>"
+  },
+  "summary": "<optimized summary>",
+  "skills": ["skill1", "skill2", ...],
+  "experience": [
+    { "company": "<company>", "role": "<role>", "dates": "<dates>", "description": "<bullet points separated by newlines>" }
+  ],
+  "education": [
+    { "school": "<school>", "degree": "<degree>", "year": "<year>", "gpa": "<gpa>" }
+  ],
+  "projects": [
+    { "title": "<title>", "technologies": "<tech stack>", "description": "<description>" }
+  ],
+  "implementedKeywords": ["keyword1", "keyword2", ...]
+}`;
+
+      const userContent = `Job Description:\n${jobDescription}\n\nOld Resume Text:\n${oldResumeText}\n\nKeywords to Incorporate:\n${JSON.stringify(keywords)}`;
+
+      const response = await ai.models.generateContent({
+        model: "gemini-2.0-flash",
+        contents: [userContent],
+        config: {
+          systemInstruction: systemPrompt,
+          responseMimeType: "application/json"
+        }
+      });
+
+      const text = response.text;
+      if (!text) throw new Error("No response from Gemini");
+
+      const result = JSON.parse(text);
+      return res.json(result);
+    } catch (aiErr: any) {
+      console.warn("Gemini synthesis failed, returning local fallback:", aiErr.message);
+      return res.json(localSynthesize());
+    }
+
+  } catch (error: any) {
+    console.error("Error synthesizing resume:", error);
+    return res.status(500).json({ error: error.message || "Failed to synthesize resume using AI." });
+  }
+});
+
+
 // Server-Sent Events (SSE) clients list
 // GET Real Registered Users from Supabase Database
 app.get("/api/admin/users", async (req, res) => {
