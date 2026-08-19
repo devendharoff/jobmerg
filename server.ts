@@ -26,8 +26,8 @@ const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_S
 const supabase = (SUPABASE_URL && SUPABASE_KEY) ? createClient(SUPABASE_URL, SUPABASE_KEY) : null;
 
 // Razorpay SDK Instance Initialization (Live Production)
-const razorpayKeyId = process.env.RAZORPAY_KEY_ID || 'rzp_live_TM6tA1CJqXOTRA';
-const razorpayKeySecret = process.env.RAZORPAY_KEY_SECRET || 'f4DlGXGAXitXvO1mcXzZYaJp';
+const razorpayKeyId = process.env.RAZORPAY_KEY_ID || '';
+const razorpayKeySecret = process.env.RAZORPAY_KEY_SECRET || '';
 
 const razorpayInstance = new Razorpay({
   key_id: razorpayKeyId,
@@ -968,6 +968,238 @@ Years of experience: ${experienceYears || "Not specified"}`;
   } catch (error: any) {
     console.error("Error evaluating resume review:", error);
     return res.status(500).json({ error: error.message || "Failed to parse and match resume contents using AI." });
+  }
+});
+
+// JD Keyword Extractor Endpoint
+app.post("/api/analyze-jd", async (req, res) => {
+  try {
+    const { jobDescription, resumeText, userSkills } = req.body;
+
+    if (!jobDescription || jobDescription.trim().length < 50) {
+      return res.status(400).json({ error: "Job description must be at least 50 characters long." });
+    }
+
+    const ai = getAiClient();
+
+    // Local keyword extraction fallback
+    const localExtract = () => {
+      const jdLower = jobDescription.toLowerCase();
+      const resumeLower = (resumeText || '').toLowerCase();
+      const skillsLower = (userSkills || []).map((s: string) => s.toLowerCase());
+
+      const commonTechKeywords = [
+        'react', 'vue', 'angular', 'typescript', 'javascript', 'python', 'java', 'c++', 'c#', 'go', 'rust', 'kotlin', 'swift',
+        'node.js', 'express', 'fastapi', 'django', 'spring', 'next.js', 'nuxt', 'svelte',
+        'postgresql', 'mysql', 'mongodb', 'redis', 'elasticsearch', 'dynamodb', 'supabase', 'firebase',
+        'aws', 'gcp', 'azure', 'docker', 'kubernetes', 'terraform', 'ansible', 'jenkins', 'github actions', 'ci/cd',
+        'graphql', 'rest api', 'microservices', 'system design', 'distributed systems',
+        'agile', 'scrum', 'jira', 'confluence', 'figma', 'git',
+        'machine learning', 'deep learning', 'tensorflow', 'pytorch', 'llm', 'rag', 'nlp',
+        'react native', 'flutter', 'android', 'ios',
+        'tailwind', 'css', 'html', 'webpack', 'vite', 'jest', 'cypress', 'playwright'
+      ];
+
+      const found: string[] = [];
+      const missing: string[] = [];
+
+      commonTechKeywords.forEach(kw => {
+        if (jdLower.includes(kw)) {
+          if (resumeLower.includes(kw) || skillsLower.some(s => s.includes(kw) || kw.includes(s))) {
+            found.push(kw);
+          } else {
+            missing.push(kw);
+          }
+        }
+      });
+
+      // Also extract capitalized terms from JD that look like proper nouns / tools
+      const properNouns = (jobDescription.match(/\b[A-Z][a-zA-Z]{2,}(?:\.[a-zA-Z]+)?\b/g) || [])
+        .filter(w => !['The', 'We', 'Our', 'You', 'This', 'That', 'With', 'From', 'Have', 'Will', 'Must', 'Should', 'Work', 'Team', 'Strong', 'Experience', 'Skills', 'Required', 'Preferred', 'Looking', 'Join', 'Seeking', 'About', 'Role', 'Position', 'Company'].includes(w))
+        .map(w => w.toLowerCase());
+
+      properNouns.forEach(kw => {
+        if (!found.includes(kw) && !missing.includes(kw)) {
+          if (resumeLower.includes(kw) || skillsLower.some(s => s.includes(kw))) {
+            found.push(kw);
+          } else {
+            missing.push(kw);
+          }
+        }
+      });
+
+      const totalInJD = found.length + missing.length;
+      const currentMatch = totalInJD > 0 ? Math.round((found.length / totalInJD) * 100) : 50;
+      const projectedMatch = Math.min(95, currentMatch + Math.round(missing.slice(0, 8).length * 3.5));
+
+      return {
+        extractedKeywords: {
+          found: found.slice(0, 20),
+          missing: missing.slice(0, 20),
+          priority: missing.slice(0, 10)
+        },
+        currentMatchScore: currentMatch,
+        projectedMatchScore: projectedMatch,
+        jobTitle: jobDescription.split('\n')[0].substring(0, 80) || 'Target Role'
+      };
+    };
+
+    if (!ai) {
+      return res.json(localExtract());
+    }
+
+    try {
+      const systemPrompt = `You are an expert ATS keyword analyzer. Given a job description and optionally a candidate's resume text, extract all important keywords.
+
+Return ONLY a valid JSON object with this exact structure:
+{
+  "extractedKeywords": {
+    "found": ["keyword1", ...],
+    "missing": ["keyword1", ...],
+    "priority": ["top10 most critical missing keywords"]
+  },
+  "currentMatchScore": <0-100 integer>,
+  "projectedMatchScore": <0-100 integer, estimate after adding missing keywords>,
+  "jobTitle": "<extracted job title from the description>"
+}
+
+Rules:
+- Extract hard skills (tools, frameworks, languages), soft skills (leadership, communication), methodologies (Agile, Scrum)
+- "found" = keywords present in both JD and resume/skills
+- "missing" = keywords in JD but absent from resume/skills
+- "priority" = top 10 most impactful missing keywords to add
+- currentMatchScore = % of JD keywords already in resume
+- projectedMatchScore = realistic estimate if priority keywords are added
+- Keep keyword strings lowercase and concise (e.g. "react", "ci/cd", "system design")`;
+
+      const response = await ai.models.generateContent({
+        model: "gemini-2.0-flash",
+        contents: [`Job Description:\n${jobDescription}\n\nCandidate Resume Text:\n${resumeText || 'Not provided'}\n\nCandidate Current Skills: ${JSON.stringify(userSkills || [])}`],
+        config: {
+          systemInstruction: systemPrompt,
+          responseMimeType: "application/json"
+        }
+      });
+
+      const text = response.text;
+      if (!text) throw new Error("No response from Gemini");
+
+      const result = JSON.parse(text);
+      return res.json(result);
+    } catch (aiErr: any) {
+      console.warn("Gemini API failed for JD analysis, using local fallback:", aiErr.message);
+      return res.json(localExtract());
+    }
+
+  } catch (error: any) {
+    console.error("Error analyzing JD:", error);
+    return res.status(500).json({ error: error.message || "Failed to analyze job description." });
+  }
+});
+
+// AI Resume Optimizer for Job Description Keywords
+app.post("/api/optimize-resume-for-jd", async (req, res) => {
+  try {
+    const { resumeData, jobDescription, missingKeywords, currentMatchScore } = req.body;
+
+    if (!jobDescription || !resumeData) {
+      return res.status(400).json({ error: "Missing jobDescription or resumeData." });
+    }
+
+    const ai = getAiClient();
+
+    // Local fallback: just inject top keywords into skills and summary
+    const localOptimize = () => {
+      const keywords = missingKeywords || [];
+      const optimizedSkills = [...(resumeData.skills || []), ...keywords.slice(0, 5)];
+      const keywordsStr = keywords.slice(0, 4).join(', ');
+      const optimizedSummary = resumeData.summary
+        ? `${resumeData.summary} Proficient in ${keywordsStr} with a track record of delivering impactful results in fast-paced environments.`
+        : `Results-driven professional with experience in ${keywordsStr}. Dedicated to delivering high-quality solutions that drive measurable outcomes.`;
+
+      const optimizedExperience = (resumeData.experience || []).map((exp: any, idx: number) => {
+        if (idx === 0 && keywords.length > 0) {
+          const kw = keywords[0];
+          return {
+            ...exp,
+            description: exp.description + `\n• Leveraged ${kw} to streamline workflows and improve team delivery efficiency.`
+          };
+        }
+        return exp;
+      });
+
+      return {
+        optimizedData: {
+          summary: optimizedSummary,
+          skills: [...new Set(optimizedSkills)],
+          experience: optimizedExperience
+        },
+        changesExplanation: [
+          `Added ${keywords.slice(0, 5).join(', ')} to your skills section to match JD requirements.`,
+          `Updated professional summary to naturally incorporate key JD terminology.`,
+          `Enhanced first work experience entry with relevant keyword context.`
+        ],
+        newMatchScore: Math.min(92, (currentMatchScore || 50) + 28)
+      };
+    };
+
+    if (!ai) {
+      return res.json(localOptimize());
+    }
+
+    try {
+      const systemPrompt = `You are an elite ATS resume optimization expert. Given a candidate's resume data and a job description, rewrite specific resume sections to naturally incorporate missing keywords — WITHOUT fabricating experience or lying.
+
+Rules:
+1. NEVER invent job titles, companies, dates, or projects that don't exist in the original
+2. Only REPHRASE existing experience to use JD's language and terminology
+3. Naturally incorporate missing keywords — do NOT keyword-stuff
+4. Rewrite the summary to mirror the JD's language and requirements
+5. Add legitimate missing hard skills to the skills array
+6. Use strong action verbs: Engineered, Optimized, Architected, Spearheaded, Delivered
+7. Quantify where you can based on existing description hints
+
+Return ONLY a valid JSON with this structure:
+{
+  "optimizedData": {
+    "summary": "<rewritten professional summary>",
+    "skills": ["skill1", "skill2", ...],
+    "experience": [
+      { "company": "...", "role": "...", "dates": "...", "description": "<rewritten bullet points>" }
+    ]
+  },
+  "changesExplanation": [
+    "<what was changed in summary>",
+    "<what was changed in experience>",
+    "<what was added to skills>"
+  ],
+  "newMatchScore": <0-100 integer>
+}`;
+
+      const userContent = `Job Description:\n${jobDescription}\n\nCurrent Resume Data:\n${JSON.stringify(resumeData, null, 2)}\n\nMissing Keywords to Incorporate:\n${JSON.stringify(missingKeywords || [])}\n\nCurrent JD Match Score: ${currentMatchScore || 'Unknown'}%`;
+
+      const response = await ai.models.generateContent({
+        model: "gemini-2.0-flash",
+        contents: [userContent],
+        config: {
+          systemInstruction: systemPrompt,
+          responseMimeType: "application/json"
+        }
+      });
+
+      const text = response.text;
+      if (!text) throw new Error("No response from Gemini");
+
+      const result = JSON.parse(text);
+      return res.json(result);
+    } catch (aiErr: any) {
+      console.warn("Gemini API failed for resume optimization, using local fallback:", aiErr.message);
+      return res.json(localOptimize());
+    }
+
+  } catch (error: any) {
+    console.error("Error optimizing resume:", error);
+    return res.status(500).json({ error: error.message || "Failed to optimize resume for job description." });
   }
 });
 

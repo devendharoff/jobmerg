@@ -114,16 +114,27 @@ export default function SignIn({ onNavigate, onLoginSuccess }: SignInProps) {
             <img src="/jobmerge-logo.png" alt="JobMerge" className="h-9 w-auto object-contain group-hover:scale-105 transition-transform" />
           </button>
           
-          <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">
-            Don't have an account?{' '}
-            <button 
-              onClick={() => onNavigate('SignUp')} 
-              className="text-[#4f46e5] font-black hover:underline cursor-pointer uppercase tracking-wider"
-              id="btn-signup-redirect"
-            >
-              Sign up free
-            </button>
-          </p>
+          <div className="flex flex-col items-end gap-1.5">
+            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">
+              Don't have an account?{' '}
+              <button 
+                onClick={() => onNavigate('SignUp')} 
+                className="text-[#4f46e5] font-black hover:underline cursor-pointer uppercase tracking-wider animate-pulse"
+                id="btn-signup-redirect"
+              >
+                Sign up free
+              </button>
+            </p>
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+              System Administrator?{' '}
+              <button 
+                onClick={() => onNavigate('AdminSignIn')} 
+                className="text-indigo-600 font-black hover:underline cursor-pointer uppercase tracking-wider"
+              >
+                Admin Gateway
+              </button>
+            </p>
+          </div>
         </div>
 
         {/* Main Content Area */}

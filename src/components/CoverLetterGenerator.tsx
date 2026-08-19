@@ -33,7 +33,7 @@ export default function CoverLetterGenerator({
     if (isOpen) {
       generateLetter();
     }
-  }, [isOpen, targetJob, tone]);
+  }, [isOpen, targetJob]);
 
   const generateLetter = () => {
     setIsGenerating(true);

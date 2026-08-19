@@ -1237,11 +1237,18 @@ export default function LandingPage({ onNavigate, onSearch, jobs = [], onSelectJ
 
           <div className="pt-6 border-t border-gray-100 flex flex-col md:flex-row justify-between items-center gap-3">
             <p className="text-gray-400 text-[11px] font-bold">© 2026 JobMerge Inc. All rights reserved.</p>
-            <div className="flex flex-wrap justify-center gap-5 text-[11px] font-bold text-gray-400">
+            <div className="flex flex-wrap justify-center gap-5 text-[11px] font-bold text-gray-400 items-center">
               <a className="hover:text-[#353df6] transition-colors" href="#">Privacy Policy</a>
               <a className="hover:text-[#353df6] transition-colors" href="#">Terms of Service</a>
               <a className="hover:text-[#353df6] transition-colors" href="#">Cookie Settings</a>
               <a className="hover:text-[#353df6] transition-colors" href="#">Contact Support</a>
+              <span className="text-gray-200">|</span>
+              <button 
+                onClick={() => onNavigate('AdminSignIn')} 
+                className="hover:text-[#3f37c9] text-indigo-500 font-extrabold transition-colors cursor-pointer uppercase tracking-wider text-[10px]"
+              >
+                Admin Portal
+              </button>
             </div>
           </div>
         </div>

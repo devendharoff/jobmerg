@@ -4,6 +4,7 @@ import {
   ChevronRight, Award, CheckCircle, Info, Upload, X, ShieldCheck, Target, Zap, FileSpreadsheet, Download
 } from 'lucide-react';
 import { UserProfile, Job, PLAN_LIMITS } from '../types';
+import JobDescriptionOptimizer from './JobDescriptionOptimizer';
 
 interface AIResumeReviewProps {
   userProfile: UserProfile;
@@ -11,6 +12,7 @@ interface AIResumeReviewProps {
   onUpdateUserProfile: (updated: Partial<UserProfile>) => void;
   onUpdateJobMatches: (matches: Array<{ jobId: string; matchPercent: number; matchExplanation: string }>) => void;
   onOpenPricing?: () => void;
+  onSwitchToResumeBuilder?: () => void;
 }
 
 import { AtsLayerBreakdown } from '../types';
@@ -30,9 +32,10 @@ export default function AIResumeReview({
   availableJobs,
   onUpdateUserProfile,
   onUpdateJobMatches,
-  onOpenPricing
+  onOpenPricing,
+  onSwitchToResumeBuilder
 }: AIResumeReviewProps) {
-  const [activeInputTab, setActiveInputTab] = useState<'pdf' | 'text'>('pdf');
+  const [activeInputTab, setActiveInputTab] = useState<'pdf' | 'text' | 'jd'>('pdf');
   const [resumeText, setResumeText] = useState(userProfile.resumeText || '');
   
   // PDF File Upload States
@@ -219,7 +222,7 @@ export default function AIResumeReview({
       if (hasEmail) contactScore += 40;
       if (hasPhone) contactScore += 35;
       if (lowerText.includes('linkedin') || lowerText.includes('github')) contactScore += 25;
-      contactScore = Math.max(30, Math.min(100, contactScore || 85));
+      contactScore = Math.max(0, Math.min(100, contactScore));
 
       let structureScore = 0;
       if (hasExp) structureScore += 40;
@@ -355,7 +358,30 @@ export default function AIResumeReview({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+      {/* JD Optimizer Full-Width Panel */}
+      {activeInputTab === 'jd' && (
+        <div className="animate-fade-in">
+          <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-premium mb-2">
+            <div className="flex items-center gap-2 mb-1">
+              <div className="w-7 h-7 bg-[#4f46e5]/10 text-[#4f46e5] rounded-lg flex items-center justify-center">
+                <Target className="w-4 h-4" />
+              </div>
+              <div>
+                <h2 className="text-sm font-extrabold text-gray-900 font-display">Job Description ATS Optimizer</h2>
+                <p className="text-xs text-gray-400 font-semibold">Paste any job description → AI extracts keywords → rewrites your resume to beat ATS filters.</p>
+              </div>
+              <span className="ml-auto px-2.5 py-0.5 rounded-full bg-[#4f46e5]/10 text-[#4f46e5] text-[10px] font-black tracking-wide uppercase border border-[#4f46e5]/15">Gemini AI</span>
+            </div>
+          </div>
+          <JobDescriptionOptimizer
+            userProfile={userProfile}
+            onSwitchToResumeBuilder={onSwitchToResumeBuilder}
+          />
+        </div>
+      )}
+
+      {activeInputTab !== 'jd' && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         {/* Left Column: Input Panel (Sticky to eliminate empty white space on scroll) */}
         <div className="lg:col-span-5 space-y-4 lg:sticky lg:top-6 lg:self-start">
           <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-premium space-y-4 text-left">
@@ -370,7 +396,7 @@ export default function AIResumeReview({
                 }`}
               >
                 <Upload className="w-3.5 h-3.5" />
-                Upload PDF Resume
+                Upload PDF
               </button>
               <button
                 type="button"
@@ -381,6 +407,16 @@ export default function AIResumeReview({
               >
                 <FileText className="w-3.5 h-3.5" />
                 Paste Text
+              </button>
+              <button
+                type="button"
+                onClick={() => { setActiveInputTab('jd'); setError(''); }}
+                className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-2 ${
+                  activeInputTab === 'jd' ? 'bg-[#4f46e5] text-white shadow-sm' : 'text-gray-400 hover:text-gray-600'
+                }`}
+              >
+                <Target className="w-3.5 h-3.5" />
+                JD Optimizer
               </button>
             </div>
 
@@ -778,6 +814,7 @@ export default function AIResumeReview({
           )}
         </div>
       </div>
+      )}
     </div>
   );
 }

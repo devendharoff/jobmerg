@@ -38,15 +38,15 @@ export interface UserUsage {
 
 export const PLAN_LIMITS: Record<UserPlanTier, PlanLimits> = {
   Free: {
-    maxResumes: Infinity,
-    maxAtsScans: Infinity,
-    maxAutoApplies: Infinity,
-    hasAiCustomReport: true
+    maxResumes: 1,
+    maxAtsScans: 3,
+    maxAutoApplies: 5,
+    hasAiCustomReport: false
   },
   Pro: {
-    maxResumes: Infinity,
-    maxAtsScans: Infinity,
-    maxAutoApplies: Infinity,
+    maxResumes: 15,
+    maxAtsScans: 25,
+    maxAutoApplies: 100,
     hasAiCustomReport: true
   },
   Accelerator: {
@@ -101,7 +101,7 @@ export interface SavedSearch {
   dateCreated: string;
 }
 
-export type ActiveScreen = 'Landing' | 'Dashboard' | 'SignIn' | 'SignUp';
+export type ActiveScreen = 'Landing' | 'Dashboard' | 'SignIn' | 'SignUp' | 'AdminSignIn' | 'AdminDashboard';
 
 export interface LayerScoreDetail {
   score: number;

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   User, Mail, Phone, MapPin, Globe, Award, Briefcase, BookOpen, 
   Sparkles, Check, Trash2, Plus, Download, RefreshCw, Printer, ShieldAlert, ChevronRight, LayoutGrid, CheckCircle2,
@@ -140,77 +140,109 @@ export default function ResumeBuilder({ userProfile, onOpenPricing }: ResumeBuil
   // View mode switcher: 'split' | 'form' | 'preview'
   const [viewMode, setViewMode] = useState<'split' | 'form' | 'preview'>('split');
 
-  // Resume details state
+  // ── Load persisted resume data from localStorage (populated by JD Optimizer or autosave) ──
+  const loadSavedData = () => {
+    try {
+      const saved = localStorage.getItem('jobmerge_resume_data');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return null;
+  };
+
+  const savedData = loadSavedData();
+  const wasOptimized = localStorage.getItem('jobmerge_resume_optimized') === 'true';
+
+  // Show a toast banner if data came from JD Optimizer
+  const [showOptimizedBanner, setShowOptimizedBanner] = useState(wasOptimized);
+
+  useEffect(() => {
+    if (wasOptimized) {
+      // Clear the flag so banner only shows once
+      localStorage.removeItem('jobmerge_resume_optimized');
+      setTimeout(() => setShowOptimizedBanner(false), 6000);
+    }
+  }, []);
+
+  // Resume details state — prefers saved/optimized data, then userProfile, then sensible empty defaults
   const [personal, setPersonal] = useState({
-    name: userProfile.name || 'Devender Singh',
-    title: userProfile.role || 'Senior Software Engineer',
-    email: userProfile.email || 'devender@example.com',
-    phone: '+91 98765 43210',
-    location: 'Bangalore, India',
-    github: 'github.com/devender',
-    linkedin: 'linkedin.com/in/devender'
+    name: userProfile.name || '',
+    title: userProfile.role || '',
+    email: userProfile.email || '',
+    phone: savedData?.phone || '',
+    location: savedData?.location || '',
+    github: savedData?.github || '',
+    linkedin: savedData?.linkedin || ''
   });
 
   const [summary, setSummary] = useState(
-    'Passionate and detail-oriented Software Engineer with over 4 years of experience specializing in building responsive, component-driven web applications. Strong expert in JavaScript, TypeScript, and modern frontend environments like React and Next.js.'
+    savedData?.summary || userProfile.resumeText || ''
   );
 
   const [skills, setSkills] = useState<string[]>(
-    userProfile.skills?.length > 0 ? userProfile.skills : ['React', 'TypeScript', 'Node.js', 'Next.js', 'Tailwind CSS', 'GraphQL', 'System Design']
+    savedData?.skills?.length > 0 ? savedData.skills
+    : userProfile.skills?.length > 0 ? userProfile.skills
+    : []
   );
   const [skillInput, setSkillInput] = useState('');
 
-  const [experience, setExperience] = useState<WorkExp[]>([
-    {
-      company: 'Tech Solutions Inc.',
-      role: 'Software Engineer',
-      dates: '2022 - Present',
-      description: '• Developed and optimized client-facing web applications using React and Next.js.\n• Restructured state management to improve dashboard performance by 35%.\n• Mentored junior frontend developers and defined code styling guides.'
-    },
-    {
-      company: 'Innovate Hub',
-      role: 'Junior Frontend Developer',
-      dates: '2020 - 2022',
-      description: '• Built responsive marketing websites and single-page applications.\n• Integrated REST APIs and worked closely with design team to maintain a unified Figma design system library.'
-    }
-  ]);
+  const [experience, setExperience] = useState<WorkExp[]>(
+    savedData?.experience?.length > 0 ? savedData.experience : [
+      {
+        company: '',
+        role: '',
+        dates: '',
+        description: ''
+      }
+    ]
+  );
 
-  const [education, setEducation] = useState<Education[]>([
-    {
-      school: 'National Institute of Technology',
-      degree: 'B.Tech in Computer Science',
-      year: '2016 - 2020',
-      gpa: '8.4 CGPA'
-    }
-  ]);
+  const [education, setEducation] = useState<Education[]>(
+    savedData?.education?.length > 0 ? savedData.education : [
+      {
+        school: '',
+        degree: '',
+        year: '',
+        gpa: ''
+      }
+    ]
+  );
 
-  const [projects, setProjects] = useState<Project[]>([
-    {
-      title: 'JobMerge Dashboard',
-      technologies: 'React, TypeScript, Supabase, Tailwind',
-      description: 'Built an interactive dashboard aggregating 50+ job portals with automatic application pipelines, AI matchmaking percentages, and live market metrics.'
-    },
-    {
-      title: 'DevCollab IDE',
-      technologies: 'Node.js, Socket.io, React, Express',
-      description: 'Created a collaborative browser-based code editor with real-time room sync, chat functionality, and instant test running suites.'
-    }
-  ]);
+  const [projects, setProjects] = useState<Project[]>(
+    savedData?.projects?.length > 0 ? savedData.projects : [
+      {
+        title: '',
+        technologies: '',
+        description: ''
+      }
+    ]
+  );
+
+  // ── Autosave all resume data to localStorage on every change ──
+  useEffect(() => {
+    try {
+      localStorage.setItem('jobmerge_resume_data', JSON.stringify({
+        summary, skills, experience, education, projects,
+        phone: personal.phone, location: personal.location,
+        github: personal.github, linkedin: personal.linkedin
+      }));
+    } catch (e) {}
+  }, [summary, skills, experience, education, projects, personal]);
 
   // Selected Template Style
   const [template, setTemplate] = useState<TemplateId>('executive_ceo');
   const [categoryFilter, setCategoryFilter] = useState<'All' | 'Executive' | 'Corporate' | 'Technical' | 'Modern'>('All');
 
+
   // Auto fill from userProfile state
   const handleAutoFill = () => {
     setPersonal({
-      name: userProfile.name || 'Devender Singh',
-      title: userProfile.role || 'Senior Software Engineer',
-      email: userProfile.email || 'devender@example.com',
-      phone: '+91 98765 43210',
-      location: 'Bangalore, India',
-      github: 'github.com/devender',
-      linkedin: 'linkedin.com/in/devender'
+      name: userProfile.name || '',
+      title: userProfile.role || '',
+      email: userProfile.email || '',
+      phone: personal.phone,
+      location: personal.location,
+      github: personal.github,
+      linkedin: personal.linkedin
     });
     if (userProfile.skills?.length) {
       setSkills(userProfile.skills);
@@ -284,6 +316,27 @@ export default function ResumeBuilder({ userProfile, onOpenPricing }: ResumeBuil
           {userPlan === 'Free' ? 'Upgrade to Pro →' : 'Manage Plan'}
         </button>
       </div>
+
+      {/* JD Optimizer Success Banner */}
+      {showOptimizedBanner && (
+        <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-3xl p-4 flex items-center gap-3 animate-fade-in print:hidden">
+          <div className="w-8 h-8 bg-emerald-500 text-white rounded-xl flex items-center justify-center shrink-0">
+            <CheckCircle2 className="w-4 h-4" />
+          </div>
+          <div className="flex-1">
+            <p className="text-xs font-extrabold text-emerald-800">🎯 JD Optimizer Applied!</p>
+            <p className="text-[11px] text-emerald-700 font-semibold mt-0.5">
+              Your resume summary and skills have been updated with AI-optimized content from the job description. Review and customize below.
+            </p>
+          </div>
+          <button
+            onClick={() => setShowOptimizedBanner(false)}
+            className="text-emerald-400 hover:text-emerald-600 cursor-pointer shrink-0"
+          >
+            <span className="text-lg leading-none">×</span>
+          </button>
+        </div>
+      )}
 
       {/* Top Header & Compact Template Selector Toolbar */}
       <div className="bg-white rounded-3xl p-5 border border-gray-150 shadow-xs space-y-4 shrink-0 print:hidden">

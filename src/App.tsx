@@ -6,11 +6,12 @@ import {
   X, AlertCircle, BookmarkCheck, Heart, UserCheck, ShieldCheck, Clock, Lock,
   ChevronDown, ExternalLink, PanelLeftClose, PanelLeftOpen, Sidebar,
   Bell, Mic, TrendingUp, Zap, Target, LayoutDashboard, ChevronLeft,
-  MoreHorizontal, MessageSquare, Video, Filter, Grid, List, Menu
+  MoreHorizontal, MessageSquare, Video, Filter, Grid, List, Menu, Users
 } from 'lucide-react';
 import { 
   ActiveScreen, Job, UserProfile, JobApplication, SalaryInsight 
 } from './types';
+import AdminSignIn from './components/AdminSignIn';
 import { INITIAL_JOBS, INITIAL_SALARY_INSIGHTS, DEFAULT_USER, getRoleRealisticSpecs } from './data';
 import LandingPage from './components/LandingPage';
 import ExternalRedirectModal from './components/ExternalRedirectModal';
@@ -222,8 +223,7 @@ export default function App() {
 
   // Check if active user is authorized Super Admin (avasarama04@gmail.com)
   const isAdminUser = userProfile.email === 'avasarama04@gmail.com' || 
-                      (user?.primaryEmailAddress?.emailAddress === 'avasarama04@gmail.com') ||
-                      (typeof window !== 'undefined' && window.location.search.includes('admin=true'));
+                      (user?.primaryEmailAddress?.emailAddress === 'avasarama04@gmail.com');
 
   const handleAdminQuickLogin = () => {
     setUserProfile({
@@ -311,26 +311,7 @@ export default function App() {
     return () => clearTimeout(handler);
   }, [searchQuery]);
 
-  // Auto-Login as Admin if URL has ?admin=true or ?admin=avasarama04@gmail.com
-  useEffect(() => {
-    if (typeof window !== 'undefined' && (window.location.search.includes('admin=true') || window.location.search.includes('admin=avasarama04@gmail.com'))) {
-      setUserProfile({
-        name: 'Super Admin (avasarama04)',
-        email: 'avasarama04@gmail.com',
-        role: 'Platform Owner',
-        avatarUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDygoxBzgjRmZYQ4uIK-GWpjX_FRMByJYrQaV21iuO5-rVvqyFlrzVyxl_a1Vcm27q1W7sFuhkMlLVR0tTqYVJoQ_mPM9ClMRvetN0pCsTVbfoPUpak2f47mmUgJszUtvyU7xBedtbLVrFoIn914KkawqLINIJSkVz9Ued9DSm94XU2wea25YULzaNxYy7taAF-ScbG7PpLXXO0ds-Nvkdy27DQk0fsT8Ms7bQZIsO0Q25v5WbYfdSQB_bKWY4CWlCAwVzoiGXYg3RJ',
-        skills: ['Admin', 'Supabase', 'Analytics'],
-        experienceYears: 10,
-        desiredSalary: '₹50L PA',
-        resumeText: 'Super Admin Profile',
-        profileCompleteness: 100,
-        plan: 'VIP',
-        usage: { resumesCreated: 100, atsScansUsed: 100, autoAppliesUsed: 500 }
-      });
-      setActiveDashboardTab('Admin');
-      showToast('👑 Super Admin Mode Activated: Logged in as avasarama04@gmail.com');
-    }
-  }, []);
+
 
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -474,14 +455,17 @@ export default function App() {
     }
   }, [isSignedIn, user, isLoaded, supabaseClient]);
 
-  // Auto-navigate signed-in candidate straight to Dashboard
+  // Auto-navigate signed-in candidate straight to Dashboard (or AdminDashboard)
   useEffect(() => {
     if (isSignedIn && (activeScreen === 'SignIn' || activeScreen === 'SignUp')) {
-      setActiveScreen('Dashboard');
-      if (activeDashboardTab === 'Admin' && !isAdminUser) {
-        setActiveDashboardTab('FindJobs');
+      const email = user?.primaryEmailAddress?.emailAddress || '';
+      if (email === 'avasarama04@gmail.com') {
+        setActiveScreen('AdminDashboard');
+        showToast(`👑 Welcome back, Super Admin!`);
+      } else {
+        setActiveScreen('Dashboard');
+        showToast(`👋 Welcome, ${user?.firstName || user?.fullName || 'Candidate'}!`);
       }
-      showToast(`👋 Welcome, ${user?.firstName || user?.fullName || 'Candidate'}!`);
     }
   }, [isSignedIn, activeScreen, user]);
 
@@ -514,13 +498,6 @@ export default function App() {
     };
   }, [userProfile.email, supabaseClient]);
 
-  // Redirect non-admin user out of Admin Tab
-  useEffect(() => {
-    if (activeDashboardTab === 'Admin' && !isAdminUser) {
-      setActiveDashboardTab('Dashboard');
-      showToast("🔒 Admin Access Restricted: Portal is only accessible by Super Admin (avasarama04@gmail.com)");
-    }
-  }, [activeDashboardTab, isAdminUser]);
 
   // Fetch jobs from Supabase on mount (with high-concurrency client caching)
   useEffect(() => {
@@ -1327,6 +1304,30 @@ export default function App() {
         </div>
       )}
 
+      {activeScreen === 'AdminSignIn' && (
+        <AdminSignIn 
+          onNavigate={setActiveScreen}
+          onLoginSuccess={(email, name) => {
+            setUserProfile({
+              name: 'Super Admin (avasarama04)',
+              email: 'avasarama04@gmail.com',
+              role: 'Platform Owner',
+              avatarUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDygoxBzgjRmZYQ4uIK-GWpjX_FRMByJYrQaV21iuO5-rVvqyFlrzVyxl_a1Vcm27q1W7sFuhkMlLVR0tTqYVJoQ_mPM9ClMRvetN0pCsTVbfoPUpak2f47mmUgJszUtvyU7xBedtbLVrFoIn914KkawqLINIJSkVz9Ued9DSm94XU2wea25YULzaNxYy7taAF-ScbG7PpLXXO0ds-Nvkdy27DQk0fsT8Ms7bQZIsO0Q25v5WbYfdSQB_bKWY4CWlCAwVzoiGXYg3RJ',
+              skills: ['Admin', 'Supabase', 'Analytics'],
+              experienceYears: 10,
+              desiredSalary: '₹50L PA',
+              resumeText: 'Super Admin Profile',
+              profileCompleteness: 100,
+              plan: 'VIP',
+              usage: { resumesCreated: 100, atsScansUsed: 100, autoAppliesUsed: 500 }
+            });
+            setIsLoggedIn(true);
+            setActiveScreen('AdminDashboard');
+            showToast('👑 Logged in as Super Admin (avasarama04@gmail.com)');
+          }}
+        />
+      )}
+
       {activeScreen === 'Dashboard' && (
         <div className="flex-1 flex flex-col lg:flex-row lg:h-screen lg:overflow-hidden bg-[#f8f9fa] relative">
           
@@ -1518,17 +1519,6 @@ export default function App() {
                       <BarChart3 className="w-5 h-5" />
                     </button>
 
-                    <button
-                      onClick={() => setActiveDashboardTab('Admin')}
-                      className={`p-2.5 rounded-2xl transition-all cursor-pointer relative ${
-                        activeDashboardTab === 'Admin'
-                          ? 'bg-[#4f46e5]/10 text-[#4f46e5] shadow-xs'
-                          : 'text-gray-400 hover:text-gray-800 hover:bg-gray-50'
-                      }`}
-                      title="Super Admin Portal"
-                    >
-                      <ShieldCheck className="w-5 h-5 text-[#4f46e5]" />
-                    </button>
                   </nav>
                 </div>
 
@@ -1689,20 +1679,6 @@ export default function App() {
                       </div>
                     </button>
 
-                    <button
-                      onClick={() => setActiveDashboardTab('Admin')}
-                      className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
-                        activeDashboardTab === 'Admin'
-                          ? 'bg-[#4f46e5]/10 text-[#4f46e5] font-extrabold border border-[#4f46e5]/20'
-                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <ShieldCheck className="w-4 h-4 text-[#4f46e5]" />
-                        <span>Admin Portal</span>
-                      </div>
-                      <span className="px-2 py-0.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-full text-[9px] font-black uppercase">Live</span>
-                    </button>
 
                     {/* VIP Unlimited Plan Widget Card */}
                     <div className="my-3 p-3.5 bg-gradient-to-br from-indigo-50/90 via-purple-50/70 to-indigo-100/50 border border-indigo-150 rounded-2xl space-y-2.5 shadow-xs">
@@ -1807,21 +1783,6 @@ export default function App() {
                   <Sparkles className="w-4 h-4 text-[#4f46e5] shrink-0 cursor-pointer" />
                 </div>
 
-                {/* Dedicated Admin Portal Toggle Button for avasarama04@gmail.com */}
-                {isAdminUser && (
-                  <button
-                    onClick={() => setActiveDashboardTab(activeDashboardTab === 'Admin' ? 'Dashboard' : 'Admin')}
-                    className={`px-3.5 py-1.5 rounded-full border text-xs font-extrabold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs ${
-                      activeDashboardTab === 'Admin'
-                        ? 'bg-slate-900 text-white border-slate-900 ring-2 ring-indigo-500/30'
-                        : 'bg-amber-50 hover:bg-amber-100 text-amber-800 border-amber-300'
-                    }`}
-                    title="Super Admin Portal (avasarama04@gmail.com)"
-                  >
-                    <ShieldCheck className="w-4 h-4 text-amber-600" />
-                    <span>{activeDashboardTab === 'Admin' ? 'Exit Admin' : 'Admin Portal'}</span>
-                  </button>
-                )}
 
                 {/* Notification Bell Button */}
                 <button className="relative p-2.5 bg-white border border-gray-200 hover:border-gray-300 rounded-full text-gray-600 shadow-xs cursor-pointer">
@@ -2452,6 +2413,7 @@ export default function App() {
                     onUpdateUserProfile={handleUpdateProfile} 
                     onUpdateJobMatches={handleUpdateJobMatches}
                     onOpenPricing={() => { setIsOnboardingPlanSelection(false); setShowPricingModal(true); }}
+                    onSwitchToResumeBuilder={() => setActiveDashboardTab('Resume')}
                   />
                 </div>
               )}
@@ -2564,16 +2526,86 @@ export default function App() {
               </div>
             )}
 
-            {/* Super Admin Management Portal */}
-            {activeDashboardTab === 'Admin' && (
-              <div className="flex-1 lg:overflow-y-auto pb-6">
-                <AdminPanel 
-                  currentPlan={userProfile.plan} 
-                  onPromoteUserPlan={(uId, p) => handleSelectPlan(p)} 
-                  showToast={showToast} 
-                />
+          </main>
+        </div>
+      )}
+
+      {activeScreen === 'AdminDashboard' && (
+        <div className="flex-1 flex flex-col lg:flex-row lg:h-screen lg:overflow-hidden bg-slate-950 text-slate-100 relative font-sans">
+          
+          {/* Admin Sidebar Navigation */}
+          <aside className="bg-slate-900 border-r border-slate-800 flex flex-col justify-between shrink-0 select-none shadow-xl w-64 p-5">
+            <div className="space-y-6 text-left">
+              {/* Logo Header */}
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="w-6 h-6 text-indigo-400" />
+                <span className="font-extrabold text-lg text-white tracking-tight font-display font-black">JobMerge Admin</span>
               </div>
-            )}
+
+              {/* Sidebar Menu */}
+              <div className="space-y-1">
+                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-3 mb-2">Management</p>
+                
+                <button
+                  className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-2xl text-xs font-bold bg-indigo-600 text-white font-extrabold shadow-md border border-indigo-500/20"
+                >
+                  <Users className="w-4 h-4" />
+                  <span>Users & Systems</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Admin Profile & Log Out */}
+            <div className="pt-4 border-t border-slate-800 flex flex-col gap-3 text-left">
+              <div className="flex items-center gap-3">
+                <img 
+                  alt="Super Admin" 
+                  className="w-9 h-9 rounded-full object-cover border border-slate-700"
+                  src="https://lh3.googleusercontent.com/aida-public/AB6AXuDygoxBzgjRmZYQ4uIK-GWpjX_FRMByJYrQaV21iuO5-rVvqyFlrzVyxl_a1Vcm27q1W7sFuhkMlLVR0tTqYVJoQ_mPM9ClMRvetN0pCsTVbfoPUpak2f47mmUgJszUtvyU7xBedtbLVrFoIn914KkawqLINIJSkVz9Ued9DSm94XU2wea25YULzaNxYy7taAF-ScbG7PpLXXO0ds-Nvkdy27DQk0fsT8Ms7bQZIsO0Q25v5WbYfdSQB_bKWY4CWlCAwVzoiGXYg3RJ" 
+                />
+                <div className="text-left">
+                  <p className="text-xs font-black text-white leading-tight">Super Admin</p>
+                  <p className="text-[10px] text-slate-400 font-bold leading-tight">avasarama04@gmail.com</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => {
+                  setUserProfile(DEFAULT_USER);
+                  setIsLoggedIn(false);
+                  setActiveScreen('Landing');
+                  showToast('👑 Logged out of Admin Portal');
+                }}
+                className="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl text-xs font-black transition-all cursor-pointer flex items-center justify-center gap-1.5"
+              >
+                Log Out
+              </button>
+            </div>
+          </aside>
+
+          {/* Admin Main Body */}
+          <main className="flex-1 flex flex-col min-w-0 bg-slate-950 overflow-hidden">
+            {/* Top Bar */}
+            <header className="bg-slate-900/60 backdrop-blur-md border-b border-slate-800/85 px-8 py-4 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="text-xs font-bold text-slate-400">System Status: Online</span>
+              </div>
+              <button
+                onClick={() => setActiveScreen('Landing')}
+                className="text-xs font-bold text-slate-400 hover:text-white bg-slate-800 border border-slate-750 hover:border-slate-650 px-3.5 py-1.5 rounded-xl transition-all cursor-pointer"
+              >
+                View Landing Page
+              </button>
+            </header>
+
+            {/* Panel Content wrapper */}
+            <div className="flex-1 overflow-y-auto p-8 scrollbar-thin">
+              <AdminPanel 
+                currentPlan="VIP"
+                onPromoteUserPlan={(uId, p) => handleSelectPlan(p)} 
+                showToast={showToast} 
+              />
+            </div>
           </main>
         </div>
       )}
