@@ -971,6 +971,165 @@ Years of experience: ${experienceYears || "Not specified"}`;
   }
 });
 
+// AI Resume Parsing & Text Extraction Endpoint
+app.post("/api/parse-resume", async (req, res) => {
+  try {
+    const { resumeFile, resumeText } = req.body;
+
+    if (!resumeFile && !resumeText) {
+      return res.status(400).json({ error: "Missing resumeFile or resumeText parameter." });
+    }
+
+    const ai = getAiClient();
+
+    // Local fallback/mock parse in case Gemini is offline or not configured
+    const localParse = () => {
+      return {
+        personal: {
+          name: "Aravind Sharma",
+          title: "Full-Stack Software Engineer",
+          email: "aravind.sharma@example.com",
+          phone: "+91 98765 43210",
+          location: "Bengaluru, India",
+          github: "github.com/aravindsharma",
+          linkedin: "linkedin.com/in/aravindsharma",
+          portfolio: "aravindsharma.dev"
+        },
+        summary: "Detail-oriented software engineer with experience building scalable applications.",
+        skills: {
+          languages: "TypeScript, JavaScript, Python",
+          frameworks: "React, Node.js, Next.js",
+          tools: "Git, Docker, AWS",
+          competencies: "Full-Stack Development, APIs"
+        },
+        experience: [
+          {
+            company: "Tech Solutions",
+            role: "Software Engineer",
+            dates: "2023 - Present",
+            description: "• Developed web applications using React and Node.js.\n• Optimized database performance.",
+            technologies: "React, Node.js"
+          }
+        ],
+        education: [
+          {
+            school: "State University",
+            degree: "Bachelor of Science in CS",
+            year: "2019 - 2023",
+            coursework: "Data Structures, Systems"
+          }
+        ],
+        projects: [
+          {
+            title: "Project Alpha",
+            technologies: "React, Firebase",
+            description: "Collaborated to build an active dashboard app."
+          }
+        ],
+        certifications: [
+          "AWS Certified Cloud Practitioner"
+        ]
+      };
+    };
+
+    if (!ai) {
+      return res.json(localParse());
+    }
+
+    const systemPrompt = `You are an elite Applicant Tracking System (ATS) document parsing engine. Your job is to extract raw structured fields from the candidate's resume document (which may be provided as a PDF attachment or raw text stream).
+
+Extract the content strictly into the following JSON schema:
+{
+  "personal": {
+    "name": "<candidate full name>",
+    "title": "<candidate role title>",
+    "email": "<email address>",
+    "phone": "<phone number>",
+    "location": "<location/city/state>",
+    "github": "<github profile link>",
+    "linkedin": "<linkedin profile link>",
+    "portfolio": "<portfolio link>"
+  },
+  "summary": "<professional summary or objective statement>",
+  "skills": {
+    "languages": "<comma separated coding languages>",
+    "frameworks": "<comma separated libraries & frameworks>",
+    "tools": "<comma separated tools & platforms>",
+    "competencies": "<comma separated core competencies>"
+  },
+  "experience": [
+    {
+      "company": "<company name>",
+      "role": "<job title>",
+      "dates": "<dates of employment>",
+      "description": "<bullet points starting with bullet symbol (•) and separated by newlines>",
+      "technologies": "<comma separated technologies used in this role>"
+    }
+  ],
+  "education": [
+    {
+      "school": "<university or school name>",
+      "degree": "<degree or major>",
+      "year": "<graduation year>",
+      "coursework": "<relevant coursework or academic highlights>"
+    }
+  ],
+  "projects": [
+    {
+      "title": "<project name>",
+      "technologies": "<comma separated technologies used>",
+      "description": "<project description bullet points or text>"
+    }
+  ],
+  "certifications": [
+    "<certification name 1>",
+    "<certification name 2>"
+  ]
+}
+
+Ensure all extracted values reflect the actual document. Do not invent any companies, projects, or experiences. If a field (e.g. portfolio or GitHub link) is missing, leave it as an empty string. Output only valid JSON.`;
+
+    let contents: any[] = [];
+    if (resumeFile) {
+      contents.push({
+        inlineData: {
+          data: resumeFile,
+          mimeType: "application/pdf"
+        }
+      });
+    }
+    contents.push(`Parse this resume file/text and return the JSON structure:\n${resumeText || "PDF attachment provided."}`);
+
+    const response = await ai.models.generateContent({
+      model: "gemini-2.0-flash",
+      contents,
+      config: {
+        systemInstruction: systemPrompt,
+        responseMimeType: "application/json"
+      }
+    });
+
+    const text = response.text;
+    if (!text) {
+      throw new Error("No response text received from Gemini API");
+    }
+
+    const parsedData = JSON.parse(text);
+    return res.json(parsedData);
+  } catch (error: any) {
+    console.warn("Gemini parse-resume failed, serving local fallback:", error.message || error);
+    return res.json({
+      personal: { name: "", title: "", email: "", phone: "", location: "", github: "", linkedin: "", portfolio: "" },
+      summary: "",
+      skills: { languages: "", frameworks: "", tools: "", competencies: "" },
+      experience: [],
+      education: [],
+      projects: [],
+      certifications: []
+    });
+  }
+});
+
 // JD Keyword Extractor Endpoint
 app.post("/api/analyze-jd", async (req, res) => {
   try {

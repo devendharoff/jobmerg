@@ -352,30 +352,68 @@ export default function ResumeStudio({ userProfile, onOpenPricing }: ResumeStudi
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setDragOver(false);
-    simulateExtraction();
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      extractActualResumeData(e.dataTransfer.files[0]);
+    }
   };
 
-  const simulateExtraction = () => {
-    setUploadProgress(10);
+  const extractActualResumeData = (file: File) => {
+    setUploadProgress(5);
     setExtractionStage('Reading document...');
-    
-    const interval = setInterval(() => {
-      setUploadProgress(prev => {
-        if (prev >= 100) {
-          clearInterval(interval);
+
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const base64String = reader.result as string;
+      const base64Data = base64String.split(',')[1];
+      
+      setUploadProgress(25);
+      setExtractionStage('Connecting to parsing engine...');
+
+      try {
+        const res = await fetch('/api/parse-resume', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ resumeFile: base64Data, resumeText: '' })
+        });
+        
+        setUploadProgress(60);
+        setExtractionStage('Extracting work history & skills...');
+
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+
+        setUploadProgress(90);
+        setExtractionStage('Structuring profile layers...');
+
+        setTimeout(() => {
+          if (data.personal) setPersonal(data.personal);
+          if (data.summary) setSummary(data.summary);
+          if (data.skills) setSkillsGrouped(data.skills);
+          if (data.experience) setExperience(data.experience);
+          if (data.education) setEducation(data.education);
+          if (data.projects) setProjects(data.projects);
+          if (data.certifications) setCertifications(data.certifications);
+
+          setUploadProgress(100);
           setTimeout(() => {
             goToStep('profile');
             setUploadProgress(0);
-          }, 500);
-          return 100;
-        }
-        const next = prev + 25;
-        if (next === 35) setExtractionStage('Extracting experience & timeline...');
-        if (next === 60) setExtractionStage('Identifying technical skills...');
-        if (next === 85) setExtractionStage('Structuring profile layers...');
-        return next;
-      });
-    }, 600);
+          }, 400);
+        }, 800);
+      } catch (e) {
+        setUploadProgress(100);
+        setExtractionStage('Done (using fallback)');
+        setTimeout(() => {
+          goToStep('profile');
+          setUploadProgress(0);
+        }, 500);
+      }
+    };
+    reader.onerror = () => {
+      setUploadProgress(0);
+      setExtractionStage('Error reading file');
+    };
+    reader.readAsDataURL(file);
   };
 
   // Job analysis trigger
@@ -706,7 +744,7 @@ export default function ResumeStudio({ userProfile, onOpenPricing }: ResumeStudi
                   ref={fileInputRef}
                   onChange={(e) => {
                     if (e.target.files && e.target.files.length > 0) {
-                      simulateExtraction();
+                      extractActualResumeData(e.target.files[0]);
                     }
                   }}
                   className="hidden"
