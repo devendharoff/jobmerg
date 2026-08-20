@@ -216,6 +216,7 @@ export default function ResumeStudio({ userProfile, onOpenPricing }: ResumeStudi
   const [projects, setProjects] = useState<Project[]>(activeResume.projects);
   const [certifications, setCertifications] = useState<string[]>(activeResume.certifications);
   const [certInput, setCertInput] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Sync to hooks when active resume changes
   useEffect(() => {
@@ -314,7 +315,13 @@ export default function ResumeStudio({ userProfile, onOpenPricing }: ResumeStudi
   };
 
   const handlePrint = () => {
+    const originalTitle = document.title;
+    const userName = personal.name || userProfile.name || 'Resume';
+    document.title = `${userName.replace(/\s+/g, '_')}_Resume`;
     window.print();
+    setTimeout(() => {
+      document.title = originalTitle;
+    }, 1000);
   };
 
   // Create new resume flow
@@ -694,11 +701,23 @@ export default function ResumeStudio({ userProfile, onOpenPricing }: ResumeStudi
                   <p className="text-xs text-gray-500 font-semibold mt-0.5">PDF or Word document format preferred.</p>
                 </div>
 
+                <input 
+                  type="file" 
+                  ref={fileInputRef}
+                  onChange={(e) => {
+                    if (e.target.files && e.target.files.length > 0) {
+                      simulateExtraction();
+                    }
+                  }}
+                  className="hidden"
+                  accept=".pdf,.docx"
+                />
+
                 <div 
                   onDragOver={handleDragOver}
                   onDragLeave={handleDragLeave}
                   onDrop={handleDrop}
-                  onClick={simulateExtraction}
+                  onClick={() => fileInputRef.current?.click()}
                   className={`border-2 border-dashed rounded-3xl p-8 flex flex-col items-center justify-center gap-3 transition-all cursor-pointer h-[180px] ${
                     dragOver ? 'border-indigo-500 bg-indigo-50/20' : 'border-gray-250 bg-gray-50 hover:bg-gray-100'
                   }`}
@@ -1609,6 +1628,29 @@ export default function ResumeStudio({ userProfile, onOpenPricing }: ResumeStudi
         )}
 
       </main>
+
+      <style>{`
+        @media print {
+          body * {
+            visibility: hidden !important;
+          }
+          #resume-printable-sheet, #resume-printable-sheet * {
+            visibility: visible !important;
+          }
+          #resume-printable-sheet {
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            border: none !important;
+            box-shadow: none !important;
+            transform: none !important;
+          }
+        }
+      `}</style>
 
     </div>
   );
