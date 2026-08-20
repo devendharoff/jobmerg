@@ -1636,8 +1636,9 @@ app.use(express.static(path.join(process.cwd(), 'public')));
 // Setup development server or static asset serving in production
 async function startServer() {
   const distPath = path.join(process.cwd(), 'dist');
+  const isDevMode = process.argv.includes('--dev') || process.env.NODE_ENV !== 'production';
 
-  if (process.env.NODE_ENV === "production" && fs.existsSync(distPath)) {
+  if (!isDevMode && fs.existsSync(distPath)) {
     app.use(express.static(distPath, {
       maxAge: '1d',
       etag: true,
