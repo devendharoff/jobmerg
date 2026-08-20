@@ -949,7 +949,7 @@ Years of experience: ${experienceYears || "Not specified"}`;
       contents.push(userPromptText);
 
       const response = await ai.models.generateContent({
-        model: "gemini-2.0-flash",
+        model: "gemini-1.5-flash",
         contents,
         config: {
           systemInstruction: systemPrompt,
@@ -1120,7 +1120,16 @@ app.post("/api/parse-resume", async (req, res) => {
       try {
         const buffer = Buffer.from(resumeFile, 'base64');
         console.log(`[PARSER] Decoding base64 PDF stream (buffer size = ${buffer.length} bytes)`);
-        const pdfData = await pdf(buffer);
+        
+        let pdfData;
+        if (typeof pdf === 'function') {
+          pdfData = await pdf(buffer);
+        } else if (pdf && typeof (pdf as any).default === 'function') {
+          pdfData = await (pdf as any).default(buffer);
+        } else {
+          throw new Error("pdf-parse library does not export a callable function");
+        }
+
         text = pdfData.text || "";
         console.log(`[PARSER] Extracted plain text length from PDF = ${text.length} chars`);
         console.log(`[PARSER] Sample extracted text:\n${text.substring(0, 400)}`);
@@ -1208,7 +1217,7 @@ Ensure all extracted values reflect the actual document. Do not invent any compa
     contents.push(`Parse this resume file/text and return the JSON structure:\n${text || "PDF attachment provided."}`);
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.0-flash",
+      model: "gemini-1.5-flash",
       contents,
       config: {
         systemInstruction: systemPrompt,
@@ -1347,7 +1356,7 @@ Rules:
 - Keep keyword strings lowercase and concise (e.g. "react", "ci/cd", "system design")`;
 
       const response = await ai.models.generateContent({
-        model: "gemini-2.0-flash",
+        model: "gemini-1.5-flash",
         contents: [`Job Description:\n${jobDescription}\n\nCandidate Resume Text:\n${resumeText || 'Not provided'}\n\nCandidate Current Skills: ${JSON.stringify(userSkills || [])}`],
         config: {
           systemInstruction: systemPrompt,
@@ -1453,7 +1462,7 @@ Return ONLY a valid JSON with this structure:
       const userContent = `Job Description:\n${jobDescription}\n\nCurrent Resume Data:\n${JSON.stringify(resumeData, null, 2)}\n\nMissing Keywords to Incorporate:\n${JSON.stringify(missingKeywords || [])}\n\nCurrent JD Match Score: ${currentMatchScore || 'Unknown'}%`;
 
       const response = await ai.models.generateContent({
-        model: "gemini-2.0-flash",
+        model: "gemini-1.5-flash",
         contents: [userContent],
         config: {
           systemInstruction: systemPrompt,
@@ -1583,7 +1592,7 @@ Return ONLY a valid JSON object matching this schema:
       const userContent = `Job Description:\n${jobDescription}\n\nOld Resume Text:\n${oldResumeText}\n\nKeywords to Incorporate:\n${JSON.stringify(keywords)}`;
 
       const response = await ai.models.generateContent({
-        model: "gemini-2.0-flash",
+        model: "gemini-1.5-flash",
         contents: [userContent],
         config: {
           systemInstruction: systemPrompt,
