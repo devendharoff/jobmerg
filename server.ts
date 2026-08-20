@@ -7,6 +7,10 @@ import fs from "fs";
 import { exec } from "child_process";
 import { promisify } from "util";
 import { fileURLToPath } from "url";
+import { createRequire } from "module";
+
+const require = createRequire(import.meta.url);
+const pdf = require("pdf-parse");
 
 import compression from "compression";
 import rateLimit from "express-rate-limit";
@@ -1102,6 +1106,7 @@ function extractProfileFromText(text: string) {
 
 // AI Resume Parsing & Text Extraction Endpoint
 app.post("/api/parse-resume", async (req, res) => {
+  let text = "";
   try {
     const { resumeFile, resumeText } = req.body;
 
@@ -1109,16 +1114,20 @@ app.post("/api/parse-resume", async (req, res) => {
       return res.status(400).json({ error: "Missing resumeFile or resumeText parameter." });
     }
 
+    text = resumeText || "";
+    if (resumeFile) {
+      try {
+        const buffer = Buffer.from(resumeFile, 'base64');
+        const pdfData = await pdf(buffer);
+        text = pdfData.text || "";
+      } catch (pdfErr: any) {
+        console.warn("Failed to parse PDF using pdf-parse:", pdfErr.message);
+      }
+    }
+
     const ai = getAiClient();
 
     const localParse = () => {
-      let text = resumeText || "";
-      if (resumeFile) {
-        try {
-          const decoded = Buffer.from(resumeFile, 'base64').toString('utf8');
-          text = decoded.replace(/[^\x20-\x7E\s]/g, ' ');
-        } catch (e) {}
-      }
       return extractProfileFromText(text);
     };
 
@@ -1188,7 +1197,7 @@ Ensure all extracted values reflect the actual document. Do not invent any compa
         }
       });
     }
-    contents.push(`Parse this resume file/text and return the JSON structure:\n${resumeText || "PDF attachment provided."}`);
+    contents.push(`Parse this resume file/text and return the JSON structure:\n${text || "PDF attachment provided."}`);
 
     const response = await ai.models.generateContent({
       model: "gemini-2.0-flash",
@@ -1199,24 +1208,28 @@ Ensure all extracted values reflect the actual document. Do not invent any compa
       }
     });
 
-    const text = response.text;
-    if (!text) {
+    const aiResponseText = response.text;
+    if (!aiResponseText) {
       throw new Error("No response text received from Gemini API");
     }
 
-    const parsedData = JSON.parse(text);
+    const parsedData = JSON.parse(aiResponseText);
     return res.json(parsedData);
   } catch (error: any) {
     console.warn("Gemini parse-resume failed, serving local fallback:", error.message || error);
-    return res.json({
-      personal: { name: "", title: "", email: "", phone: "", location: "", github: "", linkedin: "", portfolio: "" },
-      summary: "",
-      skills: { languages: "", frameworks: "", tools: "", competencies: "" },
-      experience: [],
-      education: [],
-      projects: [],
-      certifications: []
-    });
+    try {
+      return res.json(extractProfileFromText(text));
+    } catch (fallbackErr) {
+      return res.json({
+        personal: { name: "Candidate Name", title: "", email: "", phone: "", location: "", github: "", linkedin: "", portfolio: "" },
+        summary: "",
+        skills: { languages: "", frameworks: "", tools: "", competencies: "" },
+        experience: [],
+        education: [],
+        projects: [],
+        certifications: []
+      });
+    }
   }
 });
 
