@@ -22,7 +22,7 @@ import { useUser, useAuth, SignIn as ClerkSignIn, SignUp as ClerkSignUp, SignInB
 // High-concurrency bundle optimization: Lazy load heavy secondary tab components
 const SalaryInsights = lazy(() => import('./components/SalaryInsights'));
 const ApplicationTracker = lazy(() => import('./components/ApplicationTracker'));
-const JobStudio = lazy(() => import('./components/JobStudio'));
+const ResumeStudio = lazy(() => import('./components/ResumeStudio'));
 const AutoApplyBot = lazy(() => import('./components/AutoApplyBot'));
 import CoverLetterGenerator from './components/CoverLetterGenerator';
 import UserProfileManager from './components/UserProfileManager';
@@ -1377,7 +1377,7 @@ export default function App() {
               }`}
             >
               <Zap className="w-5 h-5" />
-              <span className="text-[10px] font-bold mt-0.5">Job Studio</span>
+              <span className="text-[10px] font-bold mt-0.5">Resume Studio</span>
             </button>
 
             <button
@@ -1479,7 +1479,7 @@ export default function App() {
                           ? 'bg-[#4f46e5]/10 text-[#4f46e5] shadow-xs'
                           : 'text-gray-400 hover:text-gray-800 hover:bg-gray-50'
                       }`}
-                      title="AI Job Studio"
+                      title="Resume Studio"
                     >
                       <Zap className="w-5 h-5" />
                     </button>
@@ -1624,7 +1624,7 @@ export default function App() {
                     >
                       <div className="flex items-center gap-3">
                         <Zap className="w-4 h-4 text-[#4f46e5]" />
-                        <span>AI Job Studio</span>
+                        <span>Resume Studio</span>
                       </div>
                     </button>
 
@@ -2370,7 +2370,7 @@ export default function App() {
               {/* AI Job Studio View */}
               {activeDashboardTab === 'JobStudio' && (
                 <div className="flex-1 flex flex-col min-h-0 lg:overflow-hidden">
-                  <JobStudio 
+                  <ResumeStudio 
                     userProfile={userProfile} 
                     onOpenPricing={() => { setIsOnboardingPlanSelection(false); setShowPricingModal(true); }}
                   />
