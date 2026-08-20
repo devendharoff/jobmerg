@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   User, Mail, Phone, MapPin, Globe, Award, Briefcase, BookOpen, 
   Sparkles, Check, Trash2, Plus, Download, RefreshCw, Printer, ShieldAlert, ChevronRight, LayoutGrid, CheckCircle2,
-  Columns, Eye, FileText, ChevronLeft, ArrowRight, Activity, Zap, Info
+  Columns, Eye, FileText, ChevronLeft, ArrowRight, Activity, Zap, Info, Award as CertIcon
 } from 'lucide-react';
 import { UserProfile } from '../types';
 import ResumeWizard from './ResumeWizard';
@@ -14,6 +14,7 @@ interface WorkExp {
   role: string;
   dates: string;
   description: string;
+  technologies?: string;
 }
 
 interface Education {
@@ -21,12 +22,20 @@ interface Education {
   degree: string;
   year: string;
   gpa?: string;
+  coursework?: string;
 }
 
 interface Project {
   title: string;
   technologies: string;
   description: string;
+}
+
+interface SkillsGrouped {
+  languages: string;
+  frameworks: string;
+  tools: string;
+  competencies: string;
 }
 
 interface JobStudioProps {
@@ -78,16 +87,35 @@ export default function JobStudio({ userProfile, onOpenPricing }: JobStudioProps
     phone: savedData?.phone || '',
     location: savedData?.location || '',
     github: savedData?.github || '',
-    linkedin: savedData?.linkedin || ''
+    linkedin: savedData?.linkedin || '',
+    portfolio: savedData?.portfolio || ''
   });
 
   const [summary, setSummary] = useState(savedData?.summary || userProfile.resumeText || '');
-  const [skills, setSkills] = useState<string[]>(savedData?.skills || userProfile.skills || []);
-  const [skillInput, setSkillInput] = useState('');
-  const [experience, setExperience] = useState<WorkExp[]>(savedData?.experience || [{ company: '', role: '', dates: '', description: '' }]);
-  const [education, setEducation] = useState<Education[]>(savedData?.education || [{ school: '', degree: '', year: '', gpa: '' }]);
-  const [projects, setProjects] = useState<Project[]>(savedData?.projects || [{ title: '', technologies: '', description: '' }]);
   
+  // Logical skills categorization state
+  const [skillsGrouped, setSkillsGrouped] = useState<SkillsGrouped>({
+    languages: savedData?.skillsGrouped?.languages || 'Python, JavaScript, HTML/CSS, SQL',
+    frameworks: savedData?.skillsGrouped?.frameworks || 'React, Flask, Node.js, Express, Tailwind CSS',
+    tools: savedData?.skillsGrouped?.tools || 'Git, Supabase, Firebase, MongoDB, Docker, AWS',
+    competencies: savedData?.skillsGrouped?.competencies || 'Full-Stack Development, UI/UX Design, API Integration'
+  });
+
+  const [experience, setExperience] = useState<WorkExp[]>(
+    savedData?.experience || [{ company: '', role: '', dates: '', description: '', technologies: '' }]
+  );
+  const [education, setEducation] = useState<Education[]>(
+    savedData?.education || [{ school: '', degree: '', year: '', gpa: '', coursework: '' }]
+  );
+  const [projects, setProjects] = useState<Project[]>(
+    savedData?.projects || [{ title: '', technologies: '', description: '' }]
+  );
+  const [certifications, setCertifications] = useState<string[]>(
+    savedData?.certifications || ['AWS Certified Solutions Architect', 'Google Cloud Certified Professional']
+  );
+  
+  const [certInput, setCertInput] = useState('');
+
   // Wizard and Highlights
   const [showWizard, setShowWizard] = useState(false);
   const [highlightKeywords, setHighlightKeywords] = useState(true);
@@ -106,12 +134,20 @@ export default function JobStudio({ userProfile, onOpenPricing }: JobStudioProps
   useEffect(() => {
     try {
       localStorage.setItem('jobmerge_resume_data', JSON.stringify({
-        summary, skills, experience, education, projects,
-        phone: personal.phone, location: personal.location,
-        github: personal.github, linkedin: personal.linkedin
+        summary, 
+        skillsGrouped, 
+        experience, 
+        education, 
+        projects,
+        certifications,
+        phone: personal.phone, 
+        location: personal.location,
+        github: personal.github, 
+        linkedin: personal.linkedin,
+        portfolio: personal.portfolio
       }));
     } catch (e) {}
-  }, [summary, skills, experience, education, projects, personal]);
+  }, [summary, skillsGrouped, experience, education, projects, certifications, personal]);
 
   useEffect(() => {
     localStorage.setItem('jobmerge_last_jd', jobDescription);
@@ -119,18 +155,19 @@ export default function JobStudio({ userProfile, onOpenPricing }: JobStudioProps
 
   // Real-time local ATS scorer
   useEffect(() => {
-    const text = `${personal.name} ${personal.title} ${summary} ${skills.join(' ')} ${experience.map(e => e.description).join(' ')} ${projects.map(p => p.description).join(' ')}`;
+    const text = `${personal.name} ${personal.title} ${summary} ${skillsGrouped.languages} ${skillsGrouped.frameworks} ${skillsGrouped.tools} ${skillsGrouped.competencies} ${experience.map(e => `${e.company} ${e.role} ${e.description} ${e.technologies}`).join(' ')} ${projects.map(p => `${p.title} ${p.description} ${p.technologies}`).join(' ')} ${certifications.join(' ')}`;
     const lowerText = text.toLowerCase();
     
-    // Scorer
+    // Scorer calculation
     let score = 55;
     const hasEmail = /[\w.-]+@[\w.-]+\.\w+/.test(lowerText);
     const hasPhone = /(\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/.test(lowerText);
     
     if (hasEmail) score += 10;
     if (hasPhone) score += 10;
-    if (skills.length > 5) score += 10;
-    if (experience.length > 1) score += 10;
+    if (skillsGrouped.languages.length > 3) score += 5;
+    if (skillsGrouped.frameworks.length > 3) score += 5;
+    if (experience.length > 0 && experience[0].company) score += 10;
     
     // Keywords matching
     if (keywordsToHighlight.length > 0) {
@@ -141,7 +178,7 @@ export default function JobStudio({ userProfile, onOpenPricing }: JobStudioProps
     
     setAtsScore(Math.min(99, score));
     setAtsDetails(score > 80 ? "Excellent ATS compliance. Resume is optimized with keywords and structured appropriately." : "Moderate ATS match. Try auto-injecting missing keywords to hit a >85 score.");
-  }, [personal, summary, skills, experience, projects, keywordsToHighlight]);
+  }, [personal, summary, skillsGrouped, experience, projects, certifications, keywordsToHighlight]);
 
   // AI Extractor
   const handleExtractKeywords = async () => {
@@ -182,7 +219,7 @@ export default function JobStudio({ userProfile, onOpenPricing }: JobStudioProps
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          resumeData: { summary, skills, experience, projects },
+          resumeData: { summary, skills: Object.values(skillsGrouped).join(', ').split(',').map(s => s.trim()), experience, projects },
           jobDescription,
           missingKeywords: keywords?.missing || keywordsToHighlight.slice(0, 6),
           currentMatchScore: atsScore
@@ -192,40 +229,50 @@ export default function JobStudio({ userProfile, onOpenPricing }: JobStudioProps
       const data = await res.json();
       const opt = data.optimizedData;
       if (opt.summary) setSummary(opt.summary);
-      if (opt.skills) setSkills(opt.skills);
-      if (opt.experience) setExperience(opt.experience);
+      if (opt.skills) {
+        // split back to categories approximately or add to tools/frameworks
+        setSkillsGrouped(prev => ({
+          ...prev,
+          tools: prev.tools + ', ' + opt.skills.slice(0, 4).join(', ')
+        }));
+      }
+      if (opt.experience) {
+        setExperience(opt.experience);
+      }
     } catch (e) {
-      // Local injection fallback
       const kws = keywords?.missing || keywordsToHighlight.slice(0, 4);
-      setSkills(prev => [...new Set([...prev, ...kws])]);
+      setSkillsGrouped(prev => ({
+        ...prev,
+        tools: prev.tools + ', ' + kws.join(', ')
+      }));
       setSummary(prev => prev + ` Proficient in ${kws.join(', ')}.`);
     } finally {
       setIsOptimizing(false);
     }
   };
 
-  const handlePrint = () => {
-    window.print();
-  };
-
-  // Add / remove item handlers
-  const addWork = () => setExperience([...experience, { company: '', role: '', dates: '', description: '' }]);
+  // Add / remove handlers
+  const addWork = () => setExperience([...experience, { company: '', role: '', dates: '', description: '', technologies: '' }]);
   const removeWork = (idx: number) => setExperience(experience.filter((_, i) => i !== idx));
-  const addEdu = () => setEducation([...education, { school: '', degree: '', year: '', gpa: '' }]);
+  const addEdu = () => setEducation([...education, { school: '', degree: '', year: '', gpa: '', coursework: '' }]);
   const removeEdu = (idx: number) => setEducation(education.filter((_, i) => i !== idx));
   const addProj = () => setProjects([...projects, { title: '', technologies: '', description: '' }]);
   const removeProj = (idx: number) => setProjects(projects.filter((_, i) => i !== idx));
   
-  const handleAddSkill = (e: React.FormEvent) => {
+  const handlePrint = () => {
+    window.print();
+  };
+  
+  const handleAddCert = (e: React.FormEvent) => {
     e.preventDefault();
-    if (skillInput.trim() && !skills.includes(skillInput.trim())) {
-      setSkills([...skills, skillInput.trim()]);
-      setSkillInput('');
+    if (certInput.trim() && !certifications.includes(certInput.trim())) {
+      setCertifications([...certifications, certInput.trim()]);
+      setCertInput('');
     }
   };
-  const removeSkill = (idx: number) => setSkills(skills.filter((_, i) => i !== idx));
+  const removeCert = (idx: number) => setCertifications(certifications.filter((_, i) => i !== idx));
 
-  // Highlighting Helpers
+  // Highlighting parser
   const renderHighlightedText = (text: string) => {
     if (!text) return null;
     if (!highlightKeywords || keywordsToHighlight.length === 0) return text;
@@ -278,7 +325,6 @@ export default function JobStudio({ userProfile, onOpenPricing }: JobStudioProps
         </div>
 
         <div className="flex flex-wrap gap-2 items-center">
-          {/* Studio Panel Toggles */}
           <button
             onClick={() => setShowCopilot(!showCopilot)}
             className={`px-3.5 py-2 border rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
@@ -334,7 +380,7 @@ export default function JobStudio({ userProfile, onOpenPricing }: JobStudioProps
             <div className="space-y-1.5">
               <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Target Job Description</label>
               <textarea
-                className="w-full bg-gray-50 border border-gray-150 rounded-xl p-3 text-[11px] font-medium leading-normal placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-indigo-500 h-[100px] resize-none"
+                className="w-full bg-gray-50 border border-gray-150 rounded-xl p-3 text-[11px] font-medium leading-normal placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-indigo-500 h-[120px] resize-none"
                 placeholder="Paste Job Description to run real-time keyword compliance reviews..."
                 value={jobDescription}
                 onChange={(e) => setJobDescription(e.target.value)}
@@ -342,7 +388,7 @@ export default function JobStudio({ userProfile, onOpenPricing }: JobStudioProps
               <button
                 onClick={handleExtractKeywords}
                 disabled={isExtracting || jobDescription.trim().length < 50}
-                className="w-full py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                className="w-full py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 animate-fade-in"
               >
                 {isExtracting ? (
                   <RefreshCw className="w-3.5 h-3.5 animate-spin" />
@@ -374,7 +420,7 @@ export default function JobStudio({ userProfile, onOpenPricing }: JobStudioProps
                         {keywords.missing.slice(0, 10).map((kw, i) => (
                           <button
                             key={i}
-                            onClick={() => setSkills([...skills, kw])}
+                            onClick={() => setSkillsGrouped(prev => ({ ...prev, tools: prev.tools ? `${prev.tools}, ${kw}` : kw }))}
                             className="px-2 py-0.5 bg-red-50 hover:bg-emerald-50 text-red-700 hover:text-emerald-800 border border-red-100 hover:border-emerald-250 rounded text-[9px] font-semibold flex items-center gap-0.5 transition-colors cursor-pointer"
                             title="Click to add to skills"
                           >
@@ -402,7 +448,7 @@ export default function JobStudio({ userProfile, onOpenPricing }: JobStudioProps
           </div>
         )}
 
-        {/* PANEL 2: INTERACTIVE EDITOR (Width: Variable depending on viewMode/copilot) */}
+        {/* PANEL 2: INTERACTIVE EDITOR */}
         {(viewMode === 'split' || viewMode === 'editor') && (
           <div className={`space-y-6 lg:h-full lg:overflow-y-auto pr-1 pb-4 scrollbar-thin text-left print:hidden ${
             showCopilot 
@@ -473,6 +519,24 @@ export default function JobStudio({ userProfile, onOpenPricing }: JobStudioProps
                     className="w-full bg-gray-50 border border-gray-150 rounded-lg px-3 py-2 text-gray-800 font-semibold focus:outline-none focus:ring-1 focus:ring-indigo-500"
                   />
                 </div>
+                <div className="space-y-1">
+                  <label className="font-bold text-gray-400">GitHub Profile</label>
+                  <input 
+                    type="text" 
+                    value={personal.github} 
+                    onChange={e => setPersonal({...personal, github: e.target.value})} 
+                    className="w-full bg-gray-50 border border-gray-150 rounded-lg px-3 py-2 text-gray-800 font-semibold focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="font-bold text-gray-400">Portfolio Website</label>
+                  <input 
+                    type="text" 
+                    value={personal.portfolio} 
+                    onChange={e => setPersonal({...personal, portfolio: e.target.value})} 
+                    className="w-full bg-gray-50 border border-gray-150 rounded-lg px-3 py-2 text-gray-800 font-semibold focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  />
+                </div>
               </div>
             </div>
 
@@ -489,49 +553,57 @@ export default function JobStudio({ userProfile, onOpenPricing }: JobStudioProps
                   rows={3}
                   value={summary}
                   onChange={e => setSummary(e.target.value)}
-                  className="w-full bg-gray-50 border border-gray-150 rounded-lg p-3 text-gray-800 font-medium focus:outline-none focus:ring-1 focus:ring-indigo-500 resize-none leading-relaxed"
+                  className="w-full bg-gray-50 border border-gray-150 rounded-lg p-3 text-gray-805 font-medium focus:outline-none focus:ring-1 focus:ring-indigo-500 resize-none leading-relaxed"
                 />
               </div>
             </div>
 
-            {/* Form: Skills Tag Editor */}
+            {/* Form: Grouped Skills Editor */}
             <div className="bg-white p-5 rounded-3xl border border-gray-150 shadow-xs space-y-4">
               <div className="flex items-center gap-2 pb-2 border-b border-gray-100">
                 <div className="w-7 h-7 bg-indigo-50 text-indigo-700 rounded-lg flex items-center justify-center">
                   <LayoutGrid className="w-4 h-4" />
                 </div>
-                <h3 className="text-sm font-extrabold text-gray-900 font-display">Tech Stack / Core Competencies</h3>
+                <h3 className="text-sm font-extrabold text-gray-900 font-display">Technical Skills (Grouped)</h3>
               </div>
               
-              <form onSubmit={handleAddSkill} className="flex gap-2">
-                <input 
-                  type="text" 
-                  value={skillInput}
-                  onChange={e => setSkillInput(e.target.value)}
-                  placeholder="Type a skill and hit enter..."
-                  className="flex-1 bg-gray-50 border border-gray-150 rounded-lg px-3 py-1.5 text-xs font-semibold text-gray-850 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                />
-                <button 
-                  type="submit"
-                  className="px-4 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-extrabold cursor-pointer"
-                >
-                  Add
-                </button>
-              </form>
-
-              <div className="flex flex-wrap gap-1.5">
-                {skills.map((skill, idx) => (
-                  <span key={idx} className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-50 border border-gray-200 text-gray-800 rounded-lg text-xs font-semibold">
-                    <span>{skill}</span>
-                    <button 
-                      type="button" 
-                      onClick={() => removeSkill(idx)}
-                      className="text-gray-400 hover:text-red-500 font-bold ml-1 focus:outline-none text-[10px]"
-                    >
-                      ×
-                    </button>
-                  </span>
-                ))}
+              <div className="grid grid-cols-1 gap-3 text-xs">
+                <div className="space-y-1">
+                  <label className="font-bold text-gray-500">Languages (e.g. Python, JS)</label>
+                  <input 
+                    type="text" 
+                    value={skillsGrouped.languages}
+                    onChange={e => setSkillsGrouped({...skillsGrouped, languages: e.target.value})}
+                    className="w-full bg-gray-50 border border-gray-150 rounded-lg px-3 py-2 text-gray-800 font-semibold focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="font-bold text-gray-500">Frameworks & Libraries (e.g. React, Node.js)</label>
+                  <input 
+                    type="text" 
+                    value={skillsGrouped.frameworks}
+                    onChange={e => setSkillsGrouped({...skillsGrouped, frameworks: e.target.value})}
+                    className="w-full bg-gray-50 border border-gray-150 rounded-lg px-3 py-2 text-gray-805 font-semibold focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="font-bold text-gray-500">Tools & Platforms (e.g. Git, Docker, AWS)</label>
+                  <input 
+                    type="text" 
+                    value={skillsGrouped.tools}
+                    onChange={e => setSkillsGrouped({...skillsGrouped, tools: e.target.value})}
+                    className="w-full bg-gray-50 border border-gray-150 rounded-lg px-3 py-2 text-gray-805 font-semibold focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="font-bold text-gray-500">Core Competencies (e.g. API Integration, UI/UX)</label>
+                  <input 
+                    type="text" 
+                    value={skillsGrouped.competencies}
+                    onChange={e => setSkillsGrouped({...skillsGrouped, competencies: e.target.value})}
+                    className="w-full bg-gray-50 border border-gray-150 rounded-lg px-3 py-2 text-gray-850 font-semibold focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  />
+                </div>
               </div>
             </div>
 
@@ -577,7 +649,7 @@ export default function JobStudio({ userProfile, onOpenPricing }: JobStudioProps
                             updated[idx].company = e.target.value;
                             setExperience(updated);
                           }}
-                          className="w-full bg-gray-50 border border-gray-150 rounded-lg px-3 py-2 text-gray-800 font-semibold focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                          className="w-full bg-gray-50 border border-gray-150 rounded-lg px-3 py-2 text-gray-805 focus:outline-none"
                         />
                       </div>
                       <div className="space-y-1">
@@ -590,7 +662,7 @@ export default function JobStudio({ userProfile, onOpenPricing }: JobStudioProps
                             updated[idx].role = e.target.value;
                             setExperience(updated);
                           }}
-                          className="w-full bg-gray-50 border border-gray-150 rounded-lg px-3 py-2 text-gray-800 font-semibold focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                          className="w-full bg-gray-50 border border-gray-150 rounded-lg px-3 py-2 text-gray-805 focus:outline-none"
                         />
                       </div>
                       <div className="space-y-1">
@@ -598,15 +670,28 @@ export default function JobStudio({ userProfile, onOpenPricing }: JobStudioProps
                         <input 
                           type="text" 
                           value={work.dates}
-                          placeholder="e.g. 2022 - Present"
                           onChange={e => {
                             const updated = [...experience];
                             updated[idx].dates = e.target.value;
                             setExperience(updated);
                           }}
-                          className="w-full bg-gray-50 border border-gray-150 rounded-lg px-3 py-2 text-gray-800 font-semibold focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                          className="w-full bg-gray-50 border border-gray-150 rounded-lg px-3 py-2 text-gray-805 focus:outline-none"
                         />
                       </div>
+                    </div>
+                    <div className="space-y-1 text-xs">
+                      <label className="font-bold text-gray-400">Tech Stack Used</label>
+                      <input 
+                        type="text" 
+                        placeholder="e.g. React, Supabase, Tailwind CSS"
+                        value={work.technologies || ''}
+                        onChange={e => {
+                          const updated = [...experience];
+                          updated[idx].technologies = e.target.value;
+                          setExperience(updated);
+                        }}
+                        className="w-full bg-gray-50 border border-gray-150 rounded-lg px-3 py-2 text-gray-805 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                      />
                     </div>
                     <div className="space-y-1 text-xs">
                       <label className="font-bold text-gray-400">Description Bullet Points (Use newlines for separate bullets)</label>
@@ -618,7 +703,7 @@ export default function JobStudio({ userProfile, onOpenPricing }: JobStudioProps
                           updated[idx].description = e.target.value;
                           setExperience(updated);
                         }}
-                        className="w-full bg-gray-50 border border-gray-150 rounded-lg p-2.5 text-gray-800 font-medium focus:outline-none focus:ring-1 focus:ring-indigo-500 resize-none leading-relaxed"
+                        className="w-full bg-gray-50 border border-gray-150 rounded-lg p-2.5 text-gray-805 focus:outline-none resize-none leading-relaxed"
                       />
                     </div>
                   </div>
@@ -668,7 +753,7 @@ export default function JobStudio({ userProfile, onOpenPricing }: JobStudioProps
                             updated[idx].title = e.target.value;
                             setProjects(updated);
                           }}
-                          className="w-full bg-gray-50 border border-gray-150 rounded-lg px-3 py-2 text-gray-800 font-semibold focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                          className="w-full bg-gray-50 border border-gray-150 rounded-lg px-3 py-2 text-gray-805 focus:outline-none"
                         />
                       </div>
                       <div className="space-y-1">
@@ -681,7 +766,7 @@ export default function JobStudio({ userProfile, onOpenPricing }: JobStudioProps
                             updated[idx].technologies = e.target.value;
                             setProjects(updated);
                           }}
-                          className="w-full bg-gray-50 border border-gray-150 rounded-lg px-3 py-2 text-gray-800 font-semibold focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                          className="w-full bg-gray-50 border border-gray-150 rounded-lg px-3 py-2 text-gray-855 focus:outline-none"
                         />
                       </div>
                     </div>
@@ -695,17 +780,150 @@ export default function JobStudio({ userProfile, onOpenPricing }: JobStudioProps
                           updated[idx].description = e.target.value;
                           setProjects(updated);
                         }}
-                        className="w-full bg-gray-50 border border-gray-150 rounded-lg p-2.5 text-gray-800 font-medium focus:outline-none focus:ring-1 focus:ring-indigo-500 resize-none leading-relaxed"
+                        className="w-full bg-gray-50 border border-gray-150 rounded-lg p-2.5 text-gray-855 focus:outline-none resize-none leading-relaxed"
                       />
                     </div>
                   </div>
                 ))}
               </div>
             </div>
+
+            {/* Form: Education */}
+            <div className="bg-white p-5 rounded-3xl border border-gray-150 shadow-xs space-y-4">
+              <div className="flex justify-between items-center pb-2 border-b border-gray-100">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 bg-indigo-50 text-indigo-700 rounded-lg flex items-center justify-center">
+                    <BookOpen className="w-4 h-4" />
+                  </div>
+                  <h3 className="text-sm font-extrabold text-gray-900 font-display">Education</h3>
+                </div>
+                <button 
+                  onClick={addEdu}
+                  className="text-[10px] font-extrabold uppercase tracking-wide text-indigo-600 hover:underline flex items-center gap-0.5 cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Add Degree
+                </button>
+              </div>
+
+              <div className="space-y-4 divide-y divide-gray-100">
+                {education.map((edu, idx) => (
+                  <div key={idx} className="space-y-3 pt-4 first:pt-0 border-none">
+                    <div className="flex justify-between items-center">
+                      <span className="font-extrabold text-indigo-600 text-xs">Degree Entry #{idx + 1}</span>
+                      {education.length > 1 && (
+                        <button 
+                          onClick={() => removeEdu(idx)} 
+                          className="text-red-500 hover:text-red-700 flex items-center gap-0.5 font-bold cursor-pointer text-[10px]"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" /> Delete
+                        </button>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                      <div className="space-y-1">
+                        <label className="font-bold text-gray-400">School / University</label>
+                        <input 
+                          type="text" 
+                          value={edu.school}
+                          onChange={e => {
+                            const updated = [...education];
+                            updated[idx].school = e.target.value;
+                            setEducation(updated);
+                          }}
+                          className="w-full bg-gray-50 border border-gray-150 rounded-lg px-3 py-2 text-gray-805 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="font-bold text-gray-400">Degree (e.g. B.Tech CS)</label>
+                        <input 
+                          type="text" 
+                          value={edu.degree}
+                          onChange={e => {
+                            const updated = [...education];
+                            updated[idx].degree = e.target.value;
+                            setEducation(updated);
+                          }}
+                          className="w-full bg-gray-50 border border-gray-150 rounded-lg px-3 py-2 text-gray-805 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="font-bold text-gray-400">Graduation Year</label>
+                        <input 
+                          type="text" 
+                          value={edu.year}
+                          onChange={e => {
+                            const updated = [...education];
+                            updated[idx].year = e.target.value;
+                            setEducation(updated);
+                          }}
+                          className="w-full bg-gray-50 border border-gray-150 rounded-lg px-3 py-2 text-gray-855 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-1 text-xs">
+                      <label className="font-bold text-gray-400">Relevant Coursework & Highlights</label>
+                      <input 
+                        type="text" 
+                        placeholder="e.g. Data Structures, Database Systems, Machine Learning"
+                        value={edu.coursework || ''}
+                        onChange={e => {
+                          const updated = [...education];
+                          updated[idx].coursework = e.target.value;
+                          setEducation(updated);
+                        }}
+                        className="w-full bg-gray-50 border border-gray-150 rounded-lg px-3 py-2 text-gray-805 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Form: Certifications & Achievements */}
+            <div className="bg-white p-5 rounded-3xl border border-gray-150 shadow-xs space-y-4">
+              <div className="flex items-center gap-2 pb-2 border-b border-gray-100">
+                <div className="w-7 h-7 bg-indigo-50 text-indigo-700 rounded-lg flex items-center justify-center">
+                  <CertIcon className="w-4 h-4" />
+                </div>
+                <h3 className="text-sm font-extrabold text-gray-900 font-display">Certifications & Achievements</h3>
+              </div>
+              
+              <form onSubmit={handleAddCert} className="flex gap-2">
+                <input 
+                  type="text" 
+                  value={certInput}
+                  onChange={e => setCertInput(e.target.value)}
+                  placeholder="e.g. Founded local Tech Club, Hackathon Winner..."
+                  className="flex-1 bg-gray-50 border border-gray-150 rounded-lg px-3 py-1.5 text-xs font-semibold text-gray-800 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                />
+                <button 
+                  type="submit"
+                  className="px-4 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-extrabold cursor-pointer animate-fade-in"
+                >
+                  Add
+                </button>
+              </form>
+
+              <div className="space-y-1.5">
+                {certifications.map((cert, idx) => (
+                  <div key={idx} className="flex justify-between items-center p-2 bg-slate-50 border border-gray-150 rounded-xl text-xs font-bold text-gray-800">
+                    <span>{cert}</span>
+                    <button 
+                      type="button" 
+                      onClick={() => removeCert(idx)}
+                      className="text-red-500 hover:text-red-700 font-bold ml-1 focus:outline-none"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
           </div>
         )}
 
-        {/* PANEL 3: HIGH-FIDELITY PREVIEW (Width: Variable depending on viewMode) */}
+        {/* PANEL 3: HIGH-FIDELITY PREVIEW */}
         {(viewMode === 'split' || viewMode === 'preview') && (
           <div className={`lg:h-full lg:overflow-y-auto pb-6 print:w-full print:p-0 print:h-auto print:overflow-visible text-left ${
             showCopilot 
@@ -771,7 +989,8 @@ export default function JobStudio({ userProfile, onOpenPricing }: JobStudioProps
                   experience={highlightKeywords ? experience.map(exp => ({ ...exp, description: renderHighlightedText(exp.description) })) : experience}
                   education={education}
                   projects={highlightKeywords ? projects.map(proj => ({ ...proj, description: renderHighlightedText(proj.description) })) : projects}
-                  skills={highlightKeywords ? skills.map(skill => renderHighlightedSkill(skill)) : skills}
+                  skills={skillsGrouped}
+                  certifications={certifications}
                 />
               </div>
 
@@ -793,11 +1012,23 @@ export default function JobStudio({ userProfile, onOpenPricing }: JobStudioProps
               phone: data.personal.phone || '',
               location: data.personal.location || '',
               github: data.personal.github || '',
-              linkedin: data.personal.linkedin || ''
+              linkedin: data.personal.linkedin || '',
+              portfolio: data.personal.portfolio || ''
             });
           }
           if (data.summary) setSummary(data.summary);
-          if (data.skills) setSkills(data.skills);
+          
+          if (data.skills) {
+            // Distribute flat array of skills into grouped fields
+            const sks = data.skills;
+            setSkillsGrouped({
+              languages: sks.slice(0, 4).join(', '),
+              frameworks: sks.slice(4, 8).join(', '),
+              tools: sks.slice(8, 12).join(', '),
+              competencies: sks.slice(12).join(', ')
+            });
+          }
+          
           if (data.experience) setExperience(data.experience);
           if (data.education) setEducation(data.education);
           if (data.projects) setProjects(data.projects);
@@ -809,14 +1040,20 @@ export default function JobStudio({ userProfile, onOpenPricing }: JobStudioProps
             localStorage.setItem('jobmerge_resume_keywords', JSON.stringify(kws));
             localStorage.setItem('jobmerge_resume_data', JSON.stringify({
               summary: data.summary,
-              skills: data.skills,
+              skillsGrouped: {
+                languages: data.skills?.slice(0, 4).join(', ') || '',
+                frameworks: data.skills?.slice(4, 8).join(', ') || '',
+                tools: data.skills?.slice(8, 12).join(', ') || '',
+                competencies: data.skills?.slice(12).join(', ') || ''
+              },
               experience: data.experience,
               education: data.education,
               projects: data.projects,
               phone: data.personal?.phone || '',
               location: data.personal?.location || '',
               github: data.personal?.github || '',
-              linkedin: data.personal?.linkedin || ''
+              linkedin: data.personal?.linkedin || '',
+              portfolio: data.personal?.portfolio || ''
             }));
           } catch (e) {}
         }}
