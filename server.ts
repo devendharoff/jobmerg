@@ -1900,24 +1900,30 @@ async function startServer() {
   const distPath = path.join(process.cwd(), 'dist');
   const isDevMode = process.argv.includes('--dev') || process.env.NODE_ENV !== 'production';
 
+  console.log(`[DIAGNOSTIC] startServer: isDevMode = ${isDevMode}, distPath exists = ${fs.existsSync(distPath)}`);
+
   if (!isDevMode && fs.existsSync(distPath)) {
+    console.log(`[DIAGNOSTIC] Using static production mode serving`);
     app.use(express.static(distPath, {
       maxAge: '1d',
       etag: true,
       lastModified: true
     }));
     app.get('*', (req, res, next) => {
+      console.log(`[DIAGNOSTIC] Production wildcard hit: ${req.path}`);
       if (req.path.startsWith('/api')) return next();
       return res.sendFile(path.join(distPath, 'index.html'));
     });
   } else {
     try {
+      console.log(`[DIAGNOSTIC] Starting Vite development server middleware`);
       const vite = await createViteServer({
         server: { middlewareMode: true },
         appType: "spa",
       });
       app.use(vite.middlewares);
       app.get('*', async (req, res, next) => {
+        console.log(`[DIAGNOSTIC] Dev wildcard hit: ${req.path}`);
         if (req.path.startsWith('/api')) return next();
         try {
           const url = req.originalUrl;
@@ -1925,12 +1931,13 @@ async function startServer() {
           template = await vite.transformIndexHtml(url, template);
           res.status(200).set({ 'Content-Type': 'text/html' }).end(template);
         } catch (e: any) {
+          console.error(`[DIAGNOSTIC] Dev wildcard error:`, e.message || e);
           vite?.ssrFixStacktrace(e);
           next(e);
         }
       });
-    } catch (viteErr) {
-      console.warn("Vite middleware note:", viteErr);
+    } catch (viteErr: any) {
+      console.warn("Vite middleware note:", viteErr.message || viteErr);
     }
   }
 
