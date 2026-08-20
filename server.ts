@@ -1109,6 +1109,7 @@ app.post("/api/parse-resume", async (req, res) => {
   let text = "";
   try {
     const { resumeFile, resumeText } = req.body;
+    console.log(`[PARSER] Request received: resumeFile length = ${resumeFile ? resumeFile.length : 0}, resumeText length = ${resumeText ? resumeText.length : 0}`);
 
     if (!resumeFile && !resumeText) {
       return res.status(400).json({ error: "Missing resumeFile or resumeText parameter." });
@@ -1118,20 +1119,27 @@ app.post("/api/parse-resume", async (req, res) => {
     if (resumeFile) {
       try {
         const buffer = Buffer.from(resumeFile, 'base64');
+        console.log(`[PARSER] Decoding base64 PDF stream (buffer size = ${buffer.length} bytes)`);
         const pdfData = await pdf(buffer);
         text = pdfData.text || "";
+        console.log(`[PARSER] Extracted plain text length from PDF = ${text.length} chars`);
+        console.log(`[PARSER] Sample extracted text:\n${text.substring(0, 400)}`);
       } catch (pdfErr: any) {
-        console.warn("Failed to parse PDF using pdf-parse:", pdfErr.message);
+        console.warn("[PARSER] Failed to parse PDF using pdf-parse:", pdfErr.message);
       }
     }
 
     const ai = getAiClient();
 
     const localParse = () => {
-      return extractProfileFromText(text);
+      console.log(`[PARSER] Running local fallback parser extraction`);
+      const fallbackResult = extractProfileFromText(text);
+      console.log(`[PARSER] Local fallback result name = ${fallbackResult.personal.name}`);
+      return fallbackResult;
     };
 
     if (!ai) {
+      console.log(`[PARSER] Gemini client not initialized. Falling back to local parser.`);
       return res.json(localParse());
     }
 
@@ -1214,12 +1222,16 @@ Ensure all extracted values reflect the actual document. Do not invent any compa
     }
 
     const parsedData = JSON.parse(aiResponseText);
+    console.log(`[PARSER] Gemini parse-resume response parsed successfully. Candidate Name = ${parsedData?.personal?.name}`);
     return res.json(parsedData);
   } catch (error: any) {
-    console.warn("Gemini parse-resume failed, serving local fallback:", error.message || error);
+    console.warn("[PARSER] Gemini parse-resume failed, serving local fallback:", error.message || error);
     try {
-      return res.json(extractProfileFromText(text));
-    } catch (fallbackErr) {
+      const fallbackResult = extractProfileFromText(text);
+      console.log(`[PARSER] Catch block fallback result name = ${fallbackResult.personal.name}`);
+      return res.json(fallbackResult);
+    } catch (fallbackErr: any) {
+      console.error("[PARSER] Catch block local fallback failed entirely:", fallbackErr.message || fallbackErr);
       return res.json({
         personal: { name: "Candidate Name", title: "", email: "", phone: "", location: "", github: "", linkedin: "", portfolio: "" },
         summary: "",
