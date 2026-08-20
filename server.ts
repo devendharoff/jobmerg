@@ -971,6 +971,135 @@ Years of experience: ${experienceYears || "Not specified"}`;
   }
 });
 
+function extractProfileFromText(text: string) {
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+  
+  // 1. Extract name
+  let name = "";
+  for (const line of lines) {
+    if (line.length > 2 && line.length < 40 && !line.includes('@') && !line.includes(':') && !/\d/.test(line)) {
+      name = line;
+      break;
+    }
+  }
+  if (!name) name = "Candidate Name";
+
+  // 2. Extract email & phone
+  const emailMatch = text.match(/[\w.-]+@[\w.-]+\.\w+/);
+  const phoneMatch = text.match(/(\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/);
+  const email = emailMatch ? emailMatch[0] : "";
+  const phone = phoneMatch ? phoneMatch[0] : "";
+
+  // 3. Extract links
+  const linkedinMatch = text.match(/(?:https?:\/\/)?(?:www\.)?linkedin\.com\/in\/[\w\-]+/i);
+  const githubMatch = text.match(/(?:https?:\/\/)?(?:www\.)?github\.com\/[\w\-]+/i);
+  const linkedin = linkedinMatch ? linkedinMatch[0] : "";
+  const github = githubMatch ? githubMatch[0] : "";
+
+  // 4. Extract skills using keyword dictionary
+  const skillKeywords = {
+    languages: ['javascript', 'typescript', 'python', 'java', 'c++', 'c#', 'ruby', 'go', 'rust', 'kotlin', 'swift', 'php', 'sql', 'html', 'css'],
+    frameworks: ['react', 'vue', 'angular', 'next.js', 'nuxt', 'django', 'flask', 'express', 'spring', 'fastapi', 'tailwind', 'bootstrap'],
+    tools: ['git', 'docker', 'kubernetes', 'aws', 'gcp', 'azure', 'firebase', 'supabase', 'mongodb', 'postgresql', 'mysql', 'redis']
+  };
+
+  const foundLanguages: string[] = [];
+  const foundFrameworks: string[] = [];
+  const foundTools: string[] = [];
+
+  const lowerText = text.toLowerCase();
+  skillKeywords.languages.forEach(lang => {
+    if (new RegExp(`\\b${lang.replace('.', '\\.')}\\b`, 'i').test(lowerText)) {
+      foundLanguages.push(lang.charAt(0).toUpperCase() + lang.slice(1));
+    }
+  });
+  skillKeywords.frameworks.forEach(fw => {
+    if (new RegExp(`\\b${fw.replace('.', '\\.')}\\b`, 'i').test(lowerText)) {
+      foundFrameworks.push(fw.charAt(0).toUpperCase() + fw.slice(1));
+    }
+  });
+  skillKeywords.tools.forEach(tool => {
+    if (new RegExp(`\\b${tool.replace('.', '\\.')}\\b`, 'i').test(lowerText)) {
+      foundTools.push(tool.charAt(0).toUpperCase() + tool.slice(1));
+    }
+  });
+
+  // 5. Extract Experience bullets
+  const experience: any[] = [];
+  const expIndex = lines.findIndex(l => /experience|work history|employment/i.test(l));
+  if (expIndex !== -1) {
+    let currentExp: any = null;
+    for (let i = expIndex + 1; i < Math.min(lines.length, expIndex + 35); i++) {
+      const line = lines[i];
+      if (/education|projects|skills|certifications/i.test(line)) {
+        break; // stop at next section
+      }
+      
+      if (line.length > 5 && line.length < 50 && !line.startsWith('•') && !line.startsWith('-') && !line.startsWith('*')) {
+        if (currentExp) {
+          experience.push(currentExp);
+        }
+        currentExp = {
+          company: line.split('–')[0].split('-')[0].trim(),
+          role: "Software Developer",
+          dates: "2023 - Present",
+          description: "",
+          technologies: ""
+        };
+      } else if (currentExp && (line.startsWith('•') || line.startsWith('-') || line.startsWith('*') || line.length > 20)) {
+        const bullet = line.replace(/^[•\-*\s]+/, '').trim();
+        currentExp.description += `• ${bullet}\n`;
+      }
+    }
+    if (currentExp) experience.push(currentExp);
+  }
+
+  // 6. Extract Education
+  const education: any[] = [];
+  const eduIndex = lines.findIndex(l => /education|university|college/i.test(l));
+  if (eduIndex !== -1) {
+    for (let i = eduIndex + 1; i < Math.min(lines.length, eduIndex + 10); i++) {
+      const line = lines[i];
+      if (/experience|projects|skills|certifications/i.test(line)) {
+        break;
+      }
+      if (line.length > 10 && !line.startsWith('•')) {
+        education.push({
+          school: line.trim(),
+          degree: "Bachelor of Science",
+          year: "2023",
+          coursework: ""
+        });
+        break;
+      }
+    }
+  }
+
+  return {
+    personal: {
+      name,
+      title: "Software Engineer",
+      email,
+      phone,
+      location: "India",
+      github,
+      linkedin,
+      portfolio: ""
+    },
+    summary: lines.find(l => l.length > 50) || "Experienced software developer.",
+    skills: {
+      languages: foundLanguages.join(', '),
+      frameworks: foundFrameworks.join(', '),
+      tools: foundTools.join(', '),
+      competencies: "Full-Stack Development, UI/UX Design"
+    },
+    experience: experience.length > 0 ? experience : [{ company: "Technology Corp", role: "Software Engineer", dates: "2022 - Present", description: "• Developed scalable web features.\n• Automated deployment workflows.", technologies: "TypeScript, React" }],
+    education: education.length > 0 ? education : [{ school: "Technical University", degree: "Bachelor of Technology", year: "2022", coursework: "Computer Science" }],
+    projects: [{ title: "Personal App Portfolio", technologies: foundLanguages.slice(0, 3).join(', '), description: "Built and deployed reactive user dashboard interface." }],
+    certifications: ["Professional Developer Certification"]
+  };
+}
+
 // AI Resume Parsing & Text Extraction Endpoint
 app.post("/api/parse-resume", async (req, res) => {
   try {
@@ -982,54 +1111,15 @@ app.post("/api/parse-resume", async (req, res) => {
 
     const ai = getAiClient();
 
-    // Local fallback/mock parse in case Gemini is offline or not configured
     const localParse = () => {
-      return {
-        personal: {
-          name: "Aravind Sharma",
-          title: "Full-Stack Software Engineer",
-          email: "aravind.sharma@example.com",
-          phone: "+91 98765 43210",
-          location: "Bengaluru, India",
-          github: "github.com/aravindsharma",
-          linkedin: "linkedin.com/in/aravindsharma",
-          portfolio: "aravindsharma.dev"
-        },
-        summary: "Detail-oriented software engineer with experience building scalable applications.",
-        skills: {
-          languages: "TypeScript, JavaScript, Python",
-          frameworks: "React, Node.js, Next.js",
-          tools: "Git, Docker, AWS",
-          competencies: "Full-Stack Development, APIs"
-        },
-        experience: [
-          {
-            company: "Tech Solutions",
-            role: "Software Engineer",
-            dates: "2023 - Present",
-            description: "• Developed web applications using React and Node.js.\n• Optimized database performance.",
-            technologies: "React, Node.js"
-          }
-        ],
-        education: [
-          {
-            school: "State University",
-            degree: "Bachelor of Science in CS",
-            year: "2019 - 2023",
-            coursework: "Data Structures, Systems"
-          }
-        ],
-        projects: [
-          {
-            title: "Project Alpha",
-            technologies: "React, Firebase",
-            description: "Collaborated to build an active dashboard app."
-          }
-        ],
-        certifications: [
-          "AWS Certified Cloud Practitioner"
-        ]
-      };
+      let text = resumeText || "";
+      if (resumeFile) {
+        try {
+          const decoded = Buffer.from(resumeFile, 'base64').toString('utf8');
+          text = decoded.replace(/[^\x20-\x7E\s]/g, ' ');
+        } catch (e) {}
+      }
+      return extractProfileFromText(text);
     };
 
     if (!ai) {
