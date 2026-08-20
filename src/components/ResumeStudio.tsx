@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   Sparkles, Upload, Plus, Search, Trash2, Printer, ArrowRight, ArrowLeft, Check, CheckCircle2, 
-  X, AlertCircle, ExternalLink, FileText, BookOpen, Briefcase, Award, LayoutGrid, Activity, 
+  X, AlertCircle, AlertTriangle, ExternalLink, FileText, BookOpen, Briefcase, Award, LayoutGrid, Activity, 
   Columns, Eye, Settings, Undo, Redo, ZoomIn, ZoomOut, Copy, History, Sliders, Info, ShieldCheck, 
   ChevronRight, Calendar, MapPin, Mail, Phone, Globe, Trash, RefreshCw, User, Award as CertIcon
 } from 'lucide-react';
@@ -216,6 +216,15 @@ export default function ResumeStudio({ userProfile, onOpenPricing }: ResumeStudi
   const [projects, setProjects] = useState<Project[]>(activeResume.projects);
   const [certifications, setCertifications] = useState<string[]>(activeResume.certifications);
   const [certInput, setCertInput] = useState('');
+  const [confidenceScores, setConfidenceScores] = useState({
+    name: 99,
+    email: 99,
+    phone: 99,
+    skills: 95,
+    experience: 95,
+    education: 95,
+    overall: 96
+  });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Sync to hooks when active resume changes
@@ -373,7 +382,7 @@ export default function ResumeStudio({ userProfile, onOpenPricing }: ResumeStudi
         const res = await fetch('/api/parse-resume', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ resumeFile: base64Data, resumeText: '' })
+          body: JSON.stringify({ resumeFile: base64Data, resumeText: '', fileName: file.name })
         });
         
         setUploadProgress(60);
@@ -393,6 +402,7 @@ export default function ResumeStudio({ userProfile, onOpenPricing }: ResumeStudi
           if (data.education) setEducation(data.education);
           if (data.projects) setProjects(data.projects);
           if (data.certifications) setCertifications(data.certifications);
+          if (data.confidenceScores) setConfidenceScores(data.confidenceScores);
 
           setUploadProgress(100);
           setTimeout(() => {
@@ -802,12 +812,20 @@ export default function ResumeStudio({ userProfile, onOpenPricing }: ResumeStudi
           <div className="flex-grow flex flex-col min-h-0 bg-white animate-fade-in text-left">
             
             {/* Top confidence indicator banner */}
-            <div className="bg-[#4f46e5]/5 border-b border-[#4f46e5]/10 px-6 py-3 flex justify-between items-center text-xs shrink-0">
-              <div className="flex items-center gap-2 text-indigo-700 font-bold">
-                <CheckCircle2 className="w-4 h-4" />
-                <span>95% Extraction Confidence — Review and verify before continuing</span>
+            <div className={`border-b px-6 py-3 flex justify-between items-center text-xs shrink-0 ${
+              confidenceScores.overall < 85 ? 'bg-amber-50 border-amber-200 text-amber-800' : 'bg-emerald-50/50 border-emerald-100 text-emerald-800'
+            }`}>
+              <div className="flex items-center gap-2 font-bold">
+                {confidenceScores.overall < 85 ? (
+                  <AlertTriangle className="w-4 h-4 text-amber-600 animate-pulse" />
+                ) : (
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                )}
+                <span>{confidenceScores.overall}% Extraction Confidence — {
+                  confidenceScores.overall < 85 ? 'Please verify flagged fields with lower confidence' : 'Review and verify before continuing'
+                }</span>
               </div>
-              <div className="text-[10px] text-gray-400">Extracted from: general_resume.pdf</div>
+              <div className="text-[10px] text-gray-450 font-black uppercase tracking-wider">Verification Layer</div>
             </div>
 
             {/* Editable Profile area */}
@@ -818,12 +836,17 @@ export default function ResumeStudio({ userProfile, onOpenPricing }: ResumeStudi
                 <h3 className="text-xs font-black uppercase text-slate-805 tracking-wider">Personal Information</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                   <div className="space-y-1">
-                    <label className="font-bold text-gray-500">Full Name</label>
+                    <div className="flex justify-between items-center">
+                      <label className="font-bold text-gray-500">Full Name</label>
+                      {confidenceScores.name < 85 && <span className="text-[10px] text-amber-600 font-black flex items-center gap-0.5"><AlertTriangle className="w-3 h-3" /> Verify name</span>}
+                    </div>
                     <input 
                       type="text" 
                       value={personal.name} 
                       onChange={e => setPersonal({...personal, name: e.target.value})} 
-                      className="w-full bg-white border border-gray-200 rounded-xl px-3 py-1.5 text-gray-805 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                      className={`w-full bg-white border rounded-xl px-3 py-1.5 text-gray-805 focus:outline-none focus:ring-1 focus:ring-indigo-500 ${
+                        confidenceScores.name < 85 ? 'border-amber-300 ring-1 ring-amber-300/30' : 'border-gray-200'
+                      }`}
                     />
                   </div>
                   <div className="space-y-1">
@@ -836,21 +859,31 @@ export default function ResumeStudio({ userProfile, onOpenPricing }: ResumeStudi
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="font-bold text-gray-500">Email</label>
+                    <div className="flex justify-between items-center">
+                      <label className="font-bold text-gray-500">Email</label>
+                      {confidenceScores.email < 85 && <span className="text-[10px] text-amber-600 font-black flex items-center gap-0.5"><AlertTriangle className="w-3 h-3" /> Verify email</span>}
+                    </div>
                     <input 
                       type="text" 
                       value={personal.email} 
                       onChange={e => setPersonal({...personal, email: e.target.value})} 
-                      className="w-full bg-white border border-gray-200 rounded-xl px-3 py-1.5 text-gray-855 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                      className={`w-full bg-white border rounded-xl px-3 py-1.5 text-gray-855 focus:outline-none focus:ring-1 focus:ring-indigo-500 ${
+                        confidenceScores.email < 85 ? 'border-amber-300 ring-1 ring-amber-300/30' : 'border-gray-200'
+                      }`}
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="font-bold text-gray-500">Phone</label>
+                    <div className="flex justify-between items-center">
+                      <label className="font-bold text-gray-500">Phone</label>
+                      {confidenceScores.phone < 85 && <span className="text-[10px] text-amber-600 font-black flex items-center gap-0.5"><AlertTriangle className="w-3 h-3" /> Verify phone</span>}
+                    </div>
                     <input 
                       type="text" 
                       value={personal.phone} 
                       onChange={e => setPersonal({...personal, phone: e.target.value})} 
-                      className="w-full bg-white border border-gray-200 rounded-xl px-3 py-1.5 text-gray-855 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                      className={`w-full bg-white border rounded-xl px-3 py-1.5 text-gray-855 focus:outline-none focus:ring-1 focus:ring-indigo-500 ${
+                        confidenceScores.phone < 85 ? 'border-amber-300 ring-1 ring-amber-300/30' : 'border-gray-200'
+                      }`}
                     />
                   </div>
                   <div className="space-y-1">
@@ -887,8 +920,13 @@ export default function ResumeStudio({ userProfile, onOpenPricing }: ResumeStudi
 
               {/* Grouped Skills */}
               <div className="border border-gray-150 p-5 rounded-3xl bg-slate-50/50 space-y-4">
-                <h3 className="text-xs font-black uppercase text-slate-805 tracking-wider">Skills Grouped</h3>
-                <div className="grid grid-cols-1 gap-3 text-xs">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-xs font-black uppercase text-slate-805 tracking-wider">Skills Grouped</h3>
+                  {confidenceScores.skills < 85 && <span className="text-[10px] text-amber-600 font-black flex items-center gap-0.5"><AlertTriangle className="w-3 h-3" /> Verify skills completeness</span>}
+                </div>
+                <div className={`grid grid-cols-1 gap-3 text-xs p-4 bg-white border rounded-3xl ${
+                  confidenceScores.skills < 85 ? 'border-amber-200 bg-amber-50/10' : 'border-gray-150'
+                }`}>
                   <div className="space-y-1">
                     <label className="font-bold text-gray-500">Languages</label>
                     <input 

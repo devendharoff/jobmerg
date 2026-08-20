@@ -21,6 +21,7 @@ const execAsync = promisify(exec);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+import { parsePdfLayoutAware, parseDocx, extractProfileFromText, normalizeSkills } from "./services/resumeParser.js";
 import { createClient } from "@supabase/supabase-js";
 
 dotenv.config();
@@ -949,7 +950,7 @@ Years of experience: ${experienceYears || "Not specified"}`;
       contents.push(userPromptText);
 
       const response = await ai.models.generateContent({
-        model: "gemini-1.5-flash",
+        model: "gemini-3.6-flash",
         contents,
         config: {
           systemInstruction: systemPrompt,
@@ -975,170 +976,67 @@ Years of experience: ${experienceYears || "Not specified"}`;
   }
 });
 
-function extractProfileFromText(text: string) {
-  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
-  
-  // 1. Extract name
-  let name = "";
-  for (const line of lines) {
-    if (line.length > 2 && line.length < 40 && !line.includes('@') && !line.includes(':') && !/\d/.test(line)) {
-      name = line;
-      break;
-    }
-  }
-  if (!name) name = "Candidate Name";
-
-  // 2. Extract email & phone
-  const emailMatch = text.match(/[\w.-]+@[\w.-]+\.\w+/);
-  const phoneMatch = text.match(/(\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/);
-  const email = emailMatch ? emailMatch[0] : "";
-  const phone = phoneMatch ? phoneMatch[0] : "";
-
-  // 3. Extract links
-  const linkedinMatch = text.match(/(?:https?:\/\/)?(?:www\.)?linkedin\.com\/in\/[\w\-]+/i);
-  const githubMatch = text.match(/(?:https?:\/\/)?(?:www\.)?github\.com\/[\w\-]+/i);
-  const linkedin = linkedinMatch ? linkedinMatch[0] : "";
-  const github = githubMatch ? githubMatch[0] : "";
-
-  // 4. Extract skills using keyword dictionary
-  const skillKeywords = {
-    languages: ['javascript', 'typescript', 'python', 'java', 'c++', 'c#', 'ruby', 'go', 'rust', 'kotlin', 'swift', 'php', 'sql', 'html', 'css'],
-    frameworks: ['react', 'vue', 'angular', 'next.js', 'nuxt', 'django', 'flask', 'express', 'spring', 'fastapi', 'tailwind', 'bootstrap'],
-    tools: ['git', 'docker', 'kubernetes', 'aws', 'gcp', 'azure', 'firebase', 'supabase', 'mongodb', 'postgresql', 'mysql', 'redis']
-  };
-
-  const foundLanguages: string[] = [];
-  const foundFrameworks: string[] = [];
-  const foundTools: string[] = [];
-
-  const lowerText = text.toLowerCase();
-  skillKeywords.languages.forEach(lang => {
-    if (new RegExp(`\\b${lang.replace('.', '\\.')}\\b`, 'i').test(lowerText)) {
-      foundLanguages.push(lang.charAt(0).toUpperCase() + lang.slice(1));
-    }
-  });
-  skillKeywords.frameworks.forEach(fw => {
-    if (new RegExp(`\\b${fw.replace('.', '\\.')}\\b`, 'i').test(lowerText)) {
-      foundFrameworks.push(fw.charAt(0).toUpperCase() + fw.slice(1));
-    }
-  });
-  skillKeywords.tools.forEach(tool => {
-    if (new RegExp(`\\b${tool.replace('.', '\\.')}\\b`, 'i').test(lowerText)) {
-      foundTools.push(tool.charAt(0).toUpperCase() + tool.slice(1));
-    }
-  });
-
-  // 5. Extract Experience bullets
-  const experience: any[] = [];
-  const expIndex = lines.findIndex(l => /experience|work history|employment/i.test(l));
-  if (expIndex !== -1) {
-    let currentExp: any = null;
-    for (let i = expIndex + 1; i < Math.min(lines.length, expIndex + 35); i++) {
-      const line = lines[i];
-      if (/education|projects|skills|certifications/i.test(line)) {
-        break; // stop at next section
-      }
-      
-      if (line.length > 5 && line.length < 50 && !line.startsWith('•') && !line.startsWith('-') && !line.startsWith('*')) {
-        if (currentExp) {
-          experience.push(currentExp);
-        }
-        currentExp = {
-          company: line.split('–')[0].split('-')[0].trim(),
-          role: "Software Developer",
-          dates: "2023 - Present",
-          description: "",
-          technologies: ""
-        };
-      } else if (currentExp && (line.startsWith('•') || line.startsWith('-') || line.startsWith('*') || line.length > 20)) {
-        const bullet = line.replace(/^[•\-*\s]+/, '').trim();
-        currentExp.description += `• ${bullet}\n`;
-      }
-    }
-    if (currentExp) experience.push(currentExp);
-  }
-
-  // 6. Extract Education
-  const education: any[] = [];
-  const eduIndex = lines.findIndex(l => /education|university|college/i.test(l));
-  if (eduIndex !== -1) {
-    for (let i = eduIndex + 1; i < Math.min(lines.length, eduIndex + 10); i++) {
-      const line = lines[i];
-      if (/experience|projects|skills|certifications/i.test(line)) {
-        break;
-      }
-      if (line.length > 10 && !line.startsWith('•')) {
-        education.push({
-          school: line.trim(),
-          degree: "Bachelor of Science",
-          year: "2023",
-          coursework: ""
-        });
-        break;
-      }
-    }
-  }
-
-  return {
-    personal: {
-      name,
-      title: "Software Engineer",
-      email,
-      phone,
-      location: "India",
-      github,
-      linkedin,
-      portfolio: ""
-    },
-    summary: lines.find(l => l.length > 50) || "Experienced software developer.",
-    skills: {
-      languages: foundLanguages.join(', '),
-      frameworks: foundFrameworks.join(', '),
-      tools: foundTools.join(', '),
-      competencies: "Full-Stack Development, UI/UX Design"
-    },
-    experience: experience.length > 0 ? experience : [{ company: "Technology Corp", role: "Software Engineer", dates: "2022 - Present", description: "• Developed scalable web features.\n• Automated deployment workflows.", technologies: "TypeScript, React" }],
-    education: education.length > 0 ? education : [{ school: "Technical University", degree: "Bachelor of Technology", year: "2022", coursework: "Computer Science" }],
-    projects: [{ title: "Personal App Portfolio", technologies: foundLanguages.slice(0, 3).join(', '), description: "Built and deployed reactive user dashboard interface." }],
-    certifications: ["Professional Developer Certification"]
-  };
-}
-
 // AI Resume Parsing & Text Extraction Endpoint
 app.post("/api/parse-resume", async (req, res) => {
   let text = "";
   try {
-    const { resumeFile, resumeText } = req.body;
-    console.log(`[PARSER] Request received: resumeFile length = ${resumeFile ? resumeFile.length : 0}, resumeText length = ${resumeText ? resumeText.length : 0}`);
+    const { resumeFile, resumeText, fileName } = req.body;
+    console.log(`[PARSER] Request received: fileName = ${fileName || 'unnamed'}, resumeFile length = ${resumeFile ? resumeFile.length : 0}`);
 
     if (!resumeFile && !resumeText) {
       return res.status(400).json({ error: "Missing resumeFile or resumeText parameter." });
     }
 
+    const isDocx = fileName && fileName.toLowerCase().endsWith(".docx");
     text = resumeText || "";
-    if (resumeFile) {
-      try {
-        const buffer = Buffer.from(resumeFile, 'base64');
-        console.log(`[PARSER] Decoding base64 PDF stream (buffer size = ${buffer.length} bytes)`);
-        
-        let pdfData;
-        if (typeof pdf === 'function') {
-          pdfData = await pdf(buffer);
-        } else if (pdf && typeof (pdf as any).default === 'function') {
-          pdfData = await (pdf as any).default(buffer);
-        } else {
-          throw new Error("pdf-parse library does not export a callable function");
-        }
 
-        text = pdfData.text || "";
-        console.log(`[PARSER] Extracted plain text length from PDF = ${text.length} chars`);
-        console.log(`[PARSER] Sample extracted text:\n${text.substring(0, 400)}`);
-      } catch (pdfErr: any) {
-        console.warn("[PARSER] Failed to parse PDF using pdf-parse:", pdfErr.message);
+    if (resumeFile) {
+      const buffer = Buffer.from(resumeFile, 'base64');
+      if (isDocx) {
+        console.log(`[PARSER] Parsing DOCX via Mammoth: ${fileName}`);
+        text = await parseDocx(buffer);
+      } else {
+        console.log(`[PARSER] Parsing PDF via Layout-Aware sort: ${fileName || "unnamed.pdf"}`);
+        try {
+          text = await parsePdfLayoutAware(buffer, pdf);
+        } catch (pdfErr: any) {
+          console.warn("[PARSER] Layout-aware parsing failed, falling back to simple stream parser:", pdfErr.message);
+          try {
+            let pdfData;
+            if (typeof pdf === 'function') {
+              pdfData = await pdf(buffer);
+            } else if (pdf && typeof (pdf as any).default === 'function') {
+              pdfData = await (pdf as any).default(buffer);
+            }
+            text = pdfData ? pdfData.text : "";
+          } catch (simpleErr) {
+            console.error("[PARSER] Simple parsing failed:", simpleErr);
+          }
+        }
       }
     }
 
+    console.log(`[PARSER] Text extraction complete. Length = ${text.length} characters.`);
+
     const ai = getAiClient();
+
+    const calculateConfidence = (profile: any) => {
+      const name = profile.personal?.name && profile.personal.name !== "Candidate Name" ? 99 : 10;
+      const email = /[\w.-]+@[\w.-]+\.\w+/.test(profile.personal?.email || "") ? 99 : 0;
+      const phone = profile.personal?.phone ? 99 : 0;
+      const skillsCount = (profile.skills?.languages?.split(',').length || 0) + 
+                          (profile.skills?.frameworks?.split(',').length || 0) + 
+                          (profile.skills?.tools?.split(',').length || 0);
+      const skills = skillsCount > 3 ? 95 : 60;
+      const experience = profile.experience?.length > 0 ? 95 : 20;
+      const education = profile.education?.length > 0 ? 95 : 15;
+      
+      const overall = Math.round(
+        (name * 0.15) + (email * 0.15) + (phone * 0.10) + (skills * 0.20) + (experience * 0.25) + (education * 0.15)
+      );
+
+      return { name, email, phone, skills, experience, education, overall };
+    };
 
     const localParse = () => {
       console.log(`[PARSER] Running local fallback parser extraction`);
@@ -1206,7 +1104,7 @@ Extract the content strictly into the following JSON schema:
 Ensure all extracted values reflect the actual document. Do not invent any companies, projects, or experiences. If a field (e.g. portfolio or GitHub link) is missing, leave it as an empty string. Output only valid JSON.`;
 
     let contents: any[] = [];
-    if (resumeFile) {
+    if (resumeFile && !isDocx) {
       contents.push({
         inlineData: {
           data: resumeFile,
@@ -1217,7 +1115,7 @@ Ensure all extracted values reflect the actual document. Do not invent any compa
     contents.push(`Parse this resume file/text and return the JSON structure:\n${text || "PDF attachment provided."}`);
 
     const response = await ai.models.generateContent({
-      model: "gemini-1.5-flash",
+      model: "gemini-3.6-flash",
       contents,
       config: {
         systemInstruction: systemPrompt,
@@ -1231,6 +1129,15 @@ Ensure all extracted values reflect the actual document. Do not invent any compa
     }
 
     const parsedData = JSON.parse(aiResponseText);
+    
+    // Normalize skills
+    if (parsedData.skills) {
+      parsedData.skills.languages = normalizeSkills(parsedData.skills.languages);
+      parsedData.skills.frameworks = normalizeSkills(parsedData.skills.frameworks);
+      parsedData.skills.tools = normalizeSkills(parsedData.skills.tools);
+    }
+    
+    parsedData.confidenceScores = calculateConfidence(parsedData);
     console.log(`[PARSER] Gemini parse-resume response parsed successfully. Candidate Name = ${parsedData?.personal?.name}`);
     return res.json(parsedData);
   } catch (error: any) {
@@ -1248,7 +1155,8 @@ Ensure all extracted values reflect the actual document. Do not invent any compa
         experience: [],
         education: [],
         projects: [],
-        certifications: []
+        certifications: [],
+        confidenceScores: { name: 10, email: 0, phone: 0, skills: 60, experience: 20, education: 15, overall: 20 }
       });
     }
   }
@@ -1356,7 +1264,7 @@ Rules:
 - Keep keyword strings lowercase and concise (e.g. "react", "ci/cd", "system design")`;
 
       const response = await ai.models.generateContent({
-        model: "gemini-1.5-flash",
+        model: "gemini-3.6-flash",
         contents: [`Job Description:\n${jobDescription}\n\nCandidate Resume Text:\n${resumeText || 'Not provided'}\n\nCandidate Current Skills: ${JSON.stringify(userSkills || [])}`],
         config: {
           systemInstruction: systemPrompt,
@@ -1462,7 +1370,7 @@ Return ONLY a valid JSON with this structure:
       const userContent = `Job Description:\n${jobDescription}\n\nCurrent Resume Data:\n${JSON.stringify(resumeData, null, 2)}\n\nMissing Keywords to Incorporate:\n${JSON.stringify(missingKeywords || [])}\n\nCurrent JD Match Score: ${currentMatchScore || 'Unknown'}%`;
 
       const response = await ai.models.generateContent({
-        model: "gemini-1.5-flash",
+        model: "gemini-3.6-flash",
         contents: [userContent],
         config: {
           systemInstruction: systemPrompt,
@@ -1592,7 +1500,7 @@ Return ONLY a valid JSON object matching this schema:
       const userContent = `Job Description:\n${jobDescription}\n\nOld Resume Text:\n${oldResumeText}\n\nKeywords to Incorporate:\n${JSON.stringify(keywords)}`;
 
       const response = await ai.models.generateContent({
-        model: "gemini-1.5-flash",
+        model: "gemini-3.6-flash",
         contents: [userContent],
         config: {
           systemInstruction: systemPrompt,
