@@ -1,163 +1,124 @@
 import mammoth from "mammoth";
 
-// Skill Normalization Dictionary
+// ─── Skill Normalization Dictionary ──────────────────────────────────────────
 const SKILL_MAP: Record<string, string> = {
-  "react.js": "React",
-  "reactjs": "React",
-  "react js": "React",
-  "javascript": "JavaScript",
-  "java script": "JavaScript",
-  "typescript": "TypeScript",
-  "type script": "TypeScript",
-  "node.js": "Node.js",
-  "nodejs": "Node.js",
-  "node js": "Node.js",
-  "next.js": "Next.js",
-  "nextjs": "Next.js",
-  "vue.js": "Vue.js",
-  "vuejs": "Vue.js",
-  "tailwind css": "Tailwind CSS",
-  "tailwindcss": "Tailwind CSS",
-  "aws": "AWS",
-  "amazon web services": "AWS",
-  "docker": "Docker",
-  "kubernetes": "Kubernetes",
-  "k8s": "Kubernetes",
-  "git": "Git",
-  "github": "GitHub",
-  "python": "Python",
-  "postgresql": "PostgreSQL",
-  "postgres": "PostgreSQL",
-  "mongodb": "MongoDB",
-  "mysql": "MySQL",
-  "graphql": "GraphQL",
-  "rest api": "REST APIs",
-  "restful api": "REST APIs",
-  "rest apis": "REST APIs"
+  "react.js": "React", "reactjs": "React", "react js": "React",
+  "javascript": "JavaScript", "java script": "JavaScript",
+  "typescript": "TypeScript", "type script": "TypeScript",
+  "node.js": "Node.js", "nodejs": "Node.js", "node js": "Node.js",
+  "next.js": "Next.js", "nextjs": "Next.js",
+  "vue.js": "Vue.js", "vuejs": "Vue.js",
+  "tailwind css": "Tailwind CSS", "tailwindcss": "Tailwind CSS",
+  "aws": "AWS", "amazon web services": "AWS",
+  "docker": "Docker", "kubernetes": "Kubernetes", "k8s": "Kubernetes",
+  "git": "Git", "github": "GitHub",
+  "python": "Python", "postgresql": "PostgreSQL", "postgres": "PostgreSQL",
+  "mongodb": "MongoDB", "mysql": "MySQL", "graphql": "GraphQL",
+  "rest api": "REST APIs", "restful api": "REST APIs", "rest apis": "REST APIs",
+  "c++": "C++", "c#": "C#"
 };
 
 export interface ExtractedProfile {
   personal: {
-    name: string;
-    title: string;
-    email: string;
-    phone: string;
-    location: string;
-    github: string;
-    linkedin: string;
-    portfolio: string;
+    name: string; title: string; email: string; phone: string;
+    location: string; github: string; linkedin: string; portfolio: string;
   };
   summary: string;
-  skills: {
-    languages: string;
-    frameworks: string;
-    tools: string;
-    competencies: string;
-  };
-  experience: Array<{
-    company: string;
-    role: string;
-    dates: string;
-    description: string;
-    technologies: string;
-  }>;
-  education: Array<{
-    school: string;
-    degree: string;
-    year: string;
-    coursework: string;
-  }>;
-  projects: Array<{
-    title: string;
-    technologies: string;
-    description: string;
-  }>;
+  skills: { languages: string; frameworks: string; tools: string; competencies: string; };
+  experience: Array<{ company: string; role: string; dates: string; description: string; technologies: string; }>;
+  education: Array<{ school: string; degree: string; year: string; coursework: string; }>;
+  projects: Array<{ title: string; technologies: string; description: string; }>;
   certifications: string[];
   confidenceScores: {
-    name: number;
-    email: number;
-    phone: number;
-    skills: number;
-    experience: number;
-    education: number;
-    overall: number;
+    name: number; email: number; phone: number;
+    skills: number; experience: number; education: number; overall: number;
   };
 }
 
-// 1. PDF Layout-Aware text extraction
-export async function parsePdfLayoutAware(buffer: Buffer, pdfParser: any): Promise<string> {
-  const options = {
-    pagerender: async (pageData: any) => {
-      const textContent = await pageData.getTextContent();
-      const items = textContent.items || [];
-      
-      if (items.length === 0) return "";
+// ─── Helper: escape regex special chars ──────────────────────────────────────
+function escapeRegex(str: string): string {
+  return str.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+}
 
-      // Determine horizontal X coordinate spans
-      const xPositions = items.map((item: any) => item.transform[4]);
-      const minX = Math.min(...xPositions);
-      const maxX = Math.max(...xPositions);
-      const midX = minX + (maxX - minX) / 2;
+// ─── 1. PDF extraction using pdfjs-dist directly ─────────────────────────────
+// This replaces the broken pdf-parse pagerender approach. pdfjs-dist gives us
+// real per-page text content with bounding boxes that we can sort correctly.
+export async function parsePdfBuffer(buffer: Buffer): Promise<string> {
+  // Dynamic import to avoid ESM/CJS issues at module load time
+  const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs" as any);
 
-      // Group items into columns
-      const leftColumn: any[] = [];
-      const rightColumn: any[] = [];
-      const singleColumn: any[] = [];
+  // pdfjs needs a Uint8Array
+  const uint8 = new Uint8Array(buffer);
+  const loadingTask = pdfjsLib.getDocument({ data: uint8, disableFontFace: true });
+  const pdfDoc = await loadingTask.promise;
 
-      // If text coordinate width is large, it is likely a 2-column layout
-      const isTwoColumn = (maxX - minX) > 180; 
+  const pageTexts: string[] = [];
 
-      if (isTwoColumn) {
-        items.forEach((item: any) => {
-          const x = item.transform[4];
-          if (x < midX) {
-            leftColumn.push(item);
-          } else {
-            rightColumn.push(item);
-          }
-        });
-      } else {
-        singleColumn.push(...items);
-      }
+  for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
+    const page = await pdfDoc.getPage(pageNum);
+    const textContent = await page.getTextContent();
+    const items = textContent.items as Array<{ str: string; transform: number[] }>;
 
-      // Sort top-to-bottom (Y coordinate descending) then left-to-right (X coordinate ascending)
-      const sortAndJoin = (colItems: any[]) => {
-        return colItems
-          .sort((a, b) => {
-            const yDiff = b.transform[5] - a.transform[5];
-            if (Math.abs(yDiff) > 6) {
-              return yDiff; // Different vertical line
-            }
-            return a.transform[4] - b.transform[4]; // Same line, sort left-to-right
-          })
-          .map((item: any) => item.str)
-          .join(" ");
-      };
-
-      if (isTwoColumn) {
-        return sortAndJoin(leftColumn) + "\n\n" + sortAndJoin(rightColumn);
-      } else {
-        return sortAndJoin(singleColumn);
-      }
+    if (items.length === 0) {
+      pageTexts.push("");
+      continue;
     }
-  };
 
-  const parsed = await pdfParser(buffer, options);
-  return parsed.text || "";
-}
+    // Detect two-column layout via X coordinate spread
+    const xPositions = items.map(item => item.transform[4]);
+    const minX = Math.min(...xPositions);
+    const maxX = Math.max(...xPositions);
+    const xSpread = maxX - minX;
+    const isTwoColumn = xSpread > 200;
+    const midX = minX + xSpread / 2;
 
-// 2. DOCX Text Extraction via Mammoth
-export async function parseDocx(buffer: Buffer): Promise<string> {
-  try {
-    const result = await mammoth.extractRawText({ buffer });
-    return result.value || "";
-  } catch (err: any) {
-    console.error("Mammoth failed parsing DOCX:", err.message);
-    return "";
+    const sortByPosition = (colItems: typeof items) =>
+      colItems
+        .sort((a, b) => {
+          const yDiff = b.transform[5] - a.transform[5]; // Higher Y = higher on page
+          if (Math.abs(yDiff) > 5) return yDiff;
+          return a.transform[4] - b.transform[4]; // Same line: left to right
+        })
+        .map(item => item.str)
+        .join(" ");
+
+    let pageText: string;
+    if (isTwoColumn) {
+      const left = items.filter(item => item.transform[4] < midX);
+      const right = items.filter(item => item.transform[4] >= midX);
+      pageText = sortByPosition(left) + "\n\n" + sortByPosition(right);
+    } else {
+      pageText = sortByPosition(items);
+    }
+
+    // Collapse excessive whitespace while preserving newlines
+    pageText = pageText.replace(/ {2,}/g, ' ').trim();
+    pageTexts.push(pageText);
   }
+
+  return pageTexts.join("\n\n--- PAGE BREAK ---\n\n");
 }
 
-// 3. Skill normalization helper
+// ─── 2. DOCX extraction via Mammoth ──────────────────────────────────────────
+export async function parseDocx(buffer: Buffer): Promise<string> {
+  const result = await mammoth.extractRawText({ buffer });
+  return result.value || "";
+}
+
+// ─── 3. File type detection ───────────────────────────────────────────────────
+export function detectFileType(fileName: string, base64Data: string): "pdf" | "docx" | "unsupported" {
+  const lower = fileName.toLowerCase();
+  if (lower.endsWith(".pdf")) return "pdf";
+  if (lower.endsWith(".docx")) return "docx";
+  // Also check magic bytes in base64
+  const prefix = base64Data.substring(0, 8);
+  const decoded = Buffer.from(prefix, 'base64').toString('hex').toLowerCase();
+  if (decoded.startsWith("25504446")) return "pdf"; // %PDF
+  if (decoded.startsWith("504b0304")) return "docx"; // PK.. (ZIP, which DOCX is)
+  return "unsupported";
+}
+
+// ─── 4. Skill normalization helper ───────────────────────────────────────────
 export function normalizeSkills(skillsString: string): string {
   if (!skillsString) return "";
   const items = skillsString.split(/[,|;]+/).map(s => s.trim()).filter(Boolean);
@@ -168,192 +129,128 @@ export function normalizeSkills(skillsString: string): string {
   return Array.from(new Set(normalized)).join(", ");
 }
 
-// 4. Local Entity Extractor & Fallback Parser
+// ─── 5. Deterministic entity extractor ───────────────────────────────────────
+// Used as a pre-pass before LLM, and as the final fallback.
 export function extractProfileFromText(text: string): ExtractedProfile {
   const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
-  
-  // Scopes & confidence triggers
+
+  // Name: first short line that has no digits, no @, no common section labels
   let name = "";
   let nameConfidence = 0;
-  
-  // Extract Name (scanning lines, skipping email/phone/label lines)
-  for (const line of lines) {
+  for (const line of lines.slice(0, 12)) {
     if (
-      line.length > 2 && 
-      line.length < 35 && 
-      !line.includes('@') && 
-      !line.includes(':') && 
-      !line.includes('/') && 
-      !/\d/.test(line) && 
-      !/experience|education|skills|projects|resume/i.test(line)
+      line.length >= 3 && line.length <= 40 &&
+      !line.includes('@') && !line.includes(':') && !line.includes('/') &&
+      !/\d{4}/.test(line) &&
+      !/^\s*(experience|education|skills|projects|summary|profile|resume|about|career|work)/i.test(line)
     ) {
       name = line;
-      nameConfidence = 99;
+      nameConfidence = 85;
       break;
     }
   }
-  if (!name) {
-    name = "Candidate Name";
-    nameConfidence = 10;
-  }
+  if (!name) { name = ""; nameConfidence = 0; }
 
-  // Email & Phone extraction
-  const emailMatch = text.match(/[\w.-]+@[\w.-]+\.\w+/);
-  const phoneMatch = text.match(/(\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/);
-  const email = emailMatch ? emailMatch[0] : "";
-  const phone = phoneMatch ? phoneMatch[0] : "";
-  
-  const emailConfidence = email ? 99 : 0;
-  const phoneConfidence = phone ? 99 : 0;
-
-  // Social Links mapping
-  const linkedinMatch = text.match(/(?:https?:\/\/)?(?:www\.)?linkedin\.com\/in\/[\w\-]+/i);
+  // Deterministic contact extraction
+  const emailMatch = text.match(/[\w.+-]+@[\w.-]+\.[a-zA-Z]{2,}/);
+  const phoneMatch = text.match(/(\+?\d[\d\s\-().]{7,15}\d)/);
+  const linkedinMatch = text.match(/(?:https?:\/\/)?(?:www\.)?linkedin\.com\/in\/[\w\-_%]+/i);
   const githubMatch = text.match(/(?:https?:\/\/)?(?:www\.)?github\.com\/[\w\-]+/i);
-  const linkedin = linkedinMatch ? linkedinMatch[0] : "";
-  const github = githubMatch ? githubMatch[0] : "";
+  const portfolioMatch = text.match(/(?:https?:\/\/)?(?:www\.)?(?!linkedin|github|twitter|facebook|instagram|youtube)[\w-]+\.[a-z]{2,}(?:\/[\w\-./]*)?/i);
 
-  // Skill mappings
-  const skillKeywords = {
-    languages: ['javascript', 'typescript', 'python', 'java', 'c++', 'c#', 'ruby', 'go', 'rust', 'kotlin', 'swift', 'php', 'sql', 'html', 'css'],
-    frameworks: ['react', 'vue', 'angular', 'next.js', 'nuxt', 'django', 'flask', 'express', 'spring', 'fastapi', 'tailwind', 'bootstrap'],
-    tools: ['git', 'docker', 'kubernetes', 'aws', 'gcp', 'azure', 'firebase', 'supabase', 'mongodb', 'postgresql', 'mysql', 'redis']
+  const email = emailMatch ? emailMatch[0].trim() : "";
+  const phone = phoneMatch ? phoneMatch[0].trim() : "";
+  const linkedin = linkedinMatch ? linkedinMatch[0].trim() : "";
+  const github = githubMatch ? githubMatch[0].trim() : "";
+  const portfolio = portfolioMatch && portfolioMatch[0] !== linkedin && portfolioMatch[0] !== github ? portfolioMatch[0].trim() : "";
+
+  // Skills dictionary scan
+  const skillGroups = {
+    languages: ['javascript', 'typescript', 'python', 'java', 'c++', 'c#', 'ruby', 'go', 'rust', 'kotlin', 'swift', 'php', 'sql', 'html', 'css', 'r', 'scala', 'bash'],
+    frameworks: ['react', 'vue', 'angular', 'next.js', 'nuxt', 'django', 'flask', 'express', 'spring', 'fastapi', 'tailwind', 'bootstrap', 'svelte', 'laravel', 'rails', 'nestjs', 'fastify'],
+    tools: ['git', 'docker', 'kubernetes', 'aws', 'gcp', 'azure', 'firebase', 'supabase', 'mongodb', 'postgresql', 'mysql', 'redis', 'elasticsearch', 'kafka', 'terraform', 'nginx', 'linux', 'ci/cd', 'jenkins', 'github actions']
   };
 
+  const lowerText = text.toLowerCase();
   const foundLanguages: string[] = [];
   const foundFrameworks: string[] = [];
   const foundTools: string[] = [];
 
-  const lowerText = text.toLowerCase();
-  const escapeRegex = (str: string) => str.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-
-  skillKeywords.languages.forEach(lang => {
-    const escaped = escapeRegex(lang);
-    if (new RegExp(`\\b${escaped}\\b`, 'i').test(lowerText)) {
+  skillGroups.languages.forEach(lang => {
+    if (new RegExp(`\\b${escapeRegex(lang)}\\b`, 'i').test(lowerText))
       foundLanguages.push(SKILL_MAP[lang] || (lang.charAt(0).toUpperCase() + lang.slice(1)));
-    }
   });
-  skillKeywords.frameworks.forEach(fw => {
-    const escaped = escapeRegex(fw);
-    if (new RegExp(`\\b${escaped}\\b`, 'i').test(lowerText)) {
+  skillGroups.frameworks.forEach(fw => {
+    if (new RegExp(`\\b${escapeRegex(fw)}\\b`, 'i').test(lowerText))
       foundFrameworks.push(SKILL_MAP[fw] || (fw.charAt(0).toUpperCase() + fw.slice(1)));
-    }
   });
-  skillKeywords.tools.forEach(tool => {
-    const escaped = escapeRegex(tool);
-    if (new RegExp(`\\b${escaped}\\b`, 'i').test(lowerText)) {
+  skillGroups.tools.forEach(tool => {
+    if (new RegExp(`\\b${escapeRegex(tool)}\\b`, 'i').test(lowerText))
       foundTools.push(SKILL_MAP[tool] || (tool.charAt(0).toUpperCase() + tool.slice(1)));
-    }
   });
 
-  const skillsConfidence = (foundLanguages.length + foundFrameworks.length + foundTools.length) > 3 ? 95 : 60;
-
-  // Experience chronological mapping
-  const experience: any[] = [];
-  const expIndex = lines.findIndex(l => /experience|work history|employment/i.test(l));
-  let experienceConfidence = 0;
-
-  if (expIndex !== -1) {
-    let currentExp: any = null;
-    for (let i = expIndex + 1; i < Math.min(lines.length, expIndex + 40); i++) {
+  // Experience section extraction
+  const experience: ExtractedProfile['experience'] = [];
+  const expIdx = lines.findIndex(l => /^(work\s+)?experience|professional\s+experience|employment|work\s+history|career\s+history/i.test(l));
+  if (expIdx !== -1) {
+    let current: ExtractedProfile['experience'][0] | null = null;
+    const stopSection = /^(education|skills|projects|certifications|achievements|publications|languages|interests)/i;
+    for (let i = expIdx + 1; i < Math.min(lines.length, expIdx + 60); i++) {
       const line = lines[i];
-      if (/education|projects|skills|certifications/i.test(line)) {
-        break; // Stop at next section
-      }
-      
-      // Look for company headers
-      if (line.length > 5 && line.length < 50 && !line.startsWith('•') && !line.startsWith('-') && !line.startsWith('*')) {
-        if (currentExp) {
-          experience.push(currentExp);
-        }
-        
-        // Extract possible date block from string
-        const dateMatch = line.match(/(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|January|February|March|April|May|June|July|August|September|October|November|December|\d{1,2}\/\d{2,4}|\d{4})[\s\-\–to]+(?:Present|Current|\d{1,2}\/\d{2,4}|\d{4})/i);
-        const dates = dateMatch ? dateMatch[0] : "2023 - Present";
-
-        currentExp = {
-          company: line.split(/[\-\–|]/)[0].trim(),
-          role: "Software Developer",
-          dates,
-          description: "",
-          technologies: ""
-        };
-      } else if (currentExp && (line.startsWith('•') || line.startsWith('-') || line.startsWith('*') || line.length > 20)) {
-        const bullet = line.replace(/^[•\-*\s]+/, '').trim();
-        currentExp.description += `• ${bullet}\n`;
+      if (stopSection.test(line)) break;
+      const dateMatch = line.match(/(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|january|february|march|april|june|july|august|september|october|november|december|\d{4})[\s,–\-–to]+(?:present|current|\d{4})/i);
+      if (dateMatch && line.length < 80 && !line.startsWith('•')) {
+        if (current) experience.push(current);
+        current = { company: line.replace(dateMatch[0], '').replace(/[,|–\-]+$/, '').trim(), role: "", dates: dateMatch[0].trim(), description: "", technologies: "" };
+      } else if (current && line.length > 5 && line.length < 60 && !line.startsWith('•') && !line.startsWith('-') && !current.role) {
+        current.role = line.trim();
+      } else if (current && (line.startsWith('•') || line.startsWith('-') || line.startsWith('*'))) {
+        current.description += `• ${line.replace(/^[•\-*]\s*/, '').trim()}\n`;
       }
     }
-    if (currentExp) experience.push(currentExp);
-    experienceConfidence = experience.length > 0 ? 95 : 30;
-  } else {
-    experienceConfidence = 20;
+    if (current) experience.push(current);
   }
 
-  // Education mapping
-  const education: any[] = [];
-  const eduIndex = lines.findIndex(l => /education|university|college/i.test(l));
-  let educationConfidence = 0;
-
-  if (eduIndex !== -1) {
-    for (let i = eduIndex + 1; i < Math.min(lines.length, eduIndex + 10); i++) {
+  // Education section extraction
+  const education: ExtractedProfile['education'] = [];
+  const eduIdx = lines.findIndex(l => /^education|academic|qualifications/i.test(l));
+  if (eduIdx !== -1) {
+    for (let i = eduIdx + 1; i < Math.min(lines.length, eduIdx + 15); i++) {
       const line = lines[i];
-      if (/experience|projects|skills|certifications/i.test(line)) {
-        break;
-      }
-      if (line.length > 8 && !line.startsWith('•')) {
-        education.push({
-          school: line.trim(),
-          degree: "Bachelor of Science",
-          year: "2023",
-          coursework: ""
-        });
+      if (/^(experience|skills|projects|certifications)/i.test(line)) break;
+      if (line.length > 10 && !line.startsWith('•') && !line.startsWith('-')) {
+        education.push({ school: line.trim(), degree: lines[i + 1]?.trim() || "", year: lines[i + 2]?.trim() || "", coursework: "" });
         break;
       }
     }
-    educationConfidence = education.length > 0 ? 95 : 45;
-  } else {
-    educationConfidence = 15;
   }
 
-  // Overall confidence metrics aggregation
-  const overallConfidence = Math.round(
-    (nameConfidence * 0.15) +
-    (emailConfidence * 0.15) +
-    (phoneConfidence * 0.10) +
-    (skillsConfidence * 0.20) +
-    (experienceConfidence * 0.25) +
-    (educationConfidence * 0.15)
+  // Confidence scoring
+  const totalSkills = foundLanguages.length + foundFrameworks.length + foundTools.length;
+  const skillsConf = totalSkills >= 5 ? 95 : totalSkills >= 2 ? 75 : totalSkills > 0 ? 55 : 0;
+  const expConf = experience.length > 0 ? 90 : 0;
+  const eduConf = education.length > 0 ? 90 : 0;
+  const nameConf = nameConfidence;
+  const emailConf = email ? 99 : 0;
+  const phoneConf = phone ? 95 : 0;
+  const overall = Math.round(
+    (nameConf * 0.15) + (emailConf * 0.15) + (phoneConf * 0.10) +
+    (skillsConf * 0.20) + (expConf * 0.25) + (eduConf * 0.15)
   );
 
   return {
-    personal: {
-      name,
-      title: experience[0]?.role || "Software Engineer",
-      email,
-      phone,
-      location: "India",
-      github,
-      linkedin,
-      portfolio: ""
-    },
-    summary: lines.find(l => l.length > 50) || "Experienced software developer.",
+    personal: { name, title: experience[0]?.role || "", email, phone, location: "", github, linkedin, portfolio },
+    summary: "",
     skills: {
       languages: foundLanguages.join(', '),
       frameworks: foundFrameworks.join(', '),
       tools: foundTools.join(', '),
-      competencies: "Full-Stack Development, UI/UX Design"
+      competencies: ""
     },
-    experience: experience.length > 0 ? experience : [{ company: "Technology Corp", role: "Software Engineer", dates: "2022 - Present", description: "• Developed scalable web features.\n• Automated deployment workflows.", technologies: "TypeScript, React" }],
-    education: education.length > 0 ? education : [{ school: "Technical University", degree: "Bachelor of Technology", year: "2022", coursework: "Computer Science" }],
-    projects: [{ title: "Personal App Portfolio", technologies: foundLanguages.slice(0, 3).join(', '), description: "Built and deployed reactive user dashboard interface." }],
-    certifications: ["Professional Developer Certification"],
-    confidenceScores: {
-      name: nameConfidence,
-      email: emailConfidence,
-      phone: phoneConfidence,
-      skills: skillsConfidence,
-      experience: experienceConfidence,
-      education: educationConfidence,
-      overall: overallConfidence
-    }
+    experience,
+    education,
+    projects: [],
+    certifications: [],
+    confidenceScores: { name: nameConf, email: emailConf, phone: phoneConf, skills: skillsConf, experience: expConf, education: eduConf, overall }
   };
 }

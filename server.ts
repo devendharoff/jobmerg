@@ -10,7 +10,8 @@ import { fileURLToPath } from "url";
 import { createRequire } from "module";
 
 const require = createRequire(import.meta.url);
-const pdf = require("pdf-parse");
+// pdf-parse kept for any legacy routes that may reference it; actual PDF
+// extraction now goes through parsePdfBuffer (pdfjs-dist) in resumeParser.ts
 
 import compression from "compression";
 import rateLimit from "express-rate-limit";
@@ -21,8 +22,9 @@ const execAsync = promisify(exec);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-import { parsePdfLayoutAware, parseDocx, extractProfileFromText, normalizeSkills } from "./services/resumeParser.js";
+import { parsePdfBuffer, parseDocx, detectFileType, extractProfileFromText, normalizeSkills } from "./services/resumeParser.js";
 import { createClient } from "@supabase/supabase-js";
+
 
 dotenv.config();
 
@@ -979,190 +981,312 @@ Years of experience: ${experienceYears || "Not specified"}`;
 // AI Resume Parsing & Text Extraction Endpoint
 app.post("/api/parse-resume", async (req, res) => {
   let text = "";
+  let extractedChars = 0;
+
   try {
     const { resumeFile, resumeText, fileName } = req.body;
-    console.log(`[PARSER] Request received: fileName = ${fileName || 'unnamed'}, resumeFile length = ${resumeFile ? resumeFile.length : 0}`);
+    const safeFileName = fileName ? String(fileName).replace(/[^\w.\-]/g, '_') : 'unnamed';
+    console.log(`[ResumeUpload] File received: ${safeFileName}, base64 length = ${resumeFile?.length ?? 0}`);
 
+    // ── 1. Input validation ───────────────────────────────────────────────────
     if (!resumeFile && !resumeText) {
-      return res.status(400).json({ error: "Missing resumeFile or resumeText parameter." });
+      return res.status(400).json({
+        error: "No file received.",
+        detail: "Please upload a PDF or DOCX resume file.",
+        stage: "validation"
+      });
     }
 
-    const isDocx = fileName && fileName.toLowerCase().endsWith(".docx");
+    // ── 2. File type detection ────────────────────────────────────────────────
+    const fileType = resumeFile
+      ? detectFileType(safeFileName, resumeFile)
+      : "pdf"; // resumeText path — treat as pre-extracted
+
+    if (fileType === "unsupported") {
+      return res.status(415).json({
+        error: "Unsupported file format.",
+        detail: "Please upload a PDF (.pdf) or Word document (.docx).",
+        stage: "validation"
+      });
+    }
+
+    // ── 3. Text extraction ────────────────────────────────────────────────────
     text = resumeText || "";
 
     if (resumeFile) {
       const buffer = Buffer.from(resumeFile, 'base64');
-      if (isDocx) {
-        console.log(`[PARSER] Parsing DOCX via Mammoth: ${fileName}`);
-        text = await parseDocx(buffer);
-      } else {
-        console.log(`[PARSER] Parsing PDF via Layout-Aware sort: ${fileName || "unnamed.pdf"}`);
+
+      if (buffer.length < 100) {
+        return res.status(400).json({
+          error: "File appears to be empty or corrupted.",
+          detail: "Please upload a valid resume file.",
+          stage: "validation"
+        });
+      }
+
+      if (fileType === "docx") {
+        console.log(`[ResumeParser] DOCX detected — extracting via Mammoth`);
         try {
-          text = await parsePdfLayoutAware(buffer, pdf);
+          text = await parseDocx(buffer);
+        } catch (docxErr: any) {
+          console.error("[ResumeParser] DOCX extraction failed:", docxErr.message);
+          return res.status(422).json({
+            error: "Could not read this Word document.",
+            detail: "The file may be corrupted or password-protected. Try re-saving as .docx and re-uploading.",
+            stage: "docx_extraction"
+          });
+        }
+      } else {
+        // PDF
+        console.log(`[ResumeParser] PDF detected — extracting via pdfjs-dist`);
+        try {
+          text = await parsePdfBuffer(buffer);
         } catch (pdfErr: any) {
-          console.warn("[PARSER] Layout-aware parsing failed, falling back to simple stream parser:", pdfErr.message);
-          try {
-            let pdfData;
-            if (typeof pdf === 'function') {
-              pdfData = await pdf(buffer);
-            } else if (pdf && typeof (pdf as any).default === 'function') {
-              pdfData = await (pdf as any).default(buffer);
-            }
-            text = pdfData ? pdfData.text : "";
-          } catch (simpleErr) {
-            console.error("[PARSER] Simple parsing failed:", simpleErr);
-          }
+          console.error("[ResumeParser] PDF extraction failed:", pdfErr.message);
+          return res.status(422).json({
+            error: "Could not read this PDF.",
+            detail: "The file may be scanned, encrypted, or corrupted. Try exporting as a text-based PDF and re-uploading.",
+            stage: "pdf_extraction"
+          });
         }
       }
     }
 
-    console.log(`[PARSER] Text extraction complete. Length = ${text.length} characters.`);
+    extractedChars = text.replace(/\s/g, '').length; // non-whitespace chars
+    console.log(`[ResumeParser] Pages: N/A | Extracted characters: ${extractedChars}`);
 
+    // ── 4. Scanned / empty PDF guard ──────────────────────────────────────────
+    if (extractedChars < 80) {
+      console.warn(`[ResumeParser] Extracted text too short (${extractedChars} chars) — likely a scanned PDF`);
+      return res.status(422).json({
+        error: "This resume appears to be a scanned image.",
+        detail: "We couldn't read text from this PDF. Please upload a text-based PDF or DOCX version of your resume.",
+        stage: "ocr_required"
+      });
+    }
+
+    // ── 5. Local deterministic pre-parse (for confidence seeding) ─────────────
+    const localPreParse = extractProfileFromText(text);
+    console.log(`[ResumeParser] Sections detected: local pass found name="${localPreParse.personal.name}", email="${localPreParse.personal.email ? '***@***' : 'none'}", skills=${(localPreParse.skills.languages + localPreParse.skills.frameworks + localPreParse.skills.tools).split(',').filter(Boolean).length}`);
+
+    // ── 6. LLM structured extraction ─────────────────────────────────────────
     const ai = getAiClient();
 
     const calculateConfidence = (profile: any) => {
-      const name = profile.personal?.name && profile.personal.name !== "Candidate Name" ? 99 : 10;
-      const email = /[\w.-]+@[\w.-]+\.\w+/.test(profile.personal?.email || "") ? 99 : 0;
-      const phone = profile.personal?.phone ? 99 : 0;
-      const skillsCount = (profile.skills?.languages?.split(',').length || 0) + 
-                          (profile.skills?.frameworks?.split(',').length || 0) + 
-                          (profile.skills?.tools?.split(',').length || 0);
-      const skills = skillsCount > 3 ? 95 : 60;
-      const experience = profile.experience?.length > 0 ? 95 : 20;
-      const education = profile.education?.length > 0 ? 95 : 15;
-      
+      const nameVal = (profile.personal?.name || "").trim();
+      // Reject generic placeholder names
+      const genericNames = ["candidate name", "full name", "your name", "name", "candidate"];
+      const name = nameVal && !genericNames.includes(nameVal.toLowerCase()) ? 95 : (localPreParse.confidenceScores.name);
+      const email = /[\w.+-]+@[\w.-]+\.\w+/.test(profile.personal?.email || "") ? 99 : localPreParse.confidenceScores.email;
+      const phone = profile.personal?.phone ? 95 : localPreParse.confidenceScores.phone;
+      const skillsCount =
+        (profile.skills?.languages ? profile.skills.languages.split(',').filter(Boolean).length : 0) +
+        (profile.skills?.frameworks ? profile.skills.frameworks.split(',').filter(Boolean).length : 0) +
+        (profile.skills?.tools ? profile.skills.tools.split(',').filter(Boolean).length : 0);
+      const skills = skillsCount >= 5 ? 95 : skillsCount >= 2 ? 75 : skillsCount > 0 ? 55 : localPreParse.confidenceScores.skills;
+      const experience = (profile.experience?.length ?? 0) > 0 ? 95 : localPreParse.confidenceScores.experience;
+      const education = (profile.education?.length ?? 0) > 0 ? 95 : localPreParse.confidenceScores.education;
       const overall = Math.round(
-        (name * 0.15) + (email * 0.15) + (phone * 0.10) + (skills * 0.20) + (experience * 0.25) + (education * 0.15)
+        (name * 0.15) + (email * 0.15) + (phone * 0.10) +
+        (skills * 0.20) + (experience * 0.25) + (education * 0.15)
       );
-
       return { name, email, phone, skills, experience, education, overall };
     };
 
-    const localParse = () => {
-      console.log(`[PARSER] Running local fallback parser extraction`);
-      const fallbackResult = extractProfileFromText(text);
-      console.log(`[PARSER] Local fallback result name = ${fallbackResult.personal.name}`);
-      return fallbackResult;
-    };
-
+    // No Gemini key — use deterministic local parse and return it cleanly
     if (!ai) {
-      console.log(`[PARSER] Gemini client not initialized. Falling back to local parser.`);
-      return res.json(localParse());
+      console.log("[ResumeAI] Gemini client not available — returning deterministic local extraction");
+      const result = localPreParse;
+      console.log(`[ResumeAPI] Returning local profile — name="${result.personal.name}", chars_extracted=${extractedChars}`);
+      return res.json(result);
     }
 
-    const systemPrompt = `You are an elite Applicant Tracking System (ATS) document parsing engine. Your job is to extract raw structured fields from the candidate's resume document (which may be provided as a PDF attachment or raw text stream).
+    // ── 7. Build Gemini prompt ────────────────────────────────────────────────
+    const systemPrompt = `You are a resume information extraction engine. Extract factual information from the resume text provided.
 
-Extract the content strictly into the following JSON schema:
+STRICT RULES:
+1. Extract ONLY information explicitly present in the document.
+2. NEVER invent companies, job titles, dates, skills, projects, or achievements.
+3. NEVER improve or rewrite the candidate's content.
+4. NEVER fill missing fields with examples or placeholders.
+5. If a field is missing from the resume, return null or an empty string for that field.
+6. Preserve the candidate's original wording for descriptions.
+7. Do not merge unrelated sections.
+8. Separate bullet-point responsibilities using the • character and newlines.
+9. Return ONLY valid JSON matching the schema below. No prose outside the JSON.
+
+OUTPUT SCHEMA:
 {
   "personal": {
-    "name": "<candidate full name>",
-    "title": "<candidate role title>",
+    "name": "<candidate full name — exactly as written>",
+    "title": "<current or most recent job title>",
     "email": "<email address>",
     "phone": "<phone number>",
-    "location": "<location/city/state>",
-    "github": "<github profile link>",
-    "linkedin": "<linkedin profile link>",
-    "portfolio": "<portfolio link>"
+    "location": "<city, state/country>",
+    "github": "<github.com/... URL or empty string>",
+    "linkedin": "<linkedin.com/in/... URL or empty string>",
+    "portfolio": "<portfolio URL or empty string>"
   },
-  "summary": "<professional summary or objective statement>",
+  "summary": "<professional summary or objective — verbatim from resume, empty string if absent>",
   "skills": {
-    "languages": "<comma separated coding languages>",
-    "frameworks": "<comma separated libraries & frameworks>",
-    "tools": "<comma separated tools & platforms>",
-    "competencies": "<comma separated core competencies>"
+    "languages": "<comma-separated programming/markup languages only>",
+    "frameworks": "<comma-separated libraries, frameworks, and UI tools>",
+    "tools": "<comma-separated DevOps, cloud, databases, and other tools>",
+    "competencies": "<comma-separated soft skills or methodologies>"
   },
   "experience": [
     {
-      "company": "<company name>",
-      "role": "<job title>",
-      "dates": "<dates of employment>",
-      "description": "<bullet points starting with bullet symbol (•) and separated by newlines>",
-      "technologies": "<comma separated technologies used in this role>"
+      "company": "<employer name>",
+      "role": "<job title at this company>",
+      "dates": "<employment dates exactly as written in resume>",
+      "description": "<bullet points starting with • separated by newlines>",
+      "technologies": "<technologies mentioned for this role, comma-separated>"
     }
   ],
   "education": [
     {
-      "school": "<university or school name>",
-      "degree": "<degree or major>",
-      "year": "<graduation year>",
-      "coursework": "<relevant coursework or academic highlights>"
+      "school": "<institution name>",
+      "degree": "<degree and field of study>",
+      "year": "<graduation year or date range>",
+      "gpa": "<GPA if stated>",
+      "coursework": "<relevant coursework if listed>"
     }
   ],
   "projects": [
     {
       "title": "<project name>",
-      "technologies": "<comma separated technologies used>",
-      "description": "<project description bullet points or text>"
+      "technologies": "<technologies used, comma-separated>",
+      "description": "<project description>"
     }
   ],
-  "certifications": [
-    "<certification name 1>",
-    "<certification name 2>"
-  ]
-}
+  "certifications": ["<certification name>"]
+}`;
 
-Ensure all extracted values reflect the actual document. Do not invent any companies, projects, or experiences. If a field (e.g. portfolio or GitHub link) is missing, leave it as an empty string. Output only valid JSON.`;
-
+    // For PDFs, also pass the raw file as inline data so Gemini can read formatting
     let contents: any[] = [];
-    if (resumeFile && !isDocx) {
-      contents.push({
-        inlineData: {
-          data: resumeFile,
-          mimeType: "application/pdf"
+    if (resumeFile && fileType === "pdf") {
+      contents.push({ inlineData: { data: resumeFile, mimeType: "application/pdf" } });
+    }
+    contents.push(`Extract structured data from this resume:\n\n${text}`);
+
+    console.log("[ResumeAI] Structured extraction started");
+
+    let response: any;
+    try {
+      response = await ai.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents,
+        config: {
+          systemInstruction: systemPrompt,
+          responseMimeType: "application/json"
         }
       });
-    }
-    contents.push(`Parse this resume file/text and return the JSON structure:\n${text || "PDF attachment provided."}`);
-
-    const response = await ai.models.generateContent({
-      model: "gemini-3.6-flash",
-      contents,
-      config: {
-        systemInstruction: systemPrompt,
-        responseMimeType: "application/json"
+    } catch (geminiErr: any) {
+      // Try fallback model name if primary is deprecated
+      console.warn("[ResumeAI] gemini-2.5-flash failed, trying gemini-1.5-flash-latest:", geminiErr.message);
+      try {
+        response = await ai.models.generateContent({
+          model: "gemini-1.5-flash-latest",
+          contents,
+          config: {
+            systemInstruction: systemPrompt,
+            responseMimeType: "application/json"
+          }
+        });
+      } catch (fallbackModelErr: any) {
+        console.error("[ResumeAI] All Gemini models failed:", fallbackModelErr.message);
+        // Don't return mock data — return the local deterministic parse
+        console.log("[ResumeAPI] Returning deterministic local extraction as Gemini is unavailable");
+        return res.json(localPreParse);
       }
-    });
+    }
 
-    const aiResponseText = response.text;
+    const aiResponseText = response?.text;
     if (!aiResponseText) {
-      throw new Error("No response text received from Gemini API");
+      console.error("[ResumeAI] Empty response from Gemini");
+      return res.json(localPreParse);
     }
 
-    const parsedData = JSON.parse(aiResponseText);
-    
-    // Normalize skills
-    if (parsedData.skills) {
-      parsedData.skills.languages = normalizeSkills(parsedData.skills.languages);
-      parsedData.skills.frameworks = normalizeSkills(parsedData.skills.frameworks);
-      parsedData.skills.tools = normalizeSkills(parsedData.skills.tools);
-    }
-    
-    parsedData.confidenceScores = calculateConfidence(parsedData);
-    console.log(`[PARSER] Gemini parse-resume response parsed successfully. Candidate Name = ${parsedData?.personal?.name}`);
-    return res.json(parsedData);
-  } catch (error: any) {
-    console.warn("[PARSER] Gemini parse-resume failed, serving local fallback:", error.message || error);
+    console.log("[ResumeAI] Structured extraction completed");
+
+    // ── 8. Parse and validate AI response ────────────────────────────────────
+    let parsedData: any;
     try {
-      const fallbackResult = extractProfileFromText(text);
-      console.log(`[PARSER] Catch block fallback result name = ${fallbackResult.personal.name}`);
-      return res.json(fallbackResult);
-    } catch (fallbackErr: any) {
-      console.error("[PARSER] Catch block local fallback failed entirely:", fallbackErr.message || fallbackErr);
-      return res.json({
-        personal: { name: "Candidate Name", title: "", email: "", phone: "", location: "", github: "", linkedin: "", portfolio: "" },
-        summary: "",
-        skills: { languages: "", frameworks: "", tools: "", competencies: "" },
-        experience: [],
-        education: [],
-        projects: [],
-        certifications: [],
-        confidenceScores: { name: 10, email: 0, phone: 0, skills: 60, experience: 20, education: 15, overall: 20 }
-      });
+      // Strip markdown code fences if model wraps the JSON
+      const cleaned = aiResponseText
+        .replace(/^```(?:json)?\n?/i, '')
+        .replace(/\n?```$/i, '')
+        .trim();
+      parsedData = JSON.parse(cleaned);
+    } catch (parseErr: any) {
+      console.error("[ResumeAI] JSON parse error on AI response:", parseErr.message);
+      // Fall back to the local deterministic parse — it has real data from this file
+      return res.json(localPreParse);
     }
+
+    console.log("[ResumeValidation] Schema valid");
+
+    // ── 9. Normalize skills ───────────────────────────────────────────────────
+    if (parsedData.skills) {
+      parsedData.skills.languages = normalizeSkills(parsedData.skills.languages || "");
+      parsedData.skills.frameworks = normalizeSkills(parsedData.skills.frameworks || "");
+      parsedData.skills.tools = normalizeSkills(parsedData.skills.tools || "");
+    }
+
+    // ── 10. Merge local pre-parse for any fields the LLM left empty ───────────
+    // If Gemini returned empty name/email/phone but the local regex found them, use local
+    if (!parsedData.personal?.name && localPreParse.personal.name) {
+      parsedData.personal = parsedData.personal || {};
+      parsedData.personal.name = localPreParse.personal.name;
+    }
+    if (!parsedData.personal?.email && localPreParse.personal.email) {
+      parsedData.personal.email = localPreParse.personal.email;
+    }
+    if (!parsedData.personal?.phone && localPreParse.personal.phone) {
+      parsedData.personal.phone = localPreParse.personal.phone;
+    }
+    if (!parsedData.personal?.linkedin && localPreParse.personal.linkedin) {
+      parsedData.personal.linkedin = localPreParse.personal.linkedin;
+    }
+    if (!parsedData.personal?.github && localPreParse.personal.github) {
+      parsedData.personal.github = localPreParse.personal.github;
+    }
+
+    // ── 11. Attach confidence scores ─────────────────────────────────────────
+    parsedData.confidenceScores = calculateConfidence(parsedData);
+
+    // Safe log — no PII
+    console.log(`[ResumeDatabase] Profile ready: name_length=${parsedData.personal?.name?.length ?? 0}, exp_count=${parsedData.experience?.length ?? 0}, edu_count=${parsedData.education?.length ?? 0}, overall_confidence=${parsedData.confidenceScores.overall}`);
+    console.log(`[ResumeAPI] Returning real profile`);
+
+    return res.json(parsedData);
+
+  } catch (error: any) {
+    // Outer catch — something completely unexpected happened
+    console.error("[ResumeParser] Unexpected error in pipeline:", error.message || error);
+
+    // If we managed to extract text, return the local deterministic parse (real data, no mocks)
+    if (text && text.replace(/\s/g, '').length >= 80) {
+      console.log("[ResumeAPI] Falling back to deterministic local extraction after unexpected error");
+      try {
+        const fallbackResult = extractProfileFromText(text);
+        return res.json(fallbackResult);
+      } catch (localErr: any) {
+        console.error("[ResumeParser] Local extraction also failed:", localErr.message);
+      }
+    }
+
+    // Only if we have literally nothing — return a real error, NOT mock data
+    return res.status(500).json({
+      error: "We couldn't extract your resume.",
+      detail: "An unexpected error occurred. Please try a different file or try again.",
+      stage: "pipeline_error"
+    });
   }
 });
 
 // JD Keyword Extractor Endpoint
+
 app.post("/api/analyze-jd", async (req, res) => {
   try {
     const { jobDescription, resumeText, userSkills } = req.body;

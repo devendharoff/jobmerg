@@ -115,69 +115,41 @@ const TEMPLATE_OPTIONS = [
   { id: 'emerald', name: 'Emerald Fresh', tag: 'Badge Grid', category: 'Modern' }
 ] as const;
 
-const DEFAULT_RESUME: Resume = {
+const BLANK_RESUME: Resume = {
   id: 'resume-1',
-  name: 'General Resume',
-  targetRole: 'Software Engineer',
-  targetCompany: 'General',
-  atsScore: 78,
-  lastUpdated: '10 mins ago',
+  name: 'My Resume',
+  targetRole: '',
+  targetCompany: '',
+  atsScore: 0,
+  lastUpdated: 'Just now',
   version: 'v1',
   personal: {
-    name: 'Aravind Sharma',
-    title: 'Full-Stack Software Engineer',
-    email: 'aravind.sharma@example.com',
-    phone: '+91 98765 43210',
-    location: 'Bengaluru, India',
-    github: 'github.com/aravindsharma',
-    linkedin: 'linkedin.com/in/aravindsharma',
-    portfolio: 'aravindsharma.dev'
+    name: '',
+    title: '',
+    email: '',
+    phone: '',
+    location: '',
+    github: '',
+    linkedin: '',
+    portfolio: ''
   },
-  summary: 'Detail-oriented and results-driven software engineer with 3+ years of experience specializing in building scalable web applications. Proficient in React, Node.js, and cloud databases, with a track record of improving application efficiency.',
+  summary: '',
   skills: {
-    languages: 'TypeScript, JavaScript, Python, SQL, C++',
-    frameworks: 'React, Node.js, Next.js, Express, Tailwind CSS',
-    tools: 'Git, Docker, AWS, PostgreSQL, Supabase, Redis',
-    competencies: 'Full-Stack Development, System Architecture, REST APIs, UI/UX Design'
+    languages: '',
+    frameworks: '',
+    tools: '',
+    competencies: ''
   },
-  experience: [
-    {
-      company: 'AppInnovate Technologies',
-      role: 'Software Engineer',
-      dates: '2023 - Present',
-      description: '• Developed responsive web applications using React and TypeScript, boosting client engagement by 25%.\n• Built and documented RESTful microservices in Node.js connected to PostgreSQL databases.\n• Streamlined deployments by migrating local backend instances to Docker and AWS ECS.',
-      technologies: 'React, TypeScript, Node.js, Docker, AWS, PostgreSQL'
-    },
-    {
-      company: 'TechSoft Solutions',
-      role: 'Junior Engineer',
-      dates: '2021 - 2023',
-      description: '• Collaborated in a team of 5 using Git to build custom administration portals for retail businesses.\n• Wrote database migration scripts and optimized querying speed, decreasing page loads by 12%.\n• Integrated payment services and transactional notification layers via SendGrid.',
-      technologies: 'JavaScript, Node.js, Express, MongoDB, Git'
-    }
-  ],
-  education: [
-    {
-      school: 'National Institute of Technology',
-      degree: 'B.Tech in Computer Science & Engineering',
-      year: '2017 - 2021',
-      gpa: '8.4 CGPA',
-      coursework: 'Data Structures, Database Management, Software Engineering, Cloud Computing'
-    }
-  ],
-  projects: [
-    {
-      title: 'Scalable Microservices Gateway',
-      technologies: 'Node.js, Redis, AWS Lambda',
-      description: 'Engineered a secure microservices API gateway handling 15,000+ daily sessions, caching routing maps via Redis for sub-10ms response checks.'
-    }
-  ],
-  certifications: [
-    'AWS Certified Solutions Architect - Associate',
-    'Google Cloud Certified Professional Cloud Developer'
-  ],
+  experience: [],
+  education: [],
+  projects: [],
+  certifications: [],
   versions: []
 };
+
+// Keep DEFAULT_RESUME as an alias so existing code referencing it still compiles
+const DEFAULT_RESUME = BLANK_RESUME;
+
 
 export default function ResumeStudio({ userProfile, onOpenPricing }: ResumeStudioProps) {
   // Stepper flow configuration
@@ -217,15 +189,17 @@ export default function ResumeStudio({ userProfile, onOpenPricing }: ResumeStudi
   const [certifications, setCertifications] = useState<string[]>(activeResume.certifications);
   const [certInput, setCertInput] = useState('');
   const [confidenceScores, setConfidenceScores] = useState({
-    name: 99,
-    email: 99,
-    phone: 99,
-    skills: 95,
-    experience: 95,
-    education: 95,
-    overall: 96
+    name: 0,
+    email: 0,
+    phone: 0,
+    skills: 0,
+    experience: 0,
+    education: 0,
+    overall: 0
   });
+  const [extractionError, setExtractionError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
 
   // Sync to hooks when active resume changes
   useEffect(() => {
@@ -333,10 +307,10 @@ export default function ResumeStudio({ userProfile, onOpenPricing }: ResumeStudi
     }, 1000);
   };
 
-  // Create new resume flow
+  // Create new resume flow — starts completely blank, no mock data
   const handleCreateNew = () => {
     const newResume: Resume = {
-      ...DEFAULT_RESUME,
+      ...BLANK_RESUME,
       id: `resume-${Date.now()}`,
       name: `Untitled Resume (${resumes.length + 1})`,
       lastUpdated: 'Just now',
@@ -345,10 +319,20 @@ export default function ResumeStudio({ userProfile, onOpenPricing }: ResumeStudi
     };
     setResumes([...resumes, newResume]);
     setSelectedResumeId(newResume.id);
+    // Reset all working state to blank before the new upload
+    setPersonal({ ...BLANK_RESUME.personal });
+    setSummary('');
+    setSkillsGrouped({ ...BLANK_RESUME.skills });
+    setExperience([]);
+    setEducation([]);
+    setProjects([]);
+    setCertifications([]);
+    setConfidenceScores({ name: 0, email: 0, phone: 0, skills: 0, experience: 0, education: 0, overall: 0 });
+    setExtractionError(null);
     goToStep('import');
   };
 
-  // Upload handler simulating AI extraction pipeline
+  // Upload handler — drag and drop
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     setDragOver(true);
@@ -367,6 +351,17 @@ export default function ResumeStudio({ userProfile, onOpenPricing }: ResumeStudi
   };
 
   const extractActualResumeData = (file: File) => {
+    // Clear stale data from any previous upload immediately
+    setPersonal({ ...BLANK_RESUME.personal });
+    setSummary('');
+    setSkillsGrouped({ ...BLANK_RESUME.skills });
+    setExperience([]);
+    setEducation([]);
+    setProjects([]);
+    setCertifications([]);
+    setConfidenceScores({ name: 0, email: 0, phone: 0, skills: 0, experience: 0, education: 0, overall: 0 });
+    setExtractionError(null);
+
     setUploadProgress(5);
     setExtractionStage('Reading document...');
 
@@ -388,43 +383,52 @@ export default function ResumeStudio({ userProfile, onOpenPricing }: ResumeStudi
         setUploadProgress(60);
         setExtractionStage('Extracting work history & skills...');
 
-        if (!res.ok) throw new Error();
         const data = await res.json();
+
+        // If backend returned an error object, surface it — NEVER silently fall back
+        if (!res.ok || data.error) {
+          const errMsg = data.detail || data.error || 'We couldn\'t extract your resume. Please try a different file.';
+          setUploadProgress(0);
+          setExtractionStage('');
+          setExtractionError(errMsg);
+          return;
+        }
 
         setUploadProgress(90);
         setExtractionStage('Structuring profile layers...');
 
-        setTimeout(() => {
-          if (data.personal) setPersonal(data.personal);
-          if (data.summary) setSummary(data.summary);
-          if (data.skills) setSkillsGrouped(data.skills);
-          if (data.experience) setExperience(data.experience);
-          if (data.education) setEducation(data.education);
-          if (data.projects) setProjects(data.projects);
-          if (data.certifications) setCertifications(data.certifications);
-          if (data.confidenceScores) setConfidenceScores(data.confidenceScores);
+        // Unconditionally set all fields from the API — no stale data to fall back to
+        setPersonal(data.personal ?? { ...BLANK_RESUME.personal });
+        setSummary(data.summary ?? '');
+        setSkillsGrouped(data.skills ?? { ...BLANK_RESUME.skills });
+        setExperience(data.experience ?? []);
+        setEducation(data.education ?? []);
+        setProjects(data.projects ?? []);
+        setCertifications(data.certifications ?? []);
+        if (data.confidenceScores) setConfidenceScores(data.confidenceScores);
 
-          setUploadProgress(100);
-          setTimeout(() => {
-            goToStep('profile');
-            setUploadProgress(0);
-          }, 400);
-        }, 800);
-      } catch (e) {
         setUploadProgress(100);
-        setExtractionStage('Done (using fallback)');
         setTimeout(() => {
           goToStep('profile');
           setUploadProgress(0);
-        }, 500);
+          setExtractionStage('');
+        }, 400);
+
+      } catch (e: any) {
+        // Network/parse error — show real error, do NOT advance to profile with old data
+        setUploadProgress(0);
+        setExtractionStage('');
+        setExtractionError('Could not connect to the extraction service. Please check your connection and try again.');
       }
     };
     reader.onerror = () => {
       setUploadProgress(0);
       setExtractionStage('Error reading file');
+      setExtractionError('Could not read this file. Please try a different PDF or DOCX.');
     };
     reader.readAsDataURL(file);
   };
+
 
   // Job analysis trigger
   const handleAnalyzeJob = () => {
@@ -785,7 +789,25 @@ export default function ResumeStudio({ userProfile, onOpenPricing }: ResumeStudi
                     </div>
                   </div>
                 )}
+
+                {extractionError && (
+                  <div className="rounded-2xl bg-red-50 border border-red-200 px-4 py-3 flex gap-3 items-start animate-fade-in">
+                    <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-bold text-red-700">Couldn't extract resume</p>
+                      <p className="text-[11px] text-red-600 mt-0.5">{extractionError}</p>
+                      <p className="text-[10px] text-red-400 mt-1">Supported formats: PDF (text-based) and DOCX</p>
+                    </div>
+                    <button
+                      onClick={() => { setExtractionError(null); fileInputRef.current?.click(); }}
+                      className="text-[10px] font-black text-red-600 underline shrink-0"
+                    >
+                      Try again
+                    </button>
+                  </div>
+                )}
               </div>
+
 
               {/* Context Info Panel */}
               <div className="w-full sm:w-[220px] bg-slate-50 p-5 rounded-2xl border border-slate-150 space-y-4 text-xs font-medium">
