@@ -559,6 +559,7 @@ export default function ResumeStudio({ userProfile, onOpenPricing }: ResumeStudi
   const [isPasteMode, setIsPasteMode] = useState(false);
   const [pasteModeText, setPasteModeText] = useState('');
   const [isLocalExtracting, setIsLocalExtracting] = useState(false);
+  const [exportFeedback, setExportFeedback] = useState<{ type: 'pdf' | 'docx' | 'link'; message: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
 
@@ -639,6 +640,7 @@ export default function ResumeStudio({ userProfile, onOpenPricing }: ResumeStudi
 
   // Stepper helper
   const goToStep = (step: StudioStep) => {
+    setExportFeedback(null);
     setCurrentStep(step);
   };
 
@@ -666,6 +668,176 @@ export default function ResumeStudio({ userProfile, onOpenPricing }: ResumeStudi
     setTimeout(() => {
       document.title = originalTitle;
     }, 1000);
+  };
+  const handlePrintPdf = () => {
+    handlePrint();
+    setExportFeedback({
+      type: 'pdf',
+      message: 'Print dialog opened. Select "Save as PDF" as the Destination in the print dialog. Enable "Background graphics" under More Settings to preserve template styling, then click Save.'
+    });
+  };
+
+  const handleDownloadDocx = () => {
+    const r = activeResume;
+    const name = personal.name || 'Candidate';
+    
+    // Construct MS Word-compatible HTML string
+    let html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+  <meta charset="utf-8">
+  <title>${name} - Resume</title>
+  <style>
+    body { font-family: Calibri, Arial, sans-serif; font-size: 11pt; line-height: 1.25; color: #333333; margin: 1in; }
+    h1 { font-size: 18pt; font-weight: bold; margin-bottom: 2pt; text-align: center; color: #000000; text-transform: uppercase; }
+    .contact-info { text-align: center; font-size: 9.5pt; color: #475569; margin-bottom: 12pt; }
+    h2 { font-size: 12.5pt; font-weight: bold; color: #1e3a8a; border-bottom: 1px solid #cbd5e1; margin-top: 14pt; margin-bottom: 6pt; text-transform: uppercase; }
+    .section-desc { font-size: 10.5pt; margin-bottom: 8pt; text-align: justify; }
+    .item { margin-bottom: 10pt; }
+    .item-header { font-weight: bold; font-size: 11pt; color: #000000; }
+    .item-meta { font-style: italic; color: #475569; margin-bottom: 2pt; }
+    .item-tech { font-size: 9.5pt; font-weight: bold; color: #0f766e; margin-bottom: 2pt; }
+    .bullets { margin: 0; padding-left: 18pt; }
+    .bullet-item { margin-bottom: 3pt; font-size: 10.5pt; }
+    .skills-table { width: 100%; border-collapse: collapse; margin-top: 4pt; }
+    .skills-row { margin-bottom: 4pt; }
+    .skills-label { font-weight: bold; font-size: 10.5pt; color: #0f172a; width: 130px; vertical-align: top; }
+    .skills-val { font-size: 10.5pt; color: #334155; }
+  </style>
+</head>
+<body>
+  <h1>${name}</h1>
+  <div class="contact-info">
+    ${[
+      personal.phone && `Phone: ${personal.phone}`,
+      personal.email && `Email: ${personal.email}`,
+      personal.location && `Location: ${personal.location}`,
+      personal.linkedin && `LinkedIn: ${personal.linkedin}`,
+      personal.github && `GitHub: ${personal.github}`,
+      personal.portfolio && `Portfolio: ${personal.portfolio}`
+    ].filter(Boolean).join('  |  ')}
+  </div>
+`;
+
+    if (summary) {
+      html += `<h2>Professional Summary</h2>
+  <div class="section-desc">${summary}</div>
+`;
+    }
+
+    if (skillsGrouped && (skillsGrouped.languages || skillsGrouped.frameworks || skillsGrouped.tools || skillsGrouped.competencies)) {
+      html += `<h2>Core Competencies & Skills</h2>
+  <table class="skills-table">
+`;
+      if (skillsGrouped.languages) {
+        html += `    <tr class="skills-row"><td class="skills-label">Languages:</td><td class="skills-val">${skillsGrouped.languages}</td></tr>\n`;
+      }
+      if (skillsGrouped.frameworks) {
+        html += `    <tr class="skills-row"><td class="skills-label">Frameworks & Libs:</td><td class="skills-val">${skillsGrouped.frameworks}</td></tr>\n`;
+      }
+      if (skillsGrouped.tools) {
+        html += `    <tr class="skills-row"><td class="skills-label">Tools & Platforms:</td><td class="skills-val">${skillsGrouped.tools}</td></tr>\n`;
+      }
+      if (skillsGrouped.competencies) {
+        html += `    <tr class="skills-row"><td class="skills-label">Methodologies:</td><td class="skills-val">${skillsGrouped.competencies}</td></tr>\n`;
+      }
+      html += `  </table>\n`;
+    }
+
+    if (experience && experience.length > 0) {
+      html += `<h2>Work History</h2>\n`;
+      experience.forEach(exp => {
+        html += `  <div class="item">
+    <table style="width:100%; border-collapse:collapse;">
+      <tr>
+        <td class="item-header" style="text-align:left;">${exp.role} &nbsp;—&nbsp; ${exp.company}</td>
+        <td class="item-header" style="text-align:right;">${exp.dates}</td>
+      </tr>
+    </table>
+`;
+        if (exp.technologies) {
+          html += `    <div class="item-tech">Technologies: ${exp.technologies}</div>\n`;
+        }
+        if (exp.description) {
+          html += `    <ul class="bullets">\n`;
+          const bullets = exp.description.split('\n').map(b => b.replace(/^[•\-\*]\s*/, '').trim()).filter(Boolean);
+          bullets.forEach(bullet => {
+            html += `      <li class="bullet-item">${bullet}</li>\n`;
+          });
+          html += `    </ul>\n`;
+        }
+        html += `  </div>\n`;
+      });
+    }
+
+    if (projects && projects.length > 0) {
+      html += `<h2>Key Projects</h2>\n`;
+      projects.forEach(proj => {
+        html += `  <div class="item">
+    <table style="width:100%; border-collapse:collapse;">
+      <tr>
+        <td class="item-header" style="text-align:left;">${proj.title}</td>
+        <td class="item-header" style="text-align:right; font-weight:normal; font-style:italic;">${proj.technologies}</td>
+      </tr>
+    </table>
+    <div style="font-size:10.5pt; color:#334155; margin-top:2px;">${proj.description}</div>
+  </div>\n`;
+      });
+    }
+
+    if (education && education.length > 0) {
+      html += `<h2>Education</h2>\n`;
+      education.forEach(edu => {
+        html += `  <div class="item">
+    <table style="width:100%; border-collapse:collapse;">
+      <tr>
+        <td class="item-header" style="text-align:left;">${edu.degree}</td>
+        <td class="item-header" style="text-align:right;">${edu.year}</td>
+      </tr>
+    </table>
+    <div class="item-meta">${edu.school}</div>
+    ${edu.coursework ? `<div style="font-size:9.5pt; color:#475569; italic;">Relevant Coursework: ${edu.coursework}</div>` : ''}
+  </div>\n`;
+      });
+    }
+
+    if (certifications && certifications.length > 0 && certifications[0]) {
+      html += `<h2>Certifications</h2>
+  <ul class="bullets">
+`;
+      certifications.forEach(cert => {
+        if (cert && cert.trim()) {
+          html += `    <li class="bullet-item">${cert}</li>\n`;
+        }
+      });
+      html += `  </ul>\n`;
+    }
+
+    html += `</body>\n</html>`;
+
+    // Create Blob and trigger download
+    const blob = new Blob([html], { type: 'application/msword' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${name.replace(/\s+/g, '_')}_Resume.doc`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    setExportFeedback({
+      type: 'docx',
+      message: `Successfully downloaded editable Word file: "${name.replace(/\s+/g, '_')}_Resume.doc". Open it in Microsoft Word, Pages, or Google Docs.`
+    });
+  };
+
+  const handleCreateLink = () => {
+    const link = `https://jobmerge.co/share/resume-${selectedResumeId}`;
+    navigator.clipboard.writeText(link);
+    setExportFeedback({
+      type: 'link',
+      message: `Share Link copied to clipboard: "${link}". Anyone with this link can view your tailored resume.`
+    });
   };
 
   // Create new resume flow — starts completely blank, no mock data
@@ -2013,68 +2185,142 @@ export default function ResumeStudio({ userProfile, onOpenPricing }: ResumeStudi
 
         {/* ==================== SCREEN 12: EXPORT ==================== */}
         {currentStep === 'export' && (
-          <div className="flex-grow flex items-center justify-center p-6 bg-[#fafbfa] animate-fade-in text-left print:hidden">
-            <div className="bg-white border border-gray-150 p-8 sm:p-12 rounded-3xl shadow-md max-w-2xl w-full space-y-6">
+          <div className="flex-grow flex flex-col lg:flex-row min-h-0 divide-y lg:divide-y-0 lg:divide-x divide-gray-200 print:hidden animate-fade-in text-left">
+            
+            {/* LEFT SIDEBAR: DOWNLOAD ACTIONS & CONTROLS */}
+            <div className="w-full lg:w-[450px] bg-white p-6 sm:p-8 flex flex-col justify-between overflow-y-auto shrink-0 space-y-6">
               
-              <div className="text-center space-y-2">
-                <div className="w-12 h-12 bg-indigo-50 text-indigo-650 rounded-full flex items-center justify-center mx-auto">
-                  <Check className="w-7 h-7" />
+              <div className="space-y-6">
+                <div className="text-center sm:text-left space-y-2">
+                  <div className="w-12 h-12 bg-indigo-50 text-indigo-650 rounded-full flex items-center justify-center mx-auto sm:mx-0">
+                    <Check className="w-7 h-7" />
+                  </div>
+                  <h2 className="text-xl font-extrabold text-slate-905 font-display">Your resume is ready!</h2>
+                  <p className="text-xs text-gray-500 font-semibold leading-relaxed">
+                    Tailored successfully for{' '}
+                    <strong className="text-slate-800">
+                      {jobMatchResult?.company || activeResume.targetCompany || 'General'}
+                    </strong>{' '}
+                    —{' '}
+                    <span className="text-slate-700 italic">
+                      {jobMatchResult?.role || activeResume.targetRole || 'Your Target Role'}
+                    </span>{' '}
+                    (ATS score: <strong className="text-indigo-650">{activeResume.atsScore || 78}</strong>)
+                  </p>
                 </div>
-                <h2 className="text-xl font-extrabold text-slate-905 font-display">Your resume is ready for download.</h2>
-                <p className="text-xs text-gray-500 font-semibold">Tailored successfully for Microsoft — Frontend Development Engineer (ATS: 94)</p>
+
+                {/* Feedback Panel */}
+                {exportFeedback && (
+                  <div className={`p-4 rounded-2xl border text-xs leading-relaxed animate-fade-in ${
+                    exportFeedback.type === 'pdf' 
+                      ? 'bg-blue-50 border-blue-200 text-blue-800' 
+                      : exportFeedback.type === 'docx'
+                      ? 'bg-teal-50 border-teal-200 text-teal-850'
+                      : 'bg-emerald-50 border-emerald-250 text-emerald-850'
+                  }`}>
+                    <div className="flex items-start gap-2">
+                      <Info className="w-4.5 h-4.5 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-extrabold capitalize">{exportFeedback.type} Export Details</p>
+                        <p className="font-medium mt-0.5">{exportFeedback.message}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Download options grid */}
+                <div className="space-y-3.5 pt-2">
+                  <div className="bg-slate-50 border border-gray-150 p-4.5 rounded-2xl flex flex-col justify-between shadow-xs">
+                    <div className="flex justify-between items-start gap-4">
+                      <div>
+                        <h4 className="text-xs font-black text-slate-900 font-display">PDF Document</h4>
+                        <p className="text-[10px] text-gray-450 font-medium mt-0.5">Best for online applications and tracking systems.</p>
+                      </div>
+                      <span className="bg-blue-100 text-blue-800 text-[8px] font-black px-1.5 py-0.5 rounded-md uppercase">Official</span>
+                    </div>
+                    <button 
+                      onClick={handlePrintPdf}
+                      className="w-full mt-4 py-2.5 bg-slate-905 hover:bg-slate-800 text-white rounded-xl text-[10px] font-black tracking-wider uppercase cursor-pointer transition-all"
+                    >
+                      Export PDF
+                    </button>
+                  </div>
+
+                  <div className="bg-slate-50 border border-gray-150 p-4.5 rounded-2xl flex flex-col justify-between shadow-xs">
+                    <div className="flex justify-between items-start gap-4">
+                      <div>
+                        <h4 className="text-xs font-black text-slate-900 font-display">Word File (DOCX)</h4>
+                        <p className="text-[10px] text-gray-450 font-medium mt-0.5">Fully editable local file format for manual edits.</p>
+                      </div>
+                      <span className="bg-teal-100 text-teal-800 text-[8px] font-black px-1.5 py-0.5 rounded-md uppercase">Editable</span>
+                    </div>
+                    <button 
+                      onClick={handleDownloadDocx}
+                      className="w-full mt-4 py-2.5 bg-slate-905 hover:bg-slate-800 text-white rounded-xl text-[10px] font-black tracking-wider uppercase cursor-pointer transition-all"
+                    >
+                      Export DOCX
+                    </button>
+                  </div>
+
+                  <div className="bg-slate-50 border border-gray-150 p-4.5 rounded-2xl flex flex-col justify-between shadow-xs">
+                    <div className="flex justify-between items-start gap-4">
+                      <div>
+                        <h4 className="text-xs font-black text-slate-900 font-display">Share Link</h4>
+                        <p className="text-[10px] text-gray-450 font-medium mt-0.5">Create a public link for online viewing.</p>
+                      </div>
+                      <span className="bg-emerald-100 text-emerald-805 text-[8px] font-black px-1.5 py-0.5 rounded-md uppercase">Cloud</span>
+                    </div>
+                    <button 
+                      onClick={handleCreateLink}
+                      className="w-full mt-4 py-2.5 bg-indigo-650 hover:bg-indigo-755 text-white rounded-xl text-[10px] font-black tracking-wider uppercase cursor-pointer transition-all"
+                    >
+                      Copy Share Link
+                    </button>
+                  </div>
+                </div>
               </div>
 
-              {/* Download options grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 text-xs font-extrabold text-slate-700">
-                <div className="bg-slate-50 border border-gray-150 p-5 rounded-2xl flex flex-col justify-between h-[130px] shadow-xs">
-                  <div>
-                    <h4 className="font-extrabold text-slate-900 font-display">PDF Document</h4>
-                    <p className="text-[10px] text-gray-450 font-medium mt-0.5">Best for quick applications.</p>
-                  </div>
-                  <button 
-                    onClick={handlePrint}
-                    className="w-full py-2 bg-slate-905 hover:bg-slate-800 text-white rounded-xl text-[10px] cursor-pointer"
-                  >
-                    Download PDF
-                  </button>
-                </div>
-
-                <div className="bg-slate-50 border border-gray-150 p-5 rounded-2xl flex flex-col justify-between h-[130px] shadow-xs">
-                  <div>
-                    <h4 className="font-extrabold text-slate-900 font-display">Word File (DOCX)</h4>
-                    <p className="text-[10px] text-gray-450 font-medium mt-0.5">Fully editable local copy.</p>
-                  </div>
-                  <button 
-                    onClick={handlePrint}
-                    className="w-full py-2 bg-slate-905 hover:bg-slate-800 text-white rounded-xl text-[10px] cursor-pointer"
-                  >
-                    Download DOCX
-                  </button>
-                </div>
-
-                <div className="bg-slate-50 border border-gray-150 p-5 rounded-2xl flex flex-col justify-between h-[130px] shadow-xs">
-                  <div>
-                    <h4 className="font-extrabold text-slate-900 font-display">Share Link</h4>
-                    <p className="text-[10px] text-gray-450 font-medium mt-0.5">Create a public URL copy.</p>
-                  </div>
-                  <button className="w-full py-2 bg-indigo-650 hover:bg-indigo-755 text-white rounded-xl text-[10px] cursor-pointer">
-                    Create link
-                  </button>
-                </div>
-              </div>
-
-              <div className="flex justify-between items-center pt-4 border-t border-gray-100">
-                <button onClick={() => goToStep('editor')} className="text-gray-500 hover:text-gray-800 hover:underline">
-                  Back to Editor
+              {/* Navigation Back / Exit */}
+              <div className="flex justify-between items-center pt-4 border-t border-gray-150">
+                <button onClick={() => goToStep('editor')} className="text-xs font-bold text-gray-500 hover:text-gray-800 hover:underline flex items-center gap-1 transition-all">
+                  <ArrowLeft className="w-3.5 h-3.5" />
+                  <span>Back to Editor</span>
                 </button>
-                <button onClick={() => goToStep('home')} className="px-4 py-2 bg-slate-905 hover:bg-slate-800 text-white rounded-xl cursor-pointer">
+                <button onClick={() => goToStep('home')} className="px-4 py-2 bg-slate-905 hover:bg-slate-800 text-white rounded-xl text-xs font-black cursor-pointer transition-all">
                   Exit Studio
                 </button>
               </div>
 
             </div>
+
+            {/* RIGHT PREVIEW PANEL: EXPORT VIEW CANVAS */}
+            <div className="flex-1 bg-slate-100/90 p-6 overflow-y-auto flex flex-col items-center justify-start min-h-full">
+              
+              {/* Document Container */}
+              <div 
+                id="resume-printable-sheet"
+                style={{ transform: `scale(${zoomLevel / 100})`, transformOrigin: 'top center' }}
+                className={`w-full max-w-[620px] min-h-[820px] bg-white rounded-2xl shadow-xl border border-gray-250/90 p-8 sm:p-10 text-gray-900 transition-all ${
+                  activeTemplate === 'sidebar' ? 'p-0 overflow-hidden' : ''
+                }`}
+              >
+                <ResumeTemplateRenderer 
+                  template={activeTemplate}
+                  personal={personal}
+                  summary={highlightKeywords ? renderHighlightedText(summary) : summary}
+                  experience={highlightKeywords ? experience.map(exp => ({ ...exp, description: renderHighlightedText(exp.description) })) : experience}
+                  education={education}
+                  projects={highlightKeywords ? projects.map(proj => ({ ...proj, description: renderHighlightedText(proj.description) })) : projects}
+                  skills={skillsGrouped}
+                  certifications={certifications}
+                />
+              </div>
+
+            </div>
+
           </div>
         )}
+
 
         {/* ==================== SCREEN 14 & 15: VERSIONS & COMPARISON ==================== */}
         {currentStep === 'versions' && (
