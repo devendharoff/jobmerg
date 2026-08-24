@@ -1200,7 +1200,7 @@ OUTPUT SCHEMA:
     let response: any;
     try {
       response = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
+        model: "gemini-3.6-flash",
         contents,
         config: {
           systemInstruction: systemPrompt,
@@ -1209,10 +1209,10 @@ OUTPUT SCHEMA:
       });
     } catch (geminiErr: any) {
       // Try fallback model name if primary is deprecated
-      console.warn("[ResumeAI] gemini-2.5-flash failed, trying gemini-1.5-flash-latest:", geminiErr.message);
+      console.warn("[ResumeAI] gemini-3.6-flash failed, trying gemini-2.5-flash:", geminiErr.message);
       try {
         response = await ai.models.generateContent({
-          model: "gemini-1.5-flash-latest",
+          model: "gemini-2.5-flash",
           contents,
           config: {
             systemInstruction: systemPrompt,
@@ -1762,7 +1762,7 @@ Return ONLY a valid JSON object matching this schema. No prose outside the JSON:
       let response: any;
       try {
         response = await ai.models.generateContent({
-          model: "gemini-2.5-flash",
+          model: "gemini-3.6-flash",
           contents: [userContent],
           config: {
             systemInstruction: systemPrompt,
@@ -1770,9 +1770,9 @@ Return ONLY a valid JSON object matching this schema. No prose outside the JSON:
           }
         });
       } catch (firstErr: any) {
-        console.warn("[SynthAI] gemini-2.5-flash failed, trying gemini-1.5-flash-latest:", firstErr.message);
+        console.warn("[SynthAI] gemini-3.6-flash failed, trying gemini-2.5-flash:", firstErr.message);
         response = await ai.models.generateContent({
-          model: "gemini-1.5-flash-latest",
+          model: "gemini-2.5-flash",
           contents: [userContent],
           config: {
             systemInstruction: systemPrompt,

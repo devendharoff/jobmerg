@@ -150,6 +150,363 @@ const BLANK_RESUME: Resume = {
 // Keep DEFAULT_RESUME as an alias so existing code referencing it still compiles
 const DEFAULT_RESUME = BLANK_RESUME;
 
+const BROWSER_SKILL_MAP: Record<string, { name: string; bucket: 'languages' | 'frameworks' | 'tools' | 'competencies' }> = {
+  'javascript': { name: 'JavaScript', bucket: 'languages' },
+  'java script': { name: 'JavaScript', bucket: 'languages' },
+  'typescript': { name: 'TypeScript', bucket: 'languages' },
+  'type script': { name: 'TypeScript', bucket: 'languages' },
+  'python': { name: 'Python', bucket: 'languages' },
+  'java': { name: 'Java', bucket: 'languages' },
+  'c++': { name: 'C++', bucket: 'languages' },
+  'c#': { name: 'C#', bucket: 'languages' },
+  'go': { name: 'Go', bucket: 'languages' },
+  'golang': { name: 'Go', bucket: 'languages' },
+  'rust': { name: 'Rust', bucket: 'languages' },
+  'php': { name: 'PHP', bucket: 'languages' },
+  'ruby': { name: 'Ruby', bucket: 'languages' },
+  'swift': { name: 'Swift', bucket: 'languages' },
+  'kotlin': { name: 'Kotlin', bucket: 'languages' },
+  'dart': { name: 'Dart', bucket: 'languages' },
+  'scala': { name: 'Scala', bucket: 'languages' },
+  'r': { name: 'R', bucket: 'languages' },
+  'sql': { name: 'SQL', bucket: 'languages' },
+  'graphql': { name: 'GraphQL', bucket: 'languages' },
+  'html': { name: 'HTML', bucket: 'languages' },
+  'css': { name: 'CSS', bucket: 'languages' },
+  'react': { name: 'React', bucket: 'frameworks' },
+  'react.js': { name: 'React', bucket: 'frameworks' },
+  'reactjs': { name: 'React', bucket: 'frameworks' },
+  'next.js': { name: 'Next.js', bucket: 'frameworks' },
+  'nextjs': { name: 'Next.js', bucket: 'frameworks' },
+  'vue': { name: 'Vue.js', bucket: 'frameworks' },
+  'vue.js': { name: 'Vue.js', bucket: 'frameworks' },
+  'angular': { name: 'Angular', bucket: 'frameworks' },
+  'svelte': { name: 'Svelte', bucket: 'frameworks' },
+  'node.js': { name: 'Node.js', bucket: 'frameworks' },
+  'nodejs': { name: 'Node.js', bucket: 'frameworks' },
+  'express': { name: 'Express.js', bucket: 'frameworks' },
+  'express.js': { name: 'Express.js', bucket: 'frameworks' },
+  'nestjs': { name: 'NestJS', bucket: 'frameworks' },
+  'nest.js': { name: 'NestJS', bucket: 'frameworks' },
+  'django': { name: 'Django', bucket: 'frameworks' },
+  'flask': { name: 'Flask', bucket: 'frameworks' },
+  'fastapi': { name: 'FastAPI', bucket: 'frameworks' },
+  'spring': { name: 'Spring Boot', bucket: 'frameworks' },
+  'spring boot': { name: 'Spring Boot', bucket: 'frameworks' },
+  'ruby on rails': { name: 'Ruby on Rails', bucket: 'frameworks' },
+  'rails': { name: 'Ruby on Rails', bucket: 'frameworks' },
+  'laravel': { name: 'Laravel', bucket: 'frameworks' },
+  '.net': { name: '.NET', bucket: 'frameworks' },
+  'dotnet': { name: '.NET', bucket: 'frameworks' },
+  'asp.net': { name: 'ASP.NET', bucket: 'frameworks' },
+  'flutter': { name: 'Flutter', bucket: 'frameworks' },
+  'react native': { name: 'React Native', bucket: 'frameworks' },
+  'redux': { name: 'Redux', bucket: 'frameworks' },
+  'redux toolkit': { name: 'Redux Toolkit', bucket: 'frameworks' },
+  'tailwind': { name: 'Tailwind CSS', bucket: 'frameworks' },
+  'tailwindcss': { name: 'Tailwind CSS', bucket: 'frameworks' },
+  'tailwind css': { name: 'Tailwind CSS', bucket: 'frameworks' },
+  'bootstrap': { name: 'Bootstrap', bucket: 'frameworks' },
+  'mui': { name: 'Material UI', bucket: 'frameworks' },
+  'material ui': { name: 'Material UI', bucket: 'frameworks' },
+  'zustand': { name: 'Zustand', bucket: 'frameworks' },
+  'aws': { name: 'AWS', bucket: 'tools' },
+  'amazon web services': { name: 'AWS', bucket: 'tools' },
+  'gcp': { name: 'GCP', bucket: 'tools' },
+  'google cloud': { name: 'GCP', bucket: 'tools' },
+  'azure': { name: 'Azure', bucket: 'tools' },
+  'docker': { name: 'Docker', bucket: 'tools' },
+  'kubernetes': { name: 'Kubernetes', bucket: 'tools' },
+  'k8s': { name: 'Kubernetes', bucket: 'tools' },
+  'git': { name: 'Git', bucket: 'tools' },
+  'github': { name: 'GitHub', bucket: 'tools' },
+  'gitlab': { name: 'GitLab', bucket: 'tools' },
+  'jenkins': { name: 'Jenkins', bucket: 'tools' },
+  'ci/cd': { name: 'CI/CD', bucket: 'tools' },
+  'ci cd': { name: 'CI/CD', bucket: 'tools' },
+  'github actions': { name: 'GitHub Actions', bucket: 'tools' },
+  'terraform': { name: 'Terraform', bucket: 'tools' },
+  'ansible': { name: 'Ansible', bucket: 'tools' },
+  'postgresql': { name: 'PostgreSQL', bucket: 'tools' },
+  'postgres': { name: 'PostgreSQL', bucket: 'tools' },
+  'mongodb': { name: 'MongoDB', bucket: 'tools' },
+  'mysql': { name: 'MySQL', bucket: 'tools' },
+  'redis': { name: 'Redis', bucket: 'tools' },
+  'sqlite': { name: 'SQLite', bucket: 'tools' },
+  'oracle': { name: 'Oracle', bucket: 'tools' },
+  'elasticsearch': { name: 'Elasticsearch', bucket: 'tools' },
+  'firebase': { name: 'Firebase', bucket: 'tools' },
+  'supabase': { name: 'Supabase', bucket: 'tools' },
+  'prisma': { name: 'Prisma', bucket: 'tools' },
+  'rabbitmq': { name: 'RabbitMQ', bucket: 'tools' },
+  'kafka': { name: 'Kafka', bucket: 'tools' },
+  'nginx': { name: 'Nginx', bucket: 'tools' },
+  'linux': { name: 'Linux', bucket: 'tools' },
+  'bash': { name: 'Bash', bucket: 'tools' },
+  'shell': { name: 'Shell Scripting', bucket: 'tools' },
+  'vite': { name: 'Vite', bucket: 'tools' },
+  'webpack': { name: 'Webpack', bucket: 'tools' },
+  'rollup': { name: 'Rollup', bucket: 'tools' },
+  'jest': { name: 'Jest', bucket: 'tools' },
+  'vitest': { name: 'Vitest', bucket: 'tools' },
+  'cypress': { name: 'Cypress', bucket: 'tools' },
+  'playwright': { name: 'Playwright', bucket: 'tools' },
+  'selenium': { name: 'Selenium', bucket: 'tools' },
+  'postman': { name: 'Postman', bucket: 'tools' },
+  'swagger': { name: 'Swagger', bucket: 'tools' },
+  'figma': { name: 'Figma', bucket: 'tools' },
+  'jira': { name: 'Jira', bucket: 'competencies' },
+  'confluence': { name: 'Confluence', bucket: 'competencies' },
+  'agile': { name: 'Agile', bucket: 'competencies' },
+  'scrum': { name: 'Scrum', bucket: 'competencies' },
+  'kanban': { name: 'Kanban', bucket: 'competencies' },
+  'microservices': { name: 'Microservices', bucket: 'competencies' },
+  'system design': { name: 'System Design', bucket: 'competencies' },
+  'oauth': { name: 'OAuth', bucket: 'competencies' },
+  'rest api': { name: 'REST APIs', bucket: 'competencies' },
+  'restful api': { name: 'REST APIs', bucket: 'competencies' },
+  'rest': { name: 'REST APIs', bucket: 'competencies' },
+  'unit testing': { name: 'Unit Testing', bucket: 'competencies' },
+  'tdd': { name: 'TDD', bucket: 'competencies' },
+  'code review': { name: 'Code Review', bucket: 'competencies' },
+  'mentoring': { name: 'Mentoring', bucket: 'competencies' },
+  'leadership': { name: 'Leadership', bucket: 'competencies' },
+  'data structures': { name: 'Data Structures', bucket: 'competencies' },
+  'algorithms': { name: 'Algorithms', bucket: 'competencies' },
+  'oop': { name: 'OOP', bucket: 'competencies' },
+  'object oriented': { name: 'Object-Oriented Programming', bucket: 'competencies' },
+  'machine learning': { name: 'Machine Learning', bucket: 'competencies' },
+  'devops': { name: 'DevOps', bucket: 'competencies' },
+  'sre': { name: 'SRE', bucket: 'competencies' },
+};
+
+type BrowserExtractResult = {
+  personal: { name: string; title: string; email: string; phone: string; location: string; github: string; linkedin: string; portfolio: string };
+  summary: string;
+  skills: SkillsGrouped;
+  experience: WorkExp[];
+  education: Education[];
+  projects: Project[];
+  certifications: string[];
+  confidenceScores: { name: number; email: number; phone: number; skills: number; experience: number; education: number; overall: number };
+};
+
+function extractProfileFromTextBrowser(text: string): BrowserExtractResult {
+  const clean = (text || '').replace(/\r\n/g, '\n');
+  const lines = clean.split('\n').map(l => l.trim()).filter(Boolean);
+  const lower = clean.toLowerCase();
+
+  const emailMatch = clean.match(/[\w.+-]+@[\w.-]+\.[a-zA-Z]{2,}/);
+  const phoneMatch = clean.match(/(\+?\d{0,3}[-.\s]?)?(\(?\d{2,4}\)?[-.\s]?)?\d{3,4}[-.\s]?\d{3,4}[-.\s]?\d{0,4}/);
+  const linkedinMatch = clean.match(/(?:https?:\/\/)?(?:www\.)?linkedin\.com\/(?:in|pub|company|school|groups)\/[\w\-_%./]+/i);
+  const githubMatch = clean.match(/(?:https?:\/\/)?(?:www\.)?github\.com\/[\w\-./]+/i);
+  const portfolioMatch = clean.match(/(?:https?:\/\/)?(?:www\.)?(?!linkedin|github|twitter|facebook|instagram|youtube|medium|quora|reddit)[\w-]+\.(?:com|org|net|io|dev|me|in|co|app|ai|xyz|tech|design|studio|agency|online)[\w\-./]*/i);
+
+  let candidateName = '';
+  const commonWords = new Set(['resume', 'curriculum', 'vitae', 'cv', 'contact', 'profile', 'about', 'me', 'email', 'phone', 'address', 'skills', 'experience', 'education', 'projects', 'objective', 'summary', 'work', 'references', 'language', 'languages']);
+  for (const line of lines.slice(0, 8)) {
+    const filtered = line
+      .replace(/[^\p{L}\s\-'.]/gu, '')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+    const words = filtered.split(' ').filter(Boolean);
+    if (words.length >= 2 && words.length <= 6) {
+      const uncommon = words.filter(w => !commonWords.has(w.toLowerCase())).length;
+      const capitalized = words.filter(w => /^[A-Z]/.test(w)).length;
+      if (uncommon / words.length >= 0.5 && capitalized / words.length >= 0.5) {
+        candidateName = filtered;
+        break;
+      }
+    }
+  }
+
+  let professionalTitle = '';
+  const titleKeywords = /(engineer|developer|architect|manager|lead|scientist|analyst|designer|consultant|specialist|director|officer|administrator|intern|associate|consultant|head|principal|staff|senior|junior|executive|founder|cto|ceo|pm|product)/i;
+  for (const line of lines.slice(0, 12)) {
+    if (titleKeywords.test(line) && !line.includes('@') && line.length < 80) {
+      professionalTitle = line;
+      break;
+    }
+  }
+
+  const skillBuckets = { languages: [] as string[], frameworks: [] as string[], tools: [] as string[], competencies: [] as string[] };
+  const seen = new Set<string>();
+  Object.entries(BROWSER_SKILL_MAP).forEach(([key, entry]) => {
+    if (seen.has(entry.name)) return;
+    const pattern = new RegExp('(^|[^a-z0-9])' + key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '([^a-z0-9]|$)', 'i');
+    if (pattern.test(lower)) {
+      skillBuckets[entry.bucket].push(entry.name);
+      seen.add(entry.name);
+    }
+  });
+
+  const experiences: WorkExp[] = [];
+  const sectionPoints = [
+    { label: 'experience', idx: lower.search(/experience|employment|work( history)?|professional/) },
+    { label: 'education', idx: lower.search(/education|academic|qualification|degree/) },
+    { label: 'projects', idx: lower.search(/project|personal project|key project/) },
+    { label: 'skills', idx: lower.search(/skill|technical skill|core compete/) },
+  ].filter(s => s.idx >= 0).sort((a, b) => a.idx - b.idx);
+  const getSectionRange = (label: string): [number, number] => {
+    const start = sectionPoints.find(s => s.label === label);
+    if (!start) return [-1, -1];
+    const next = sectionPoints.find(s => s.idx > start.idx);
+    return [start.idx, next ? next.idx : clean.length];
+  };
+  const expRange = getSectionRange('experience');
+  if (expRange[0] >= 0) {
+    const expChunk = clean.slice(expRange[0], expRange[1]);
+    const expLines = expChunk.split('\n').map(l => l.trim()).filter(Boolean);
+    const datePattern = /((?:19|20)\d{2}\s*[-–]\s*(?:(?:19|20)\d{2}|present|current))|(\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+(?:19|20)\d{2}\s*[-–]\s*(?:present|current|(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+(?:19|20)\d{2}))/i;
+    let currentEntry: Partial<WorkExp> | null = null;
+    for (const line of expLines.slice(1)) {
+      if (datePattern.test(line) || /(present|current)/i.test(line) && line.length < 120) {
+        if (currentEntry && (currentEntry.company || currentEntry.role)) {
+          experiences.push({
+            company: currentEntry.company || '',
+            role: currentEntry.role || '',
+            dates: currentEntry.dates || '',
+            description: currentEntry.description || '',
+            technologies: currentEntry.technologies || '',
+          });
+        }
+        currentEntry = { dates: line };
+      } else if (line.length > 2 && line.length < 100 && !line.startsWith('•') && !line.startsWith('-') && !line.startsWith('*') && !line.startsWith('—')) {
+        if (!currentEntry) currentEntry = {};
+        if (!currentEntry.role) {
+          currentEntry.role = line;
+        } else if (!currentEntry.company) {
+          currentEntry.company = line;
+        } else if (currentEntry.description) {
+          currentEntry.description += '\n' + line;
+        } else {
+          currentEntry.company += ' | ' + line;
+        }
+      } else if (line.length > 5) {
+        if (!currentEntry) currentEntry = {};
+        const bullet = line.replace(/^[\s•\-\*\—]\s*/, '');
+        if (currentEntry.description) {
+          currentEntry.description += '\n• ' + bullet;
+        } else {
+          currentEntry.description = '• ' + bullet;
+        }
+      }
+    }
+    if (currentEntry && (currentEntry.company || currentEntry.role)) {
+      experiences.push({
+        company: currentEntry.company || '',
+        role: currentEntry.role || '',
+        dates: currentEntry.dates || '',
+        description: currentEntry.description || '',
+        technologies: currentEntry.technologies || '',
+      });
+    }
+  }
+
+  const educations: Education[] = [];
+  const eduRange = getSectionRange('education');
+  if (eduRange[0] >= 0) {
+    const eduChunk = clean.slice(eduRange[0], eduRange[1]);
+    const eduLines = eduChunk.split('\n').map(l => l.trim()).filter(Boolean).slice(1);
+    const degreePattern = /(bachelor|master|phd|ph\.d|doctor|b\.?tech|m\.?tech|b\.?e|m\.?e|b\.?sc|m\.?sc|b\.?a|m\.?a|diploma|certification|graduate|post.?graduate)/i;
+    let cur: Partial<Education> | null = null;
+    for (const line of eduLines) {
+      const yearMatch = line.match(/((?:19|20)\d{2}\s*[-–]\s*(?:(?:19|20)\d{2}|present|current))|((?:19|20)\d{2})/);
+      if (degreePattern.test(line) || /(university|college|institute|school|academy|iit|nit|b\.?tech|m\.?tech)/i.test(line)) {
+        if (cur && (cur.school || cur.degree)) educations.push({ school: cur.school || '', degree: cur.degree || '', year: cur.year || '', gpa: cur.gpa || '', coursework: cur.coursework || '' });
+        cur = {};
+        if (degreePattern.test(line)) cur.degree = line;
+        if (/(university|college|institute|school|academy)/i.test(line)) cur.school = line;
+        if (yearMatch) cur.year = yearMatch[0];
+      } else if (yearMatch) {
+        if (!cur) cur = {};
+        cur.year = (cur.year ? cur.year + ' ' : '') + yearMatch[0];
+      } else if (line.length < 200) {
+        if (!cur) cur = {};
+        if (!cur.school) cur.school = line;
+        else if (!cur.coursework) cur.coursework = line;
+        else cur.coursework += '; ' + line;
+      }
+    }
+    if (cur && (cur.school || cur.degree)) educations.push({ school: cur.school || '', degree: cur.degree || '', year: cur.year || '', gpa: cur.gpa || '', coursework: cur.coursework || '' });
+  }
+
+  const projRange = getSectionRange('projects');
+  const projects: Project[] = [];
+  if (projRange[0] >= 0) {
+    const chunk = clean.slice(projRange[0], projRange[1]);
+    const projLines = chunk.split('\n').map(l => l.trim()).filter(Boolean).slice(1);
+    let cur: Partial<Project> | null = null;
+    for (const line of projLines) {
+      const shortBullet = line.replace(/^[\s•\-\*\—]\s*/, '');
+      if (line.length < 80 && !line.startsWith('•') && !line.startsWith('-') && !line.startsWith('*') && !shortBullet.startsWith('—') && line.length > 3) {
+        if (cur && (cur.title)) projects.push({ title: cur.title, technologies: cur.technologies || '', description: cur.description || '' });
+        cur = { title: line };
+      } else if (cur) {
+        if (cur.description) cur.description += '\n' + shortBullet;
+        else cur.description = shortBullet;
+      }
+    }
+    if (cur && cur.title) projects.push({ title: cur.title, technologies: cur.technologies || '', description: cur.description || '' });
+  }
+
+  const certifications: string[] = [];
+  const certIdx = lower.search(/certif|award|achievement/);
+  if (certIdx >= 0) {
+    const endIdx = clean.indexOf('\n\n', certIdx);
+    const chunk = clean.slice(certIdx, endIdx === -1 ? clean.length : endIdx);
+    chunk.split('\n').slice(1).forEach(line => {
+      const trimmed = line.replace(/^[\s•\-\*\—]\s*/, '').trim();
+      if (trimmed.length > 5 && trimmed.length < 200) certifications.push(trimmed);
+    });
+  }
+
+  let summary = '';
+  const objIdx = lower.search(/objective|summary|professional summary|about me|profile|personal profile/);
+  if (objIdx >= 0) {
+    const nxt = sectionPoints.find(s => s.idx > objIdx);
+    const end = nxt ? nxt.idx : Math.min(objIdx + 1200, clean.length);
+    const chunkLines = clean.slice(objIdx, end).split('\n').slice(1).map(l => l.trim()).filter(Boolean);
+    summary = chunkLines.filter(l => l.length > 20).join(' ').slice(0, 600);
+  } else if (lines.length > 15) {
+    summary = lines.slice(lines.findIndex(l => l.length > 100) + 1 || 4, 14).join(' ').slice(0, 500);
+  }
+
+  const skillsCount = skillBuckets.languages.length + skillBuckets.frameworks.length + skillBuckets.tools.length + skillBuckets.competencies.length;
+  const nameScore = candidateName ? 92 : 20;
+  const emailScore = emailMatch ? 99 : 10;
+  const phoneScore = phoneMatch ? 95 : 10;
+  const skillsScore = skillsCount >= 8 ? 95 : skillsCount >= 4 ? 75 : skillsCount > 0 ? 55 : 25;
+  const expScore = experiences.length > 0 ? 92 : 20;
+  const eduScore = educations.length > 0 ? 93 : 20;
+  const overall = Math.round(nameScore * 0.15 + emailScore * 0.12 + phoneScore * 0.08 + skillsScore * 0.22 + expScore * 0.25 + eduScore * 0.18);
+
+  return {
+    personal: {
+      name: candidateName,
+      title: professionalTitle,
+      email: emailMatch ? emailMatch[0] : '',
+      phone: phoneMatch ? phoneMatch[0] : '',
+      location: '',
+      github: githubMatch ? githubMatch[0] : '',
+      linkedin: linkedinMatch ? linkedinMatch[0] : '',
+      portfolio: portfolioMatch ? portfolioMatch[0] : '',
+    },
+    summary,
+    skills: {
+      languages: skillBuckets.languages.join(', '),
+      frameworks: skillBuckets.frameworks.join(', '),
+      tools: skillBuckets.tools.join(', '),
+      competencies: skillBuckets.competencies.join(', '),
+    },
+    experience: experiences,
+    education: educations,
+    projects,
+    certifications: certifications.slice(0, 8),
+    confidenceScores: { name: nameScore, email: emailScore, phone: phoneScore, skills: skillsScore, experience: expScore, education: eduScore, overall },
+  };
+}
+
 
 export default function ResumeStudio({ userProfile, onOpenPricing }: ResumeStudioProps) {
   // Stepper flow configuration
@@ -198,6 +555,10 @@ export default function ResumeStudio({ userProfile, onOpenPricing }: ResumeStudi
     overall: 0
   });
   const [extractionError, setExtractionError] = useState<string | null>(null);
+  const [extractionErrorDetail, setExtractionErrorDetail] = useState<string | null>(null);
+  const [isPasteMode, setIsPasteMode] = useState(false);
+  const [pasteModeText, setPasteModeText] = useState('');
+  const [isLocalExtracting, setIsLocalExtracting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
 
@@ -350,8 +711,22 @@ export default function ResumeStudio({ userProfile, onOpenPricing }: ResumeStudi
     }
   };
 
+  const applyLocalExtraction = (text: string) => {
+    const result = extractProfileFromTextBrowser(text);
+    setPersonal({
+      ...BLANK_RESUME.personal,
+      ...result.personal,
+    });
+    setSummary(result.summary || '');
+    setSkillsGrouped(result.skills);
+    setExperience(result.experience);
+    setEducation(result.education);
+    setProjects(result.projects);
+    setCertifications(result.certifications);
+    setConfidenceScores(result.confidenceScores);
+  };
+
   const extractActualResumeData = (file: File) => {
-    // Clear stale data from any previous upload immediately
     setPersonal({ ...BLANK_RESUME.personal });
     setSummary('');
     setSkillsGrouped({ ...BLANK_RESUME.skills });
@@ -361,6 +736,7 @@ export default function ResumeStudio({ userProfile, onOpenPricing }: ResumeStudi
     setCertifications([]);
     setConfidenceScores({ name: 0, email: 0, phone: 0, skills: 0, experience: 0, education: 0, overall: 0 });
     setExtractionError(null);
+    setExtractionErrorDetail(null);
 
     setUploadProgress(5);
     setExtractionStage('Reading document...');
@@ -369,38 +745,98 @@ export default function ResumeStudio({ userProfile, onOpenPricing }: ResumeStudi
     reader.onload = async () => {
       const base64String = reader.result as string;
       const base64Data = base64String.split(',')[1];
-      
+      const ext = file.name.split('.').pop()?.toLowerCase();
+
+      if (ext === 'txt') {
+        try {
+          setUploadProgress(60);
+          setExtractionStage('Extracting from text locally...');
+          const text = atob(base64Data);
+          applyLocalExtraction(text);
+          setPasteModeText(text);
+          setUploadProgress(100);
+          setTimeout(() => {
+            goToStep('profile');
+            setUploadProgress(0);
+            setExtractionStage('');
+          }, 400);
+          return;
+        } catch (txtErr: any) {
+          setUploadProgress(0);
+          setExtractionStage('');
+          setExtractionError('Could not read this text file.');
+          setExtractionErrorDetail(txtErr?.message || String(txtErr));
+          return;
+        }
+      }
+
       setUploadProgress(25);
       setExtractionStage('Connecting to parsing engine...');
 
       try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 35000);
+
         const res = await fetch('/api/parse-resume', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ resumeFile: base64Data, resumeText: '', fileName: file.name })
+          body: JSON.stringify({ resumeFile: base64Data, resumeText: '', fileName: file.name }),
+          signal: controller.signal,
         });
+        clearTimeout(timeout);
         
         setUploadProgress(60);
         setExtractionStage('Extracting work history & skills...');
 
         const data = await res.json();
 
-        // If backend returned an error object, surface it — NEVER silently fall back
         if (!res.ok || data.error) {
-          const errMsg = data.detail || data.error || 'We couldn\'t extract your resume. Please try a different file.';
+          const errMsg = data.error || 'We couldn\'t extract your resume. Please try a different file.';
+          const detail = data.detail || (data.stage === 'ocr_required'
+            ? 'This PDF looks like it was scanned from paper — it doesn\'t contain readable text. Export your resume as a text-based PDF, or paste your resume content below.'
+            : data.stage === 'pdf_extraction'
+            ? 'We couldn\'t pull text from this PDF. Try re-exporting it from your word processor or paste your resume content below.'
+            : data.stage === 'docx_extraction'
+            ? 'This DOCX appears to be corrupted or password-protected. Try saving it again as a new .docx file or paste your content below.'
+            : data.stage
+            ? `Extraction failed at stage: ${data.stage}`
+            : 'Try a different file or paste your resume content below to use local extraction.');
           setUploadProgress(0);
           setExtractionStage('');
           setExtractionError(errMsg);
+          setExtractionErrorDetail(detail);
+          setIsPasteMode(true);
           return;
         }
 
         setUploadProgress(90);
         setExtractionStage('Structuring profile layers...');
 
-        // Unconditionally set all fields from the API — no stale data to fall back to
-        setPersonal(data.personal ?? { ...BLANK_RESUME.personal });
+        const personalOut = data.personal ? { ...BLANK_RESUME.personal, ...data.personal } : { ...BLANK_RESUME.personal };
+        let skillsOut: SkillsGrouped;
+        if (data.skills && !Array.isArray(data.skills) && typeof data.skills === 'object') {
+          const g = data.skills as Record<string, any>;
+          skillsOut = {
+            languages: typeof g.languages === 'string' ? g.languages : '',
+            frameworks: typeof g.frameworks === 'string' ? g.frameworks : '',
+            tools: typeof g.tools === 'string' ? g.tools : '',
+            competencies: typeof g.competencies === 'string' ? g.competencies : '',
+          };
+        } else if (Array.isArray(data.skills)) {
+          const flat = data.skills.map((s: any) => String(s).trim()).filter(Boolean);
+          skillsOut = {
+            languages: flat.slice(0, 4).join(', '),
+            frameworks: flat.slice(4, 8).join(', '),
+            tools: flat.slice(8, 12).join(', '),
+            competencies: flat.slice(12).join(', '),
+          };
+        } else {
+          skillsOut = { ...BLANK_RESUME.skills };
+        }
+
+        setPersonal(personalOut);
         setSummary(data.summary ?? '');
-        setSkillsGrouped(data.skills ?? { ...BLANK_RESUME.skills });
+        setSkillsGrouped(skillsOut);
         setExperience(data.experience ?? []);
         setEducation(data.education ?? []);
         setProjects(data.projects ?? []);
@@ -415,18 +851,55 @@ export default function ResumeStudio({ userProfile, onOpenPricing }: ResumeStudi
         }, 400);
 
       } catch (e: any) {
-        // Network/parse error — show real error, do NOT advance to profile with old data
         setUploadProgress(0);
         setExtractionStage('');
-        setExtractionError('Could not connect to the extraction service. Please check your connection and try again.');
+        const isAbort = e?.name === 'AbortError';
+        setExtractionError(isAbort
+          ? 'Extraction timed out. The server may be slow or not running.'
+          : 'Could not connect to the extraction service.'
+        );
+        const detail = (e?.message?.includes('Failed to fetch') || e?.message?.includes('NetworkError'))
+          ? 'The server at localhost:3000 isn\'t running or isn\'t reachable. Run `npm run server` or use the local paste-based extraction below — it runs 100% in your browser and doesn\'t need any server connection.'
+          : isAbort
+          ? 'Request timed out after 35 seconds. You can instead paste your resume text below for instant offline extraction.'
+          : `Error details: ${e?.message || String(e)} — Try the local paste-based extraction below.`;
+        setExtractionErrorDetail(detail);
+        setIsPasteMode(true);
       }
     };
     reader.onerror = () => {
       setUploadProgress(0);
       setExtractionStage('Error reading file');
       setExtractionError('Could not read this file. Please try a different PDF or DOCX.');
+      setExtractionErrorDetail('Your browser couldn\'t read this file. Try another file or paste your resume text below.');
+      setIsPasteMode(true);
     };
     reader.readAsDataURL(file);
+  };
+
+  const performPasteExtraction = () => {
+    const text = pasteModeText.trim();
+    if (text.length < 50) {
+      setExtractionError('Paste at least 50 characters of resume text for local extraction.');
+      setExtractionErrorDetail('Copy your resume content and paste it above.');
+      return;
+    }
+    setIsLocalExtracting(true);
+    setTimeout(() => {
+      try {
+        applyLocalExtraction(text);
+        setExtractionError(null);
+        setExtractionErrorDetail(null);
+        setTimeout(() => {
+          goToStep('profile');
+          setIsLocalExtracting(false);
+        }, 300);
+      } catch (err: any) {
+        setExtractionError('Local extraction failed.');
+        setExtractionErrorDetail(err?.message || String(err));
+        setIsLocalExtracting(false);
+      }
+    }, 450);
   };
 
 
