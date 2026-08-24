@@ -1774,7 +1774,9 @@ export async function parsePdfWithOpenDataLoader(buffer: Buffer): Promise<string
   });
 }
 
+// ─── 1. PDF extraction using OpenDataLoader PDF (with pdfjs-dist and pdf-parse fallbacks) ───
 export async function parsePdfBuffer(buffer: Buffer): Promise<string> {
+  // 1. OpenDataLoader (High quality structure sorting, runs on Localhost)
   try {
     console.log("[ResumeParser] Attempting PDF text extraction via OpenDataLoader PDF...");
     const text = await parsePdfWithOpenDataLoader(buffer);
@@ -1782,60 +1784,89 @@ export async function parsePdfBuffer(buffer: Buffer): Promise<string> {
       console.log(`[ResumeParser] OpenDataLoader PDF extraction successful (${text.length} characters)`);
       return text;
     }
-    console.warn("[ResumeParser] OpenDataLoader PDF extracted text too short, falling back to pdfjs-dist...");
+    console.warn("[ResumeParser] OpenDataLoader PDF extracted text too short, trying fallback...");
   } catch (err: any) {
-    console.warn("[ResumeParser] OpenDataLoader PDF failed, falling back to pdfjs-dist. Error:", err.message || err);
+    console.warn("[ResumeParser] OpenDataLoader PDF failed, trying next fallback. Error:", err.message || err);
   }
 
-  const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs" as any);
+  // 2. pdfjs-dist (Standard layout-aware fallback)
+  try {
+    console.log("[ResumeParser] Attempting PDF text extraction via pdfjs-dist...");
+    // Dynamic import to avoid ESM/CJS issues at module load time
+    const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs" as any);
 
-  const uint8 = new Uint8Array(buffer);
-  const loadingTask = pdfjsLib.getDocument({ data: uint8, disableFontFace: true });
-  const pdfDoc = await loadingTask.promise;
+    // pdfjs needs a Uint8Array
+    const uint8 = new Uint8Array(buffer);
+    const loadingTask = pdfjsLib.getDocument({ data: uint8, disableFontFace: true });
+    const pdfDoc = await loadingTask.promise;
 
-  const pageTexts: string[] = [];
+    const pageTexts: string[] = [];
 
-  for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
-    const page = await pdfDoc.getPage(pageNum);
-    const textContent = await page.getTextContent();
-    const items = textContent.items as Array<{ str: string; transform: number[] }>;
+    for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
+      const page = await pdfDoc.getPage(pageNum);
+      const textContent = await page.getTextContent();
+      const items = textContent.items as Array<{ str: string; transform: number[] }>;
 
-    if (items.length === 0) {
-      pageTexts.push("");
-      continue;
+      if (items.length === 0) {
+        pageTexts.push("");
+        continue;
+      }
+
+      // Detect two-column layout via X coordinate spread
+      const xPositions = items.map(item => item.transform[4]);
+      const minX = Math.min(...xPositions);
+      const maxX = Math.max(...xPositions);
+      const xSpread = maxX - minX;
+      const isTwoColumn = xSpread > 200;
+      const midX = minX + xSpread / 2;
+
+      const sortByPosition = (colItems: typeof items) =>
+        colItems
+          .sort((a, b) => {
+            const yDiff = b.transform[5] - a.transform[5]; // Higher Y = higher on page
+            if (Math.abs(yDiff) > 5) return yDiff;
+            return a.transform[4] - b.transform[4]; // Same line: left to right
+          })
+          .map(item => item.str)
+          .join(" ");
+
+      let pageText: string;
+      if (isTwoColumn) {
+        const left = items.filter(item => item.transform[4] < midX);
+        const right = items.filter(item => item.transform[4] >= midX);
+        pageText = sortByPosition(left) + "\n\n" + sortByPosition(right);
+      } else {
+        pageText = sortByPosition(items);
+      }
+
+      // Collapse excessive whitespace while preserving newlines
+      pageText = pageText.replace(/ {2,}/g, ' ').trim();
+      pageTexts.push(pageText);
     }
 
-    const xPositions = items.map(item => item.transform[4]);
-    const minX = Math.min(...xPositions);
-    const maxX = Math.max(...xPositions);
-    const xSpread = maxX - minX;
-    const isTwoColumn = xSpread > 200;
-    const midX = minX + xSpread / 2;
-
-    const sortByPosition = (colItems: typeof items) =>
-      colItems
-        .sort((a, b) => {
-          const yDiff = b.transform[5] - a.transform[5];
-          if (Math.abs(yDiff) > 5) return yDiff;
-          return a.transform[4] - b.transform[4];
-        })
-        .map(item => item.str)
-        .join(" ");
-
-    let pageText: string;
-    if (isTwoColumn) {
-      const left = items.filter(item => item.transform[4] < midX);
-      const right = items.filter(item => item.transform[4] >= midX);
-      pageText = sortByPosition(left) + "\n\n" + sortByPosition(right);
-    } else {
-      pageText = sortByPosition(items);
+    const text = pageTexts.join("\n\n--- PAGE BREAK ---\n\n");
+    if (text && text.trim().length > 50) {
+      console.log(`[ResumeParser] pdfjs-dist extraction successful (${text.length} characters)`);
+      return text;
     }
-
-    pageText = pageText.replace(/ {2,}/g, ' ').trim();
-    pageTexts.push(pageText);
+  } catch (pdfjsErr: any) {
+    console.warn("[ResumeParser] pdfjs-dist failed, trying pdf-parse fallback. Error:", pdfjsErr.message || pdfjsErr);
   }
 
-  return pageTexts.join("\n\n--- PAGE BREAK ---\n\n");
+  // 3. pdf-parse (Pure JS fallback, highly compatible with Vercel serverless)
+  try {
+    console.log("[ResumeParser] Attempting PDF text extraction via pdf-parse...");
+    const pdfParse = (await import("pdf-parse" as any)).default;
+    const data = await pdfParse(buffer);
+    if (data && data.text && data.text.trim().length > 10) {
+      console.log(`[ResumeParser] pdf-parse extraction successful (${data.text.length} characters)`);
+      return data.text;
+    }
+  } catch (pdfParseErr: any) {
+    console.error("[ResumeParser] pdf-parse fallback failed:", pdfParseErr.message || pdfParseErr);
+  }
+
+  throw new Error("All PDF text extraction libraries failed to extract content from this file.");
 }
 
 export async function parseDocx(buffer: Buffer): Promise<string> {
