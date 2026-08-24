@@ -1019,33 +1019,85 @@ export default function JobStudio({ userProfile, onOpenPricing }: JobStudioProps
           if (data.summary) setSummary(data.summary);
           
           if (data.skills) {
-            // Distribute flat array of skills into grouped fields
-            const sks = data.skills;
-            setSkillsGrouped({
-              languages: sks.slice(0, 4).join(', '),
-              frameworks: sks.slice(4, 8).join(', '),
-              tools: sks.slice(8, 12).join(', '),
-              competencies: sks.slice(12).join(', ')
-            });
+            let flatSkills: string[] = [];
+            if (Array.isArray(data.skills)) {
+              flatSkills = data.skills.map((s: any) => String(s).trim()).filter(Boolean);
+            } else if (typeof data.skills === 'object' && data.skills !== null) {
+              const grouped = data.skills as Record<string, any>;
+              const collected: string[] = [];
+              ['languages', 'frameworks', 'tools', 'competencies'].forEach(key => {
+                const val = grouped[key];
+                if (typeof val === 'string' && val.trim().length) {
+                  val.split(',').forEach(piece => {
+                    const t = piece.trim();
+                    if (t) collected.push(t);
+                  });
+                }
+              });
+              flatSkills = collected;
+            } else if (typeof data.skills === 'string') {
+              flatSkills = data.skills.split(',').map((s: string) => s.trim()).filter(Boolean);
+            }
+
+            let finalGrouped;
+            if (typeof data.skills === 'object' && data.skills !== null && !Array.isArray(data.skills)) {
+              const g = data.skills as Record<string, any>;
+              finalGrouped = {
+                languages: typeof g.languages === 'string' ? g.languages : flatSkills.slice(0, 4).join(', '),
+                frameworks: typeof g.frameworks === 'string' ? g.frameworks : flatSkills.slice(4, 8).join(', '),
+                tools: typeof g.tools === 'string' ? g.tools : flatSkills.slice(8, 12).join(', '),
+                competencies: typeof g.competencies === 'string' ? g.competencies : flatSkills.slice(12).join(', ')
+              };
+            } else {
+              finalGrouped = {
+                languages: flatSkills.slice(0, 4).join(', '),
+                frameworks: flatSkills.slice(4, 8).join(', '),
+                tools: flatSkills.slice(8, 12).join(', '),
+                competencies: flatSkills.slice(12).join(', ')
+              };
+            }
+            setSkillsGrouped(finalGrouped);
           }
           
           if (data.experience) setExperience(data.experience);
           if (data.education) setEducation(data.education);
           if (data.projects) setProjects(data.projects);
+          if (data.certifications) setCertifications(data.certifications);
           
           setKeywordsToHighlight(kws);
           setHighlightKeywords(true);
           
           try {
             localStorage.setItem('jobmerge_resume_keywords', JSON.stringify(kws));
+            let storageSkillsGrouped;
+            if (data.skills && typeof data.skills === 'object' && !Array.isArray(data.skills)) {
+              const g = data.skills as Record<string, any>;
+              const flat = Array.isArray(data.skills) ? data.skills : (function(){
+                const arr: string[] = [];
+                ['languages', 'frameworks', 'tools', 'competencies'].forEach(k => {
+                  const v = g[k];
+                  if (typeof v === 'string') v.split(',').forEach(p => { const t = p.trim(); if (t) arr.push(t); });
+                });
+                return arr;
+              })();
+              storageSkillsGrouped = {
+                languages: typeof g.languages === 'string' ? g.languages : flat.slice(0, 4).join(', '),
+                frameworks: typeof g.frameworks === 'string' ? g.frameworks : flat.slice(4, 8).join(', '),
+                tools: typeof g.tools === 'string' ? g.tools : flat.slice(8, 12).join(', '),
+                competencies: typeof g.competencies === 'string' ? g.competencies : flat.slice(12).join(', ')
+              };
+            } else {
+              const flat = Array.isArray(data.skills) ? data.skills : [];
+              storageSkillsGrouped = {
+                languages: flat.slice(0, 4).join(', ') || '',
+                frameworks: flat.slice(4, 8).join(', ') || '',
+                tools: flat.slice(8, 12).join(', ') || '',
+                competencies: flat.slice(12).join(', ') || ''
+              };
+            }
             localStorage.setItem('jobmerge_resume_data', JSON.stringify({
               summary: data.summary,
-              skillsGrouped: {
-                languages: data.skills?.slice(0, 4).join(', ') || '',
-                frameworks: data.skills?.slice(4, 8).join(', ') || '',
-                tools: data.skills?.slice(8, 12).join(', ') || '',
-                competencies: data.skills?.slice(12).join(', ') || ''
-              },
+              skillsGrouped: storageSkillsGrouped,
               experience: data.experience,
               education: data.education,
               projects: data.projects,

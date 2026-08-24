@@ -7,11 +7,15 @@ import fs from "fs";
 import { exec } from "child_process";
 import { promisify } from "util";
 import { fileURLToPath } from "url";
-import { createRequire } from "module";
 
-const require = createRequire(import.meta.url);
-// pdf-parse kept for any legacy routes that may reference it; actual PDF
-// extraction now goes through parsePdfBuffer (pdfjs-dist) in resumeParser.ts
+// Dual CJS/ESM compatibility for file paths
+const __filename = (typeof import.meta !== "undefined" && import.meta.url)
+  ? fileURLToPath(import.meta.url)
+  : (typeof __filename !== "undefined" ? __filename : "");
+
+const __dirname = __filename
+  ? path.dirname(__filename)
+  : (typeof __dirname !== "undefined" ? __dirname : "");
 
 import compression from "compression";
 import rateLimit from "express-rate-limit";
@@ -19,8 +23,8 @@ import Razorpay from "razorpay";
 import crypto from "crypto";
 
 const execAsync = promisify(exec);
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+
+
 
 import { parsePdfBuffer, parseDocx, detectFileType, extractProfileFromText, normalizeSkills } from "./services/resumeParser.js";
 import { createClient } from "@supabase/supabase-js";
@@ -888,11 +892,33 @@ app.post("/api/resume-review", async (req, res) => {
       return res.status(400).json({ error: "Missing resumeText or resumeFile parameter" });
     }
 
+    // Extract text from the uploaded file if resumeText is empty or too short
+    let extractedText = resumeText || "";
+    if (resumeFile && extractedText.trim().length < 50) {
+      const fileType = detectFileType(fileName || "resume.pdf", resumeFile);
+      const buffer = Buffer.from(resumeFile, 'base64');
+      if (fileType === "pdf") {
+        try {
+          console.log("[ResumeReview] Extracting PDF text via parsePdfBuffer...");
+          extractedText = await parsePdfBuffer(buffer);
+        } catch (err: any) {
+          console.error("[ResumeReview] PDF extraction failed:", err.message);
+        }
+      } else if (fileType === "docx") {
+        try {
+          console.log("[ResumeReview] Extracting DOCX text via parseDocx...");
+          extractedText = await parseDocx(buffer);
+        } catch (err: any) {
+          console.error("[ResumeReview] DOCX extraction failed:", err.message);
+        }
+      }
+    }
+
     // Direct ultra-fast Gemini 2.0 Flash 5-Layer ATS Evaluation Engine
     const ai = getAiClient();
 
     if (!ai) {
-      return res.json(performMathematicalATSAnalysis(resumeText, resumeFile, fileName, userSkills));
+      return res.json(performMathematicalATSAnalysis(extractedText, resumeFile, fileName, userSkills));
     }
 
     try {
@@ -943,7 +969,7 @@ Only return a valid JSON object matching this schema. Avoid markdown wrap wrappe
       }
       
       const userPromptText = `Resume Content:
-${resumeText || "Resume document uploaded as PDF attachment."}
+${extractedText || "Resume document uploaded as PDF attachment."}
 
 Additional User Information:
 Skills selected: ${JSON.stringify(userSkills)}
@@ -969,7 +995,7 @@ Years of experience: ${experienceYears || "Not specified"}`;
       return res.json(reviewResult);
     } catch (geminiErr: any) {
       console.warn("Gemini API call failed (e.g. rate limit/quota reached). Serving 5-layer ATS evaluation fallback:", geminiErr.message || geminiErr);
-      return res.json(performMathematicalATSAnalysis(resumeText, resumeFile, fileName, userSkills));
+      return res.json(performMathematicalATSAnalysis(extractedText, resumeFile, fileName, userSkills));
     }
 
   } catch (error: any) {
@@ -1518,85 +1544,193 @@ Return ONLY a valid JSON with this structure:
   }
 });
 
+// Helper: Convert grouped skills object to flat string[] (canonical format)
+function flattenSkills(skills: any): string[] {
+  if (!skills) return [];
+  if (Array.isArray(skills)) return skills.map((s: any) => String(s).trim()).filter(Boolean);
+  if (typeof skills === 'object') {
+    const parts: string[] = [];
+    ['languages', 'frameworks', 'tools', 'competencies'].forEach(key => {
+      if (skills[key] && typeof skills[key] === 'string') {
+        skills[key].split(',').forEach((s: string) => {
+          const trimmed = s.trim();
+          if (trimmed) parts.push(trimmed);
+        });
+      }
+    });
+    return [...new Set(parts)];
+  }
+  if (typeof skills === 'string') return skills.split(',').map((s: string) => s.trim()).filter(Boolean);
+  return [];
+}
+
+// Helper: Build resume synthesis output from parsedResumeData (no invented data, real user resume only)
+function buildFromParsedData(parsedResumeData: any, keywords: string[]): any {
+  const kws = keywords || [];
+  const flatSkills = flattenSkills(parsedResumeData?.skills);
+  const mergedSkills = [...new Set([...flatSkills, ...kws])].filter(Boolean).slice(0, 20);
+
+  const hasExperience = parsedResumeData?.experience?.length > 0;
+  const hasEducation = parsedResumeData?.education?.length > 0;
+  const hasProjects = parsedResumeData?.projects?.length > 0;
+
+  const emailMatch = (parsedResumeData?.personal?.email || '').match(/[\w.-]+@[\w.-]+\.\w+/)
+    || (parsedResumeData?.summary || '').match(/[\w.-]+@[\w.-]+\.\w+/);
+  const phoneMatch = (parsedResumeData?.personal?.phone || '').match(/(\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/);
+
+  return {
+    personal: {
+      name: parsedResumeData?.personal?.name || '',
+      title: parsedResumeData?.personal?.title || '',
+      email: parsedResumeData?.personal?.email || (emailMatch ? emailMatch[0] : ''),
+      phone: parsedResumeData?.personal?.phone || (phoneMatch ? phoneMatch[0] : ''),
+      location: parsedResumeData?.personal?.location || '',
+      github: parsedResumeData?.personal?.github || '',
+      linkedin: parsedResumeData?.personal?.linkedin || '',
+      portfolio: parsedResumeData?.personal?.portfolio || ''
+    },
+    summary: parsedResumeData?.summary || (kws.length ? `Professional with demonstrated experience in ${kws.slice(0, 4).join(', ')}.` : ''),
+    skills: mergedSkills,
+    experience: hasExperience ? parsedResumeData.experience.map((e: any) => ({
+      company: e.company || '',
+      role: e.role || '',
+      dates: e.dates || '',
+      description: e.description || '',
+      technologies: e.technologies || ''
+    })) : [],
+    education: hasEducation ? parsedResumeData.education.map((e: any) => ({
+      school: e.school || '',
+      degree: e.degree || '',
+      year: e.year || '',
+      gpa: e.gpa || '',
+      coursework: e.coursework || ''
+    })) : [],
+    projects: hasProjects ? parsedResumeData.projects.map((p: any) => ({
+      title: p.title || '',
+      technologies: p.technologies || '',
+      description: p.description || ''
+    })) : [],
+    certifications: parsedResumeData?.certifications || [],
+    implementedKeywords: kws.filter((kw: string) =>
+      mergedSkills.some((s: string) => s.toLowerCase().includes(kw.toLowerCase()))
+    ).slice(0, 10)
+  };
+}
+
 // AI Resume Synthesis from Old Resume + JD Keywords
 app.post("/api/synthesize-resume", async (req, res) => {
   try {
-    const { jobDescription, oldResumeText, keywords } = req.body;
+    const { jobDescription, oldResumeText, keywords, parsedResumeData } = req.body;
 
-    if (!jobDescription || !oldResumeText) {
-      return res.status(400).json({ error: "Missing jobDescription or oldResumeText parameter." });
+    if (!jobDescription) {
+      return res.status(400).json({ error: "Missing jobDescription parameter." });
+    }
+    if (!oldResumeText && !parsedResumeData) {
+      return res.status(400).json({ error: "Missing oldResumeText or parsedResumeData parameter." });
+    }
+
+    const kws = keywords || [];
+
+    // If structured parse data is available, build a richer prompt using real sections
+    let promptResumeContext = oldResumeText || '';
+    if (parsedResumeData) {
+      const structuredCtx: string[] = [];
+      if (parsedResumeData.personal) {
+        structuredCtx.push(`PERSONAL: ${parsedResumeData.personal.name || ''} | ${parsedResumeData.personal.title || ''} | ${parsedResumeData.personal.email || ''} | ${parsedResumeData.personal.phone || ''} | ${parsedResumeData.personal.location || ''}`);
+        if (parsedResumeData.personal.linkedin) structuredCtx.push(`LinkedIn: ${parsedResumeData.personal.linkedin}`);
+        if (parsedResumeData.personal.github) structuredCtx.push(`GitHub: ${parsedResumeData.personal.github}`);
+      }
+      if (parsedResumeData.summary) structuredCtx.push(`SUMMARY: ${parsedResumeData.summary}`);
+      const fs = flattenSkills(parsedResumeData.skills);
+      if (fs.length) structuredCtx.push(`SKILLS: ${fs.join(', ')}`);
+      if (parsedResumeData.experience?.length) {
+        structuredCtx.push('EXPERIENCE:');
+        parsedResumeData.experience.forEach((e: any, i: number) => {
+          structuredCtx.push(`  [${i + 1}] ${e.role || ''} at ${e.company || ''} (${e.dates || ''})`);
+          if (e.technologies) structuredCtx.push(`       Tech: ${e.technologies}`);
+          if (e.description) structuredCtx.push(`       ${e.description.split('\n').join('\n       ')}`);
+        });
+      }
+      if (parsedResumeData.education?.length) {
+        structuredCtx.push('EDUCATION:');
+        parsedResumeData.education.forEach((e: any) => {
+          structuredCtx.push(`  - ${e.degree || ''} at ${e.school || ''} (${e.year || ''})${e.gpa ? ' GPA: ' + e.gpa : ''}`);
+        });
+      }
+      if (parsedResumeData.projects?.length) {
+        structuredCtx.push('PROJECTS:');
+        parsedResumeData.projects.forEach((p: any) => {
+          structuredCtx.push(`  - ${p.title || ''} (${p.technologies || ''}): ${p.description || ''}`);
+        });
+      }
+      if (parsedResumeData.certifications?.length) {
+        structuredCtx.push(`CERTIFICATIONS: ${parsedResumeData.certifications.join(', ')}`);
+      }
+      const combined = structuredCtx.filter(Boolean).join('\n');
+      if (combined.length > promptResumeContext.length) {
+        promptResumeContext = combined;
+      }
     }
 
     const ai = getAiClient();
 
-    // Local fallback in case Gemini is offline or rate-limited
-    const localSynthesize = () => {
-      const lines = oldResumeText.split('\n').map((l: string) => l.trim()).filter(Boolean);
-      const name = lines[0] || "Candidate Name";
-      const emailMatch = oldResumeText.match(/[\w.-]+@[\w.-]+\.\w+/);
-      const phoneMatch = oldResumeText.match(/(\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/);
-      
-      const email = emailMatch ? emailMatch[0] : "candidate@example.com";
-      const phone = phoneMatch ? phoneMatch[0] : "+91 98765 43210";
-      
-      const kws = keywords || [];
-      const skillsToInject = [...new Set([...kws, "React", "TypeScript", "Node.js"])].slice(0, 10);
-      const summaryText = `Dedicated professional with expertise in ${kws.slice(0, 4).join(', ') || 'software development'}. Experienced in building scalable systems and collaborating with cross-functional teams to deliver high-quality products.`;
+    // Fallback synthesizer: uses REAL parsed data, never invented placeholders
+    const fallbackSynthesize = () => {
+      // Prefer structured data > regex extraction from text
+      if (parsedResumeData && (parsedResumeData.experience?.length || parsedResumeData.personal?.name)) {
+        return buildFromParsedData(parsedResumeData, kws);
+      }
+
+      // Last-resort extraction from plain text (without inventing companies/schools)
+      const lines = (oldResumeText || '').split('\n').map((l: string) => l.trim()).filter(Boolean);
+      const name = lines[0] || '';
+      const emailMatch = (oldResumeText || '').match(/[\w.-]+@[\w.-]+\.\w+/);
+      const phoneMatch = (oldResumeText || '').match(/(\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/);
 
       return {
         personal: {
-          name,
-          title: "Software Engineer",
-          email,
-          phone,
-          location: "India",
-          github: "github.com/candidate",
-          linkedin: "linkedin.com/in/candidate"
+          name: name || '',
+          title: '',
+          email: emailMatch ? emailMatch[0] : '',
+          phone: phoneMatch ? phoneMatch[0] : '',
+          location: '',
+          github: '',
+          linkedin: '',
+          portfolio: ''
         },
-        summary: summaryText,
-        skills: skillsToInject,
-        experience: [
-          {
-            company: "Tech Corp Inc.",
-            role: "Software Developer",
-            dates: "2023 - Present",
-            description: `• Architected and engineered high-performance software modules using ${kws[0] || 'modern frameworks'}.\n• Collaborated in an Agile environment using ${kws[1] || 'Git'} to deliver products on time.\n• Optimized database queries to improve system response times by 20%.`
-          }
-        ],
-        education: [
-          {
-            school: "University of Technology",
-            degree: "Bachelor of Science in Computer Science",
-            year: "2019 - 2023",
-            gpa: "8.5 CGPA"
-          }
-        ],
-        projects: [
-          {
-            title: "Scalable API Gateway",
-            technologies: kws.slice(0, 3).join(', ') || "Node.js, Express, AWS",
-            description: `Developed a secure and lightweight API gateway to handle high traffic and route microservices efficiently.`
-          }
-        ],
+        summary: kws.length ? `Experienced professional specializing in ${kws.slice(0, 5).join(', ')}.` : '',
+        skills: [...new Set([...kws])].slice(0, 15),
+        experience: [],
+        education: [],
+        projects: [],
+        certifications: [],
         implementedKeywords: kws.slice(0, 6)
       };
     };
 
     if (!ai) {
-      return res.json(localSynthesize());
+      console.log("[SynthAI] No AI client available — building from structured parsedData directly");
+      return res.json(fallbackSynthesize());
     }
 
     try {
       const systemPrompt = `You are an elite Resume Synthesizer & Writer. Your task is to extract content from the candidate's old resume and rewrite it to target the new job description by naturally incorporating the requested keywords.
 
-Rules:
-1. Extract personal details (name, title, email, phone, location, links).
-2. Rewrite the professional summary to align with the job description, using 3-4 requested keywords.
-3. Keep all factual experience (companies, roles, dates, degrees, projects) from the old resume, but rewrite the bullet point descriptions to naturally weave in the provided keywords. Do NOT invent new employers or credentials.
-4. Expand the skills list to include the provided keywords where appropriate.
-5. Identify which keywords were successfully implemented.
+CRITICAL INTEGRITY RULES (NEVER VIOLATE THESE):
+1. DO NOT INVENT companies, schools, job titles, dates, degrees, projects, or certifications. Only use what is present in the provided resume data.
+2. If a piece of information is missing from the resume, output an EMPTY string "" or empty array [] for that field — DO NOT fill it with examples or placeholders.
+3. Keep all factual experience (companies, roles, dates, degrees, projects) EXACTLY as they appear in the resume. Only rewrite the bullet point descriptions to naturally weave in the provided keywords.
+4. Extract ONLY information explicitly present. Do NOT improve, add to, or fabricate the candidate's credentials.
+5. Preserve the candidate's original wording where possible. Only rewrite description bullets for keyword alignment.
 
-Return ONLY a valid JSON object matching this schema:
+OUTPUT REQUIREMENTS:
+- Extract personal details (name, title, email, phone, location, links) exactly as found
+- Rewrite the professional summary to align with the job description, naturally using 3-4 requested keywords
+- Keep all original experience/education/project entries (same companies, roles, dates, schools), but rewrite experience description bullets to weave in keywords
+- Merge the provided keywords into the skills list alongside existing resume skills
+- List the keywords you successfully implemented
+
+Return ONLY a valid JSON object matching this schema. No prose outside the JSON:
 {
   "personal": {
     "name": "<name>",
@@ -1605,45 +1739,104 @@ Return ONLY a valid JSON object matching this schema:
     "phone": "<phone>",
     "location": "<location>",
     "github": "<github>",
-    "linkedin": "<linkedin>"
+    "linkedin": "<linkedin>",
+    "portfolio": "<portfolio>"
   },
   "summary": "<optimized summary>",
   "skills": ["skill1", "skill2", ...],
   "experience": [
-    { "company": "<company>", "role": "<role>", "dates": "<dates>", "description": "<bullet points separated by newlines>" }
+    { "company": "<company>", "role": "<role>", "dates": "<dates>", "description": "<bullet points separated by newlines>", "technologies": "<tech stack>" }
   ],
   "education": [
-    { "school": "<school>", "degree": "<degree>", "year": "<year>", "gpa": "<gpa>" }
+    { "school": "<school>", "degree": "<degree>", "year": "<year>", "gpa": "<gpa>", "coursework": "<coursework>" }
   ],
   "projects": [
     { "title": "<title>", "technologies": "<tech stack>", "description": "<description>" }
   ],
+  "certifications": ["<certification>"],
   "implementedKeywords": ["keyword1", "keyword2", ...]
 }`;
 
-      const userContent = `Job Description:\n${jobDescription}\n\nOld Resume Text:\n${oldResumeText}\n\nKeywords to Incorporate:\n${JSON.stringify(keywords)}`;
+      const userContent = `Job Description:\n${jobDescription}\n\nOld Resume Data:\n${promptResumeContext}\n\nKeywords to naturally weave into summary and experience bullets:\n${JSON.stringify(kws)}`;
 
-      const response = await ai.models.generateContent({
-        model: "gemini-3.6-flash",
-        contents: [userContent],
-        config: {
-          systemInstruction: systemPrompt,
-          responseMimeType: "application/json"
+      let response: any;
+      try {
+        response = await ai.models.generateContent({
+          model: "gemini-2.5-flash",
+          contents: [userContent],
+          config: {
+            systemInstruction: systemPrompt,
+            responseMimeType: "application/json"
+          }
+        });
+      } catch (firstErr: any) {
+        console.warn("[SynthAI] gemini-2.5-flash failed, trying gemini-1.5-flash-latest:", firstErr.message);
+        response = await ai.models.generateContent({
+          model: "gemini-1.5-flash-latest",
+          contents: [userContent],
+          config: {
+            systemInstruction: systemPrompt,
+            responseMimeType: "application/json"
+          }
+        });
+      }
+
+      const text = response?.text;
+      if (!text) throw new Error("Empty response from Gemini");
+
+      // Strip markdown code fences if model wraps JSON
+      const cleaned = text
+        .replace(/^```(?:json)?\n?/i, '')
+        .replace(/\n?```$/i, '')
+        .trim();
+      let result = JSON.parse(cleaned);
+
+      // Post-processing: Merge any skills/categories the AI dropped from parsedResumeData
+      if (parsedResumeData) {
+        // Ensure ALL original experience entries are preserved (AI sometimes truncates to most recent)
+        if (parsedResumeData.experience?.length && (!result.experience || result.experience.length < parsedResumeData.experience.length)) {
+          const merged = [...(result.experience || [])];
+          for (let i = merged.length; i < parsedResumeData.experience.length; i++) {
+            merged.push(parsedResumeData.experience[i]);
+          }
+          result.experience = merged;
         }
-      });
+        if (parsedResumeData.education?.length && (!result.education || result.education.length < parsedResumeData.education.length)) {
+          result.education = parsedResumeData.education;
+        }
+        if (parsedResumeData.projects?.length && (!result.projects || result.projects.length < parsedResumeData.projects.length)) {
+          result.projects = parsedResumeData.projects;
+        }
+        if (parsedResumeData.certifications?.length) {
+          result.certifications = [...new Set([...(result.certifications || []), ...parsedResumeData.certifications])];
+        }
+        // Merge skills from structured parse to avoid AI losing skills
+        const originalFlat = flattenSkills(parsedResumeData.skills);
+        result.skills = [...new Set([...(result.skills || []), ...originalFlat, ...kws])].filter(Boolean).slice(0, 25);
+        // Backfill missing personal fields from structured parse if AI left them blank
+        result.personal = result.personal || {};
+        ['name', 'title', 'email', 'phone', 'location', 'github', 'linkedin', 'portfolio'].forEach(f => {
+          if (!result.personal[f] && parsedResumeData.personal?.[f]) {
+            result.personal[f] = parsedResumeData.personal[f];
+          }
+        });
+      }
 
-      const text = response.text;
-      if (!text) throw new Error("No response from Gemini");
-
-      const result = JSON.parse(text);
       return res.json(result);
     } catch (aiErr: any) {
-      console.warn("Gemini synthesis failed, returning local fallback:", aiErr.message);
-      return res.json(localSynthesize());
+      console.warn("[SynthAI] Gemini synthesis failed after all fallbacks, building from structured data:", aiErr.message);
+      return res.json(fallbackSynthesize());
     }
 
   } catch (error: any) {
-    console.error("Error synthesizing resume:", error);
+    console.error("[SynthAI] Unexpected error in synthesis pipeline:", error);
+    // Ultimate safety: return structured data directly (NEVER return invented data)
+    try {
+      const { parsedResumeData, keywords } = req.body;
+      if (parsedResumeData) {
+        return res.json(buildFromParsedData(parsedResumeData, keywords || []));
+      }
+    } catch (_e) {}
     return res.status(500).json({ error: error.message || "Failed to synthesize resume using AI." });
   }
 });
