@@ -46,7 +46,7 @@ const razorpayInstance = new Razorpay({
 });
 
 const app = express();
-const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
+const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3001;
 
 // Enable HTTP response compression (gzip/brotli) for high throughput (1000+ active users)
 app.use(compression({
@@ -1414,7 +1414,7 @@ Rules:
 - Keep keyword strings lowercase and concise (e.g. "react", "ci/cd", "system design")`;
 
       const response = await ai.models.generateContent({
-        model: "gemini-3.6-flash",
+        model: process.env.GEMINI_MODEL || "gemini-2.0-flash",
         contents: [`Job Description:\n${jobDescription}\n\nCandidate Resume Text:\n${resumeText || 'Not provided'}\n\nCandidate Current Skills: ${JSON.stringify(userSkills || [])}`],
         config: {
           systemInstruction: systemPrompt,
@@ -1422,10 +1422,13 @@ Rules:
         }
       });
 
-      const text = response.text;
-      if (!text) throw new Error("No response from Gemini");
+      let rawText = response.text || "";
+      if (!rawText) throw new Error("No response from Gemini");
 
-      const result = JSON.parse(text);
+      // Sanitize JSON markdown wrapping if present
+      rawText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
+
+      const result = JSON.parse(rawText);
       return res.json(result);
     } catch (aiErr: any) {
       console.warn("Gemini API failed for JD analysis, using local fallback:", aiErr.message);
@@ -1520,7 +1523,7 @@ Return ONLY a valid JSON with this structure:
       const userContent = `Job Description:\n${jobDescription}\n\nCurrent Resume Data:\n${JSON.stringify(resumeData, null, 2)}\n\nMissing Keywords to Incorporate:\n${JSON.stringify(missingKeywords || [])}\n\nCurrent JD Match Score: ${currentMatchScore || 'Unknown'}%`;
 
       const response = await ai.models.generateContent({
-        model: "gemini-3.6-flash",
+        model: process.env.GEMINI_MODEL || "gemini-2.0-flash",
         contents: [userContent],
         config: {
           systemInstruction: systemPrompt,
@@ -1528,10 +1531,13 @@ Return ONLY a valid JSON with this structure:
         }
       });
 
-      const text = response.text;
-      if (!text) throw new Error("No response from Gemini");
+      let rawText = response.text || "";
+      if (!rawText) throw new Error("No response from Gemini");
 
-      const result = JSON.parse(text);
+      // Sanitize JSON markdown wrapping if present
+      rawText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
+
+      const result = JSON.parse(rawText);
       return res.json(result);
     } catch (aiErr: any) {
       console.warn("Gemini API failed for resume optimization, using local fallback:", aiErr.message);
@@ -1541,6 +1547,141 @@ Return ONLY a valid JSON with this structure:
   } catch (error: any) {
     console.error("Error optimizing resume:", error);
     return res.status(500).json({ error: error.message || "Failed to optimize resume for job description." });
+  }
+});
+
+// AI Cover Letter Generator Endpoint
+app.post("/api/generate-cover-letter", async (req, res) => {
+  try {
+    const { jobTitle, companyName, jobDescription, tone, userProfile, customPrompt } = req.body;
+
+    const candidateName = userProfile?.name || 'Devender Singh';
+    const candidateEmail = userProfile?.email || 'candidate@example.com';
+    const candidateRole = userProfile?.role || 'Software Engineer';
+    const experienceYears = userProfile?.experienceYears || 2;
+    const candidateSkills = Array.isArray(userProfile?.skills) ? userProfile.skills.join(', ') : 'React, TypeScript, Node.js';
+
+    const ai = getAiClient();
+
+    const localGenerate = () => {
+      const dateStr = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+      let letter = '';
+      if (tone === 'Tech') {
+        letter = `${candidateName}
+${candidateEmail} | ${candidateRole}
+${dateStr}
+
+${companyName} Engineering Team
+
+Subject: Application for ${jobTitle || 'Engineering Role'} - ${candidateName}
+
+Hi ${companyName} Engineering Team,
+
+I'm excited to apply for the ${jobTitle || 'Engineering'} role. With over ${experienceYears}+ years of hands-on experience building high-performance web applications and backend services using ${candidateSkills}, I have consistently delivered robust codebases and scalable software features.
+
+Key highlights I bring to ${companyName}:
+• Strong expertise in ${candidateSkills} with focus on performance optimization.
+• Proven track record of shipping clean, maintainable, component-driven features.
+• Collaborative approach to engineering and rapid adaptability to emerging tech stacks.
+
+I admire ${companyName}'s product trajectory and engineering standards. I would love to bring my technical expertise to your team.
+
+Best regards,
+
+${candidateName}`;
+      } else if (tone === 'Direct') {
+        letter = `${candidateName}
+${candidateEmail}
+${dateStr}
+
+Hiring Team at ${companyName},
+
+I am applying for the ${jobTitle || 'Role'} position at ${companyName}. My technical background in ${candidateSkills} aligns directly with your current requirements.
+
+Highlights of my qualifications:
+- ${experienceYears}+ years of software engineering experience.
+- History of shipping reliable, high-density applications with modern UI/UX standards.
+- Proactive problem-solving mindset with commitment to fast-paced iteration.
+
+I am eager to contribute to ${companyName}'s growth and look forward to discussing how my skills fit your goals.
+
+Best,
+
+${candidateName}`;
+      } else {
+        letter = `${candidateName}
+${candidateEmail} | ${candidateRole}
+${dateStr}
+
+Hiring Manager
+${companyName}
+
+Dear Hiring Manager,
+
+I am writing to express my enthusiastic interest in the ${jobTitle || 'Role'} position at ${companyName}. With over ${experienceYears} years of professional experience specializing in ${candidateRole} practices and scalable architecture, I have consistently driven measurable impact across modern technology stacks.
+
+At my core, I excel in leveraging technologies such as ${candidateSkills} to optimize product performance, reduce technical debt, and streamline deployment workflows. What attracts me most to ${companyName} is your commitment to high-impact technology and product excellence.
+
+In my previous roles, I spearheaded cross-functional initiatives that improved application responsiveness and elevated software quality. I am confident that my technical skills and strategic problem-solving approach make me a strong fit for your team.
+
+Thank you for your time and consideration. I welcome the opportunity to discuss how my background aligns with ${companyName}'s vision.
+
+Sincerely,
+
+${candidateName}`;
+      }
+      return { coverLetter: letter };
+    };
+
+    if (!ai) {
+      return res.json(localGenerate());
+    }
+
+    try {
+      const systemPrompt = `You are a world-class career strategist and expert executive writer. Write an outstanding, highly tailored, human-sounding cover letter for a job application.
+Tone & Style requested: ${tone || 'Executive'} (Executive = formal & polished, Tech = modern & direct engineer-to-engineer, Direct = brief & punchy).
+
+Rules:
+1. Do NOT sound robotic or use overused AI clichés like "delighted to apply", "testament to", "nestled".
+2. Tailor specifically to the target Job Title (${jobTitle || 'Software Engineer'}) and Company (${companyName || 'Target Company'}).
+3. Reference candidate's real skills (${candidateSkills}) and experience level (${experienceYears} years).
+4. Keep paragraph formatting clean, professional, and well-spaced with a proper candidate header and date.
+5. If extra user prompt instructions are provided: "${customPrompt || 'None'}", follow them closely.
+
+Return ONLY a valid JSON object with key "coverLetter" containing the full formatted text string.`;
+
+      const userContent = `Target Job Title: ${jobTitle || 'Software Engineer'}
+Company Name: ${companyName || 'Target Company'}
+Job Description Snippet: ${jobDescription || 'Not provided'}
+Candidate Name: ${candidateName}
+Candidate Email: ${candidateEmail}
+Candidate Role: ${candidateRole}
+Years of Experience: ${experienceYears}
+Candidate Skills: ${candidateSkills}`;
+
+      const response = await ai.models.generateContent({
+        model: process.env.GEMINI_MODEL || "gemini-2.0-flash",
+        contents: [userContent],
+        config: {
+          systemInstruction: systemPrompt,
+          responseMimeType: "application/json"
+        }
+      });
+
+      let rawText = response.text || "";
+      if (!rawText) throw new Error("Empty response from Gemini");
+
+      rawText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
+      const parsed = JSON.parse(rawText);
+      return res.json(parsed);
+    } catch (aiErr: any) {
+      console.warn("Gemini cover letter generation failed, using fallback:", aiErr.message);
+      return res.json(localGenerate());
+    }
+
+  } catch (error: any) {
+    console.error("Error generating cover letter:", error);
+    return res.status(500).json({ error: error.message || "Failed to generate cover letter." });
   }
 });
 
@@ -1762,7 +1903,7 @@ Return ONLY a valid JSON object matching this schema. No prose outside the JSON:
       let response: any;
       try {
         response = await ai.models.generateContent({
-          model: "gemini-3.6-flash",
+          model: process.env.GEMINI_MODEL || "gemini-2.0-flash",
           contents: [userContent],
           config: {
             systemInstruction: systemPrompt,
@@ -1770,9 +1911,9 @@ Return ONLY a valid JSON object matching this schema. No prose outside the JSON:
           }
         });
       } catch (firstErr: any) {
-        console.warn("[SynthAI] gemini-3.6-flash failed, trying gemini-2.5-flash:", firstErr.message);
+        console.warn("[SynthAI] Primary model failed, trying gemini-1.5-flash:", firstErr.message);
         response = await ai.models.generateContent({
-          model: "gemini-2.5-flash",
+          model: "gemini-1.5-flash",
           contents: [userContent],
           config: {
             systemInstruction: systemPrompt,
@@ -2116,21 +2257,52 @@ app.post("/api/auto-apply/sync", async (req, res) => {
     client.write(`data: ${payload}\n\n`);
   });
 
-  // Save successful application directly to Supabase Database
-  if (log && log.includes('✅ Successfully applied') && supabase) {
+  // Save successful application directly to local JSON file & Supabase Database
+  if (log && (log.includes('✅ Successfully applied') || log.includes('Applied'))) {
+    const jobRecord = {
+      Job_ID: `auto-${Date.now()}`,
+      Title: jobTitle || 'Applied Role',
+      Company: company || 'LinkedIn Employer',
+      Platform: platform || 'LinkedIn',
+      Date_Applied: new Date().toISOString().replace('T', ' ').substring(0, 19),
+      Status: 'Applied',
+      Job_Link: 'N/A'
+    };
+
+    // Save to local JSON backup
     try {
-      await supabase.from('job_applications').insert([{
-        job_id: `auto-${Date.now()}`,
-        job_title: jobTitle || 'Software Engineer',
-        company_name: company || 'Featured Company',
-        platform: platform || 'LinkedIn',
-        status: 'Applied',
-        applied_at: new Date().toISOString(),
-        notes: 'Auto-applied via JobMerge Unstoppable Chrome Extension'
-      }]);
-      console.log(`[Supabase DB Sync] Saved application: ${jobTitle} at ${company}`);
-    } catch (dbErr) {
-      console.warn('Supabase DB auto-apply sync error:', dbErr);
+      const dataDir = path.join(process.cwd(), 'Auto_job_applier_linkedIn-main', 'data');
+      if (!fs.existsSync(dataDir)) {
+        fs.mkdirSync(dataDir, { recursive: true });
+      }
+      const historyFile = path.join(dataDir, 'applied_history.json');
+      let currentHistory: any[] = [];
+      if (fs.existsSync(historyFile)) {
+        try {
+          currentHistory = JSON.parse(fs.readFileSync(historyFile, 'utf8'));
+        } catch (e) {}
+      }
+      currentHistory.push(jobRecord);
+      fs.writeFileSync(historyFile, JSON.stringify(currentHistory, null, 2), 'utf8');
+    } catch (fileErr) {
+      console.warn('Local JSON auto-apply sync error:', fileErr);
+    }
+
+    if (supabase) {
+      try {
+        await supabase.from('job_applications').insert([{
+          job_id: jobRecord.Job_ID,
+          job_title: jobRecord.Title,
+          company_name: jobRecord.Company,
+          platform: jobRecord.Platform,
+          status: 'Applied',
+          applied_at: new Date().toISOString(),
+          notes: 'Auto-applied via JobMerge Unstoppable Chrome Extension'
+        }]);
+        console.log(`[Supabase DB Sync] Saved application: ${jobRecord.Title} at ${jobRecord.Company}`);
+      } catch (dbErr) {
+        console.warn('Supabase DB auto-apply sync error:', dbErr);
+      }
     }
   }
 

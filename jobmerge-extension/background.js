@@ -33,12 +33,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         targetUrl = `https://www.indeed.com/jobs?q=${keywordEncoded}&l=${locationEncoded}`;
       } else if (message.portal === 'ZipRecruiter') {
         targetUrl = `https://www.ziprecruiter.com/jobs?search=${keywordEncoded}&location=${locationEncoded}`;
+      } else if (message.portal === 'Glassdoor') {
+        targetUrl = `https://www.glassdoor.com/Job/jobs.htm?sc.keyword=${keywordEncoded}&locT=C&locKeyword=${locationEncoded}`;
       } else {
         // LinkedIn (Default with Easy Apply Filter f_AL=true)
         targetUrl = `https://www.linkedin.com/jobs/search/?keywords=${keywordEncoded}&location=${locationEncoded}&f_AL=true`;
       }
       
-      if (activeTab && activeTab.url && (activeTab.url.includes('linkedin.com') || activeTab.url.includes('indeed.com') || activeTab.url.includes('ziprecruiter.com'))) {
+      if (activeTab && activeTab.url && (activeTab.url.includes('linkedin.com') || activeTab.url.includes('indeed.com') || activeTab.url.includes('ziprecruiter.com') || activeTab.url.includes('glassdoor.com'))) {
         chrome.tabs.update(activeTab.id, { url: targetUrl });
       } else {
         chrome.tabs.create({ url: targetUrl });

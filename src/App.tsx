@@ -122,34 +122,34 @@ export function getPlatformInfo(job: Job) {
   const via = (job.viaSource || job.companyAbout || '').toLowerCase();
 
   if (via.includes('linkedin') || url.includes('linkedin')) {
-    return { name: 'LinkedIn', badgeBg: 'bg-blue-50 text-blue-700 border-blue-200', btnText: 'Apply on LinkedIn' };
+    return { name: 'LinkedIn', badgeBg: 'bg-blue-50 text-blue-700 border-blue-200', btnText: 'Apply through LinkedIn' };
   }
   if (via.includes('glassdoor') || url.includes('glassdoor')) {
-    return { name: 'Glassdoor', badgeBg: 'bg-emerald-50 text-emerald-700 border-emerald-200', btnText: 'Apply on Glassdoor' };
+    return { name: 'Glassdoor', badgeBg: 'bg-emerald-50 text-emerald-700 border-emerald-200', btnText: 'Apply through Glassdoor' };
   }
   if (via.includes('unstop') || url.includes('unstop')) {
-    return { name: 'Unstop', badgeBg: 'bg-purple-50 text-purple-700 border-purple-200', btnText: 'Apply on Unstop' };
+    return { name: 'Unstop', badgeBg: 'bg-purple-50 text-purple-700 border-purple-200', btnText: 'Apply through Unstop' };
   }
   if (via.includes('naukri') || url.includes('naukri')) {
-    return { name: 'Naukri.com', badgeBg: 'bg-sky-50 text-sky-700 border-sky-200', btnText: 'Apply on Naukri.com' };
+    return { name: 'Naukri.com', badgeBg: 'bg-sky-50 text-sky-700 border-sky-200', btnText: 'Apply through Naukri.com' };
   }
   if (via.includes('indeed') || url.includes('indeed')) {
-    return { name: 'Indeed', badgeBg: 'bg-indigo-50 text-indigo-700 border-indigo-200', btnText: 'Apply on Indeed' };
+    return { name: 'Indeed', badgeBg: 'bg-indigo-50 text-indigo-700 border-indigo-200', btnText: 'Apply through Indeed' };
   }
   if (via.includes('google') || url.includes('google')) {
-    return { name: 'Google Jobs', badgeBg: 'bg-red-50 text-red-700 border-red-200', btnText: 'Apply via Google Jobs' };
+    return { name: 'Google Jobs', badgeBg: 'bg-red-50 text-red-700 border-red-200', btnText: 'Apply through Google Jobs' };
   }
   if (url.includes('lever.co') || url.includes('greenhouse.io') || url.includes('workable.com')) {
-    return { name: 'Company Careers', badgeBg: 'bg-teal-50 text-teal-700 border-teal-200', btnText: 'Apply on Company Careers' };
+    return { name: 'Company Careers', badgeBg: 'bg-teal-50 text-teal-700 border-teal-200', btnText: 'Apply through Company Careers' };
   }
 
   const match = via.match(/via\s+([a-zA-Z0-9\.\s]+)/i);
   if (match && match[1]) {
     const cleanName = match[1].trim();
-    return { name: cleanName, badgeBg: 'bg-amber-50 text-amber-800 border-amber-200', btnText: `Apply on ${cleanName}` };
+    return { name: cleanName, badgeBg: 'bg-amber-50 text-amber-800 border-amber-200', btnText: `Apply through ${cleanName}` };
   }
 
-  return { name: 'Company Portal', badgeBg: 'bg-gray-100 text-gray-800 border-gray-200', btnText: 'Apply on Company Portal' };
+  return { name: 'Company Portal', badgeBg: 'bg-gray-100 text-gray-800 border-gray-200', btnText: 'Apply through Company Portal' };
 }
 
 export default function App() {
@@ -166,7 +166,7 @@ export default function App() {
   const [selectedJobForCoverLetter, setSelectedJobForCoverLetter] = useState<Job | null>(null);
   const [authModalDetails, setAuthModalDetails] = useState<{ title: string; subtitle: string; targetJob?: Job | null }>({
     title: "Continue with Google to Apply Instantly",
-    subtitle: "Create your free account to unlock 1-click quick apply, AI match scores, and automated applier tools."
+    subtitle: "Create your free account to unlock external application tracking, AI match scores, and automated applier tools."
   });
 
   const handleSelectPlan = async (planTier: 'Free' | 'Pro' | 'Accelerator') => {
@@ -211,6 +211,7 @@ export default function App() {
 
   const handleTabSelect = (tab: 'FindJobs' | 'Salaries' | 'JobStudio' | 'Applications' | 'Saved' | 'AutoApply' | 'Admin') => {
     setActiveDashboardTab(tab === 'JobStudio' ? 'JobStudio' : tab as any);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
   
   // User Authentication States
@@ -754,16 +755,9 @@ export default function App() {
       return;
     }
 
-    // Open External Redirect Security Shield Modal
-    setPendingRedirectJob(job);
-  };
+    const applyUrl = job.applyUrl || `https://www.linkedin.com/jobs/search/?keywords=${encodeURIComponent(job.title + ' ' + job.company)}`;
 
-  const handleConfirmExternalRedirect = async (applyUrl: string) => {
-    if (!pendingRedirectJob) return;
-    const job = pendingRedirectJob;
-    setPendingRedirectJob(null);
-
-    // Open external job post portal in a new secure tab with noopener,noreferrer
+    // Open external job post portal in a new secure tab immediately (popup blocker immune)
     window.open(applyUrl, '_blank', 'noopener,noreferrer');
 
     const newApp: JobApplication = {
@@ -788,21 +782,81 @@ export default function App() {
 
     showToast(`Safely opened ${platform} & logged application in pipeline!`);
 
-    try {
-      await supabaseClient.from('applications').insert({
-        id: newApp.id,
-        user_email: userProfile.email,
-        job_id: newApp.jobId,
-        job_title: newApp.jobTitle,
-        company: newApp.company,
-        logo_url: newApp.logoUrl,
-        applied_date: newApp.appliedDate,
-        status: newApp.status,
-        notes: newApp.notes
-      });
-    } catch (err) {
-      console.error("Error saving application in Supabase:", err);
-    }
+    // Log application in Supabase database asynchronously
+    (async () => {
+      try {
+        await supabaseClient.from('applications').insert({
+          id: newApp.id,
+          user_email: userProfile.email,
+          job_id: newApp.jobId,
+          job_title: newApp.jobTitle,
+          company: newApp.company,
+          logo_url: newApp.logoUrl,
+          applied_date: newApp.appliedDate,
+          status: newApp.status,
+          notes: newApp.notes
+        });
+      } catch (err) {
+        console.error("Error saving application in Supabase:", err);
+      }
+    })();
+  };
+
+  const handleConfirmExternalRedirect = (applyUrl: string) => {
+    // Ensure we have a valid URL; if empty, fallback to LinkedIn job search query
+    const targetUrl = applyUrl && applyUrl.trim() !== "" 
+      ? applyUrl 
+      : (pendingRedirectJob 
+          ? `https://www.linkedin.com/jobs/search/?keywords=${encodeURIComponent(pendingRedirectJob.title + ' ' + pendingRedirectJob.company)}`
+          : "https://www.linkedin.com");
+
+    // Open external job post portal first to ensure browser user activation is preserved
+    window.open(targetUrl, '_blank', 'noopener,noreferrer');
+
+    if (!pendingRedirectJob) return;
+    const job = pendingRedirectJob;
+    setPendingRedirectJob(null);
+
+    const newApp: JobApplication = {
+      id: 'app-' + Math.random().toString(36).substring(2, 7),
+      jobId: job.id,
+      jobTitle: job.title,
+      company: job.company,
+      logoUrl: job.logoUrl,
+      appliedDate: 'Today',
+      status: 'Applied',
+      notes: `Redirected securely to hiring portal on ${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}.`
+    };
+
+    setApplications([newApp, ...applications]);
+    
+    let platform = "Company site";
+    if (applyUrl.includes("linkedin.com")) platform = "LinkedIn";
+    else if (applyUrl.includes("indeed.com")) platform = "Indeed";
+    else if (applyUrl.includes("google.com")) platform = "Google Careers";
+    else if (applyUrl.includes("microsoft.com")) platform = "Microsoft Careers";
+    else if (applyUrl.includes("stripe.com")) platform = "Stripe Careers";
+
+    showToast(`Safely opened ${platform} & logged application in pipeline!`);
+
+    // Run database insert asynchronously in the background so window.open remains synchronous
+    (async () => {
+      try {
+        await supabaseClient.from('applications').insert({
+          id: newApp.id,
+          user_email: userProfile.email,
+          job_id: newApp.jobId,
+          job_title: newApp.jobTitle,
+          company: newApp.company,
+          logo_url: newApp.logoUrl,
+          applied_date: newApp.appliedDate,
+          status: newApp.status,
+          notes: newApp.notes
+        });
+      } catch (err) {
+        console.error("Error saving application in Supabase:", err);
+      }
+    })();
   };
 
   // Applications Pipeline Handlers
@@ -2043,7 +2097,7 @@ export default function App() {
                                           className="px-4 py-2.5 bg-[#4f46e5] hover:bg-[#3f37c9] text-white text-xs font-black rounded-xl shadow-xs cursor-pointer flex items-center gap-1.5 transition-all shrink-0 active:scale-98"
                                         >
                                           <Zap className="w-3.5 h-3.5" />
-                                          <span>Quick Apply</span>
+                                          <span>{getPlatformInfo(job).btnText}</span>
                                         </button>
                                         <button 
                                           onClick={() => {
@@ -2287,7 +2341,7 @@ export default function App() {
                                           className="px-4 py-2.5 bg-[#4f46e5] hover:bg-[#3f37c9] text-white text-xs font-black rounded-xl shadow-xs cursor-pointer flex items-center gap-1.5 transition-all shrink-0 active:scale-98"
                                         >
                                           <Zap className="w-3.5 h-3.5" />
-                                          <span>Quick Apply</span>
+                                          <span>{getPlatformInfo(job).btnText}</span>
                                         </button>
                                         <button 
                                           onClick={() => {
@@ -2349,9 +2403,20 @@ export default function App() {
 
             {/* Lazy Loaded Secondary Tab Modules with Suspense Fallback */}
             <Suspense fallback={
-              <div className="bg-white rounded-3xl p-12 border border-gray-150 shadow-sm flex flex-col items-center justify-center text-center space-y-4 min-h-[400px]">
-                <div className="w-10 h-10 border-4 border-[#4f46e5]/20 border-t-[#4f46e5] rounded-full animate-spin"></div>
-                <p className="text-xs font-extrabold text-gray-500 uppercase tracking-wider">Loading Module...</p>
+              <div className="bg-white rounded-3xl p-8 border border-gray-150 shadow-sm space-y-6 min-h-[500px] animate-pulse">
+                <div className="flex justify-between items-center pb-4 border-b border-gray-100">
+                  <div className="space-y-2">
+                    <div className="h-6 w-48 bg-gray-200 rounded-lg"></div>
+                    <div className="h-3 w-72 bg-gray-100 rounded-md"></div>
+                  </div>
+                  <div className="h-10 w-32 bg-gray-200 rounded-xl"></div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="h-32 bg-gray-100 rounded-2xl"></div>
+                  <div className="h-32 bg-gray-100 rounded-2xl"></div>
+                  <div className="h-32 bg-gray-100 rounded-2xl"></div>
+                </div>
+                <div className="h-64 bg-gray-50 rounded-2xl border border-gray-100"></div>
               </div>
             }>
               {/* Salaries Analysis View */}
@@ -3105,7 +3170,7 @@ export default function App() {
             <div className="space-y-2.5 bg-gray-50/80 p-4 rounded-2xl border border-gray-150 text-xs font-bold text-gray-700">
               <div className="flex items-center gap-2.5">
                 <div className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-[10px] font-black shrink-0">✓</div>
-                <span>⚡ 1-Click Quick Apply across 50+ job portals</span>
+                <span>⚡ Streamlined redirection & application logging</span>
               </div>
               <div className="flex items-center gap-2.5">
                 <div className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-[10px] font-black shrink-0">✓</div>

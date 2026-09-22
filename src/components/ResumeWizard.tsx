@@ -137,20 +137,29 @@ export default function ResumeWizard({ isOpen, onClose, onGenerate }: ResumeWiza
     setIsExtracting(true);
 
     try {
+      const resumeText = oldResumeText || buildFullTextFromParsed(parsedResumeData);
       const res = await fetch('/api/analyze-jd', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jobDescription })
+        body: JSON.stringify({ 
+          jobDescription,
+          resumeText,
+          userSkills: flattenSkills(parsedResumeData?.skills)
+        })
       });
       if (!res.ok) throw new Error();
       const data = await res.json();
       setKeywords(data.extractedKeywords || { found: [], missing: [], priority: [] });
       setStep(2);
     } catch (e) {
+      const lowerJD = jobDescription.toLowerCase();
+      const words = Array.from(new Set(lowerJD.match(/\b[a-z]{3,}\b/g) || []))
+        .filter(w => !['the', 'and', 'for', 'with', 'you', 'will', 'this', 'that', 'from', 'have', 'are', 'our', 'team', 'work', 'experience', 'skills', 'role', 'required', 'preferred', 'looking', 'join', 'about'].includes(w));
+      
       setKeywords({
-        found: ['react', 'typescript', 'javascript'],
-        missing: ['aws', 'ci/cd', 'docker', 'kubernetes', 'system design', 'agile'],
-        priority: ['aws', 'ci/cd', 'docker', 'kubernetes', 'system design']
+        found: words.slice(0, 5),
+        missing: words.slice(5, 15),
+        priority: words.slice(5, 10)
       });
       setStep(2);
     } finally {

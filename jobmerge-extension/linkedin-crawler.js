@@ -143,7 +143,7 @@ async function scrollLeftPane() {
   }
 }
 
-async function syncStateToDashboardAndStorage(statusText, logText) {
+async function syncStateToDashboardAndStorage(statusText, logText, jobTitle = '', company = '') {
   // Persist counts across navigations
   chrome.storage.local.set({
     appliedCount,
@@ -166,6 +166,8 @@ async function syncStateToDashboardAndStorage(statusText, logText) {
         applied: appliedCount,
         failed: failedCount,
         targetLimit: targetLimit,
+        jobTitle,
+        company,
         platform: 'LinkedIn'
       })
     });
@@ -241,11 +243,11 @@ async function startCrawler() {
           if (success) {
             appliedCount++;
             chrome.runtime.sendMessage({ action: 'JOB_APPLIED', title, company, appliedCount });
-            await syncStateToDashboardAndStorage('Applying', `✅ Successfully applied to "${title} | ${company}" (${appliedCount}/${targetLimit})`);
+            await syncStateToDashboardAndStorage('Applying', `✅ Successfully applied to "${title} | ${company}" (${appliedCount}/${targetLimit})`, title, company);
           } else {
             failedCount++;
             chrome.runtime.sendMessage({ action: 'JOB_FAILED', title, company, failedCount });
-            await syncStateToDashboardAndStorage('Applying', `⚠️ Skipped/unhandled form step for "${title} | ${company}"`);
+            await syncStateToDashboardAndStorage('Applying', `⚠️ Skipped/unhandled form step for "${title} | ${company}"`, title, company);
           }
         } else {
           showNotification(`Skipping external job: "${title}"`, 'info');

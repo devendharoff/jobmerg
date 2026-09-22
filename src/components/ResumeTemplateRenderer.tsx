@@ -81,9 +81,9 @@ export default function ResumeTemplateRenderer({
   };
 
   // Grouped skills rendering template
-  const renderSkillsSection = (titleStyle = "font-bold", itemStyle = "text-[10px] text-gray-800") => {
+  const renderSkillsSection = (titleStyle = "font-bold text-gray-900", itemStyle = "text-[11px] text-gray-800 leading-normal") => {
     return (
-      <div className="space-y-1">
+      <div className="space-y-1.5">
         {skills.languages && (
           <p className={itemStyle}><span className={titleStyle}>Languages:</span> {skills.languages}</p>
         )}

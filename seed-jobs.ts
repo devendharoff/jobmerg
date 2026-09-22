@@ -28,7 +28,7 @@ async function seed() {
     salary_range: job.salaryRange,
     experience_required: job.experienceRequired,
     posted_time: job.postedTime,
-    original_url: `https://example.com/jobs/${job.id}`,
+    original_url: job.applyUrl || '',
     tags: job.skills,
     description: job.description,
     company_about: job.companyAbout,

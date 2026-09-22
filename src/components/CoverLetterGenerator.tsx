@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  FileText, Sparkles, Copy, Check, Download, RefreshCw, X, Sliders, Globe, Briefcase, Mail, Send
+  FileText, Sparkles, Copy, Check, Download, RefreshCw, X, Sliders, Edit3, MessageSquare
 } from 'lucide-react';
 import { Job, UserProfile } from '../types';
 
@@ -23,8 +23,9 @@ export default function CoverLetterGenerator({
   const [isGenerating, setIsGenerating] = useState(false);
   const [copied, setCopied] = useState(false);
   const [coverLetterText, setCoverLetterText] = useState('');
+  const [customPrompt, setCustomPrompt] = useState('');
+  const [isEditingInline, setIsEditingInline] = useState(false);
 
-  // Sample or custom target job details
   const companyName = targetJob?.company || 'Target Tech Corp';
   const jobTitle = targetJob?.title || 'Senior Software Engineer';
   const candidateName = userProfile.name || 'Devender Singh';
@@ -35,15 +36,81 @@ export default function CoverLetterGenerator({
     }
   }, [isOpen, targetJob]);
 
-  const generateLetter = () => {
+  const generateLetter = async (selectedTone = tone) => {
     setIsGenerating(true);
+    try {
+      const response = await fetch('/api/generate-cover-letter', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jobTitle,
+          companyName,
+          jobDescription: targetJob?.description || '',
+          tone: selectedTone,
+          userProfile,
+          customPrompt
+        })
+      });
 
-    setTimeout(() => {
-      let letter = '';
-      const dateStr = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+      if (response.ok) {
+        const data = await response.json();
+        if (data.coverLetter) {
+          setCoverLetterText(data.coverLetter);
+          setIsGenerating(false);
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn('Backend cover letter generation error, fallback to local client generation:', err);
+    }
 
-      if (tone === 'Executive') {
-        letter = `${candidateName}
+    // Client fallback if fetch fails
+    const dateStr = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    let letter = '';
+    if (selectedTone === 'Tech') {
+      letter = `${candidateName}
+${userProfile.email || 'candidate@example.com'} | ${userProfile.role || 'Software Engineer'}
+${dateStr}
+
+${companyName} Engineering Team
+
+Subject: Application for ${jobTitle} - ${candidateName}
+
+Hi ${companyName} Engineering Team,
+
+I'm excited to apply for the ${jobTitle} role. As a hands-on developer focused on modern web engineering, I've spent the past ${userProfile.experienceYears || 2}+ years building high-throughput UI frameworks and resilient backend APIs using ${userProfile.skills.slice(0, 5).join(', ') || 'React, TypeScript, Next.js, and Node.js'}.
+
+Key highlights I bring to ${companyName}:
+• Deep technical proficiency in ${userProfile.skills.slice(0, 3).join(', ') || 'React and Node.js'} with a track record of clean codebases.
+• Experience building responsive single-page applications and integrating real-time API state pipelines.
+• Passion for continuous learning, automated code testing, and high-performance frontend optimization.
+
+I admire ${companyName}'s tech stack and user-centric vision. I would love to bring my technical expertise to your engineering team.
+
+Best regards,
+
+${candidateName}`;
+    } else if (selectedTone === 'Direct') {
+      letter = `${candidateName}
+${userProfile.email || 'candidate@example.com'}
+${dateStr}
+
+Hiring Team at ${companyName},
+
+I am applying for the ${jobTitle} role at ${companyName}. My technical background in ${userProfile.skills.slice(0, 3).join(', ') || 'React, JavaScript, and Node.js'} directly aligns with the key requirements for this position.
+
+Highlights of my qualifications:
+- ${userProfile.experienceYears || 2}+ years of software engineering experience.
+- Track record of shipping reliable, high-density applications with clean UI/UX standards.
+- Strong problem-solving mindset and rapid adaptability to modern tech stacks.
+
+I am eager to contribute to ${companyName}'s growth and would appreciate the opportunity to interview.
+
+Best,
+
+${candidateName}`;
+    } else {
+      letter = `${candidateName}
 ${userProfile.email || 'candidate@example.com'} | ${userProfile.role || 'Software Engineer'}
 ${dateStr}
 
@@ -63,54 +130,15 @@ Thank you for your time and consideration. I welcome the opportunity to discuss 
 Sincerely,
 
 ${candidateName}`;
-      } else if (tone === 'Tech') {
-        letter = `${candidateName}
-${userProfile.email || 'candidate@example.com'} | GitHub: github.com/candidate
-${dateStr}
+    }
 
-Engineering Team
-${companyName}
+    setCoverLetterText(letter);
+    setIsGenerating(false);
+  };
 
-Subject: Application for ${jobTitle} - ${candidateName}
-
-Hi ${companyName} Engineering Team,
-
-I'm excited to apply for the ${jobTitle} role. As a hands-on developer focused on modern web engineering, I've spent the past ${userProfile.experienceYears || 2}+ years building high-throughput UI frameworks and resilient backend APIs using ${userProfile.skills.slice(0, 5).join(', ') || 'React, TypeScript, Next.js, and Node.js'}.
-
-Key highlights I bring to ${companyName}:
-• Deep technical proficiency in ${userProfile.skills.slice(0, 3).join(', ') || 'React and Node.js'} with a track record of clean, maintainable codebases.
-• Experience building responsive single-page applications and integrating real-time API state pipelines.
-• Passion for continuous learning, automated code testing, and high-performance frontend optimization.
-
-I admire ${companyName}'s tech stack and user-centric vision. I would love to bring my technical expertise to your engineering team.
-
-Best regards,
-
-${candidateName}`;
-      } else {
-        letter = `${candidateName}
-${userProfile.email || 'candidate@example.com'}
-${dateStr}
-
-Hiring Team at ${companyName},
-
-I am applying for the ${jobTitle} role at ${companyName}. My technical background in ${userProfile.skills.slice(0, 3).join(', ') || 'React, JavaScript, and Node.js'} directly aligns with the key requirements for this position.
-
-Highlights of my qualifications:
-- ${userProfile.experienceYears || 2}+ years of software engineering experience.
-- Track record of shipping reliable, high-density applications with clean UI/UX standards.
-- Strong problem-solving mindset and rapid adaptability to modern tech stacks.
-
-I am eager to contribute to ${companyName}'s growth and would appreciate the opportunity to interview.
-
-Best,
-
-${candidateName}`;
-      }
-
-      setCoverLetterText(letter);
-      setIsGenerating(false);
-    }, 350);
+  const handleToneChange = (t: 'Executive' | 'Tech' | 'Direct') => {
+    setTone(t);
+    generateLetter(t);
   };
 
   const handleCopy = () => {
@@ -165,7 +193,7 @@ ${candidateName}`;
               {(['Executive', 'Tech', 'Direct'] as const).map((t) => (
                 <button
                   key={t}
-                  onClick={() => setTone(t)}
+                  onClick={() => handleToneChange(t)}
                   className={`px-3 py-1 text-xs font-extrabold rounded-xl transition-all cursor-pointer ${
                     tone === t
                       ? 'bg-[#4f46e5] text-white shadow-xs'
@@ -178,14 +206,52 @@ ${candidateName}`;
             </div>
           </div>
 
-          <button
-            onClick={generateLetter}
-            disabled={isGenerating}
-            className="px-3.5 py-1.5 bg-white border border-gray-200 hover:bg-gray-100 text-gray-800 font-bold text-xs rounded-xl flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 text-[#4f46e5] ${isGenerating ? 'animate-spin' : ''}`} />
-            <span>Regenerate</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsEditingInline(!isEditingInline)}
+              className={`px-3 py-1.5 border font-bold text-xs rounded-xl flex items-center gap-1.5 transition-all cursor-pointer ${
+                isEditingInline ? 'bg-amber-50 border-amber-300 text-amber-800' : 'bg-white border-gray-200 hover:bg-gray-100 text-gray-700'
+              }`}
+            >
+              <Edit3 className="w-3.5 h-3.5 text-amber-600" />
+              <span>{isEditingInline ? 'Preview' : 'Direct Edit'}</span>
+            </button>
+
+            <button
+              onClick={() => generateLetter(tone)}
+              disabled={isGenerating}
+              className="px-3.5 py-1.5 bg-[#4f46e5] hover:bg-[#3f37c9] text-white font-bold text-xs rounded-xl flex items-center gap-1.5 transition-all shadow-xs cursor-pointer disabled:opacity-50"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isGenerating ? 'animate-spin' : ''}`} />
+              <span>Generate AI</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Custom AI Prompt Bar */}
+        <div className="px-4 py-2 bg-indigo-50/50 border-b border-indigo-100/60 flex items-center gap-2">
+          <MessageSquare className="w-4 h-4 text-[#4f46e5] shrink-0" />
+          <input
+            type="text"
+            value={customPrompt}
+            onChange={(e) => setCustomPrompt(e.target.value)}
+            placeholder="Custom instructions (e.g. 'Emphasize my cloud migration background and leadership')..."
+            className="w-full text-xs bg-transparent border-none focus:outline-none text-gray-800 font-medium placeholder:text-gray-400"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') generateLetter(tone);
+            }}
+          />
+          {customPrompt && (
+            <button
+              onClick={() => {
+                setCustomPrompt('');
+                generateLetter(tone);
+              }}
+              className="text-[10px] font-bold text-gray-400 hover:text-gray-600"
+            >
+              Clear
+            </button>
+          )}
         </div>
 
         {/* Letter Preview Body */}
@@ -193,10 +259,21 @@ ${candidateName}`;
           {isGenerating ? (
             <div className="py-20 flex flex-col items-center justify-center space-y-3">
               <div className="w-10 h-10 border-4 border-[#4f46e5]/20 border-t-[#4f46e5] rounded-full animate-spin"></div>
-              <p className="text-xs font-extrabold text-gray-500 uppercase tracking-wider">Tailoring Cover Letter...</p>
+              <p className="text-xs font-extrabold text-gray-500 uppercase tracking-wider">Synthesizing Cover Letter with Gemini AI...</p>
             </div>
+          ) : isEditingInline ? (
+            <textarea
+              value={coverLetterText}
+              onChange={(e) => setCoverLetterText(e.target.value)}
+              className="w-full h-full min-h-[320px] bg-white border-2 border-indigo-300 rounded-2xl p-6 shadow-sm font-mono text-xs text-gray-800 leading-relaxed focus:outline-none focus:ring-2 focus:ring-[#4f46e5]"
+            />
           ) : (
-            <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm font-mono text-xs text-gray-800 leading-relaxed whitespace-pre-wrap selection:bg-indigo-100">
+            <div 
+              contentEditable
+              suppressContentEditableWarning
+              onBlur={(e) => setCoverLetterText(e.currentTarget.innerText)}
+              className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm font-mono text-xs text-gray-800 leading-relaxed whitespace-pre-wrap selection:bg-indigo-100 focus:outline-none focus:border-indigo-400"
+            >
               {coverLetterText}
             </div>
           )}
@@ -204,8 +281,9 @@ ${candidateName}`;
 
         {/* Footer Actions */}
         <div className="p-4 bg-white border-t border-gray-150 flex items-center justify-between gap-3">
-          <p className="text-[11px] font-bold text-gray-400">
-            Powered by AI tailored keyword alignment engine
+          <p className="text-[11px] font-bold text-gray-400 flex items-center gap-1">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span>
+            Direct editable draft • Powered by Gemini 2.0 AI
           </p>
 
           <div className="flex items-center gap-2">

@@ -43,6 +43,11 @@ export default function AutoApplyBot({ userProfile, onSyncApplications, onOpenPr
   // Navigation wizard steps: 1. Setup Persona & Credentials -> 2. Job Targets -> 3. Live Bot Console
   const [activeStep, setActiveStep] = useState<'profile' | 'targets' | 'console'>('targets');
 
+  // Target Portal Selection State ('LinkedIn' | 'Indeed' | 'ZipRecruiter' | 'Glassdoor')
+  const [targetPortal, setTargetPortal] = useState<'LinkedIn' | 'Indeed' | 'ZipRecruiter' | 'Glassdoor'>(() => {
+    return (localStorage.getItem('jobmerge_target_portal') as any) || 'LinkedIn';
+  });
+
   // Search & Bot Parameters State
   const [searchTerms, setSearchTerms] = useState<string>('Software Engineer, Full Stack Developer, React Developer');
   const [searchLocation, setSearchLocation] = useState<string>('United States');
@@ -55,17 +60,41 @@ export default function AutoApplyBot({ userProfile, onSyncApplications, onOpenPr
   const [totalApplicationsLimit, setTotalApplicationsLimit] = useState<number>(30);
   const [showChromeWindow, setShowChromeWindow] = useState<boolean>(true);
 
+  // Load saved persona answers from localStorage
+  const loadSavedPersona = () => {
+    try {
+      const saved = localStorage.getItem('jobmerge_auto_apply_persona');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return null;
+  };
+  const savedPersona = loadSavedPersona();
+
   // User Profile & Answer Form State
-  const [firstName, setFirstName] = useState<string>(userProfile?.name?.split(' ')[0] || 'Sai');
-  const [middleName, setMiddleName] = useState<string>('');
-  const [lastName, setLastName] = useState<string>(userProfile?.name?.split(' ').slice(1).join(' ') || 'Vignesh');
-  const [phoneNumber, setPhoneNumber] = useState<string>('9876543210');
-  const [currentCity, setCurrentCity] = useState<string>('San Francisco, CA');
-  const [experienceYears, setExperienceYears] = useState<string>(userProfile?.experienceYears?.toString() || '3');
-  const [requireVisa, setRequireVisa] = useState<string>('No');
-  const [websiteUrl, setWebsiteUrl] = useState<string>('https://github.com/example');
-  const [linkedinUrl, setLinkedinUrl] = useState<string>('https://www.linkedin.com/in/example');
-  const [desiredSalary, setDesiredSalary] = useState<string>('1200000');
+  const [firstName, setFirstName] = useState<string>(savedPersona?.firstName || userProfile?.name?.split(' ')[0] || 'Sai');
+  const [middleName, setMiddleName] = useState<string>(savedPersona?.middleName || '');
+  const [lastName, setLastName] = useState<string>(savedPersona?.lastName || userProfile?.name?.split(' ').slice(1).join(' ') || 'Vignesh');
+  const [phoneNumber, setPhoneNumber] = useState<string>(savedPersona?.phoneNumber || '9876543210');
+  const [currentCity, setCurrentCity] = useState<string>(savedPersona?.currentCity || 'San Francisco, CA');
+  const [experienceYears, setExperienceYears] = useState<string>(savedPersona?.experienceYears || userProfile?.experienceYears?.toString() || '3');
+  const [requireVisa, setRequireVisa] = useState<string>(savedPersona?.requireVisa || 'No');
+  const [websiteUrl, setWebsiteUrl] = useState<string>(savedPersona?.websiteUrl || 'https://github.com/example');
+  const [linkedinUrl, setLinkedinUrl] = useState<string>(savedPersona?.linkedinUrl || 'https://www.linkedin.com/in/example');
+  const [desiredSalary, setDesiredSalary] = useState<string>(savedPersona?.desiredSalary || '1200000');
+
+  const [resumeBase64, setResumeBase64] = useState<string>(() => {
+    return localStorage.getItem('jobmerge_auto_apply_resume_base64') || '';
+  });
+
+  // Autosave persona answers to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('jobmerge_auto_apply_persona', JSON.stringify({
+        firstName, middleName, lastName, phoneNumber, currentCity,
+        experienceYears, requireVisa, websiteUrl, linkedinUrl, desiredSalary
+      }));
+    } catch (e) {}
+  }, [firstName, middleName, lastName, phoneNumber, currentCity, experienceYears, requireVisa, websiteUrl, linkedinUrl, desiredSalary]);
 
   // Execution & Output State
   const [isBotRunning, setIsBotRunning] = useState<boolean>(false);
@@ -148,6 +177,9 @@ export default function AutoApplyBot({ userProfile, onSyncApplications, onOpenPr
     reader.onload = async () => {
       try {
         const base64Data = (reader.result as string).split(',')[1];
+        setResumeBase64(base64Data);
+        localStorage.setItem('jobmerge_auto_apply_resume_base64', base64Data);
+
         const res = await fetch('/api/auto-apply/upload-resume', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -397,12 +429,16 @@ export default function AutoApplyBot({ userProfile, onSyncApplications, onOpenPr
       return;
     }
 
+    // Save target portal to localStorage
+    localStorage.setItem('jobmerge_target_portal', targetPortal);
+
     // Dispatch custom event to notify local Chrome Extension to start automation
     window.dispatchEvent(new CustomEvent('JOBMERGE_START_BOT', {
       detail: {
         keyword: searchTerms || 'Software Engineer',
         location: searchLocation || 'United States',
-        limit: totalApplicationsLimit
+        limit: totalApplicationsLimit,
+        portal: targetPortal
       }
     }));
 
@@ -580,6 +616,59 @@ export default function AutoApplyBot({ userProfile, onSyncApplications, onOpenPr
       {activeStep === 'targets' && (
         <div className="space-y-8 animate-fade-in">
           
+          {/* Target Job Portal Selector */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-extrabold text-gray-900 flex items-center gap-2">
+                <Globe className="w-4 h-4 text-[#3f37c9]" />
+                Select Target Job Portal
+              </h2>
+              <span className="text-[11px] text-[#3f37c9] font-bold bg-indigo-50 px-2.5 py-0.5 rounded-full">
+                Active: {targetPortal}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {[
+                { id: 'LinkedIn', name: 'LinkedIn', badge: 'Easy Apply', color: 'border-blue-500 bg-blue-50/40 text-blue-700', icon: '💼' },
+                { id: 'Indeed', name: 'Indeed', badge: 'Indeed Apply', color: 'border-indigo-500 bg-indigo-50/40 text-indigo-700', icon: '🔍' },
+                { id: 'ZipRecruiter', name: 'ZipRecruiter', badge: '1-Click Apply', color: 'border-emerald-500 bg-emerald-50/40 text-emerald-700', icon: '⚡' },
+                { id: 'Glassdoor', name: 'Glassdoor', badge: 'Direct Apply', color: 'border-amber-500 bg-amber-50/40 text-amber-700', icon: '🏢' }
+              ].map((portal) => {
+                const isSelected = targetPortal === portal.id;
+                return (
+                  <button
+                    key={portal.id}
+                    type="button"
+                    onClick={() => {
+                      setTargetPortal(portal.id as any);
+                      localStorage.setItem('jobmerge_target_portal', portal.id);
+                      showToast(`Target portal switched to ${portal.name}!`);
+                    }}
+                    className={`p-4 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between space-y-2 relative ${
+                      isSelected 
+                        ? 'border-[#3f37c9] bg-indigo-50/70 ring-2 ring-[#3f37c9]/30 shadow-md scale-[1.02]' 
+                        : 'border-gray-150 bg-white hover:border-gray-300 hover:bg-gray-50 shadow-xs'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between w-full">
+                      <span className="text-lg">{portal.icon}</span>
+                      {isSelected ? (
+                        <span className="w-5 h-5 bg-[#3f37c9] text-white rounded-full flex items-center justify-center text-xs font-bold">✓</span>
+                      ) : (
+                        <span className="w-2 h-2 rounded-full bg-gray-200" />
+                      )}
+                    </div>
+                    <div>
+                      <h3 className="font-extrabold text-xs text-gray-900">{portal.name}</h3>
+                      <span className="text-[9px] font-bold uppercase tracking-wider text-gray-400 block mt-0.5">{portal.badge}</span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           {/* Strategy Presets */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
@@ -1019,29 +1108,29 @@ export default function AutoApplyBot({ userProfile, onSyncApplications, onOpenPr
               </div>
             </div>
 
-            {/* Live Virtual Monitor Screen */}
+            {/* Live Extension Engine Card */}
             {isBotRunning && (
-              <div className="bg-slate-950 border border-slate-900 rounded-2xl p-2 shadow-inner mt-4 overflow-hidden relative group max-w-4xl mx-auto">
-                <div className="flex items-center justify-between px-3 py-1.5 text-[9px] text-slate-400 font-mono border-b border-slate-900">
-                  <div className="flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping inline-block" />
-                    <span className="text-emerald-400 font-bold">LIVE_WINDOW_MONITOR_ACTIVE</span>
+              <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-xl mt-4 max-w-4xl mx-auto space-y-3">
+                <div className="flex items-center justify-between text-xs font-mono text-slate-300 border-b border-slate-800 pb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping inline-block" />
+                    <span className="text-emerald-400 font-extrabold uppercase tracking-wider font-sans">Chrome Extension Active</span>
                   </div>
-                  <span>Selenium viewport stream</span>
+                  <span className="text-[10px] text-slate-400 font-sans">Target: LinkedIn / Indeed / ZipRecruiter</span>
                 </div>
-                <div className="relative aspect-[16/10] w-full bg-slate-900 flex items-center justify-center rounded-lg overflow-hidden mt-1.5">
-                  <img
-                    src={`/api/auto-apply/live-view?t=${screenshotTimestamp}`}
-                    alt="Live LinkedIn Browser Stream"
-                    className="w-full h-full object-contain"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).style.display = 'none';
-                    }}
-                    onLoad={(e) => {
-                      (e.target as HTMLImageElement).style.display = 'block';
-                    }}
-                  />
-                  <div className="absolute inset-0 bg-transparent pointer-events-none border border-white/5 rounded-lg" />
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-left pt-1">
+                  <div className="bg-slate-950 p-3 rounded-2xl border border-slate-800/80 space-y-1">
+                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Search Keywords</span>
+                    <p className="text-xs font-bold text-white truncate">{searchTerms}</p>
+                  </div>
+                  <div className="bg-slate-950 p-3 rounded-2xl border border-slate-800/80 space-y-1">
+                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Target Location</span>
+                    <p className="text-xs font-bold text-white truncate">{searchLocation}</p>
+                  </div>
+                  <div className="bg-slate-950 p-3 rounded-2xl border border-slate-800/80 space-y-1">
+                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Progress</span>
+                    <p className="text-xs font-bold text-emerald-400">{stats.applied} / {totalApplicationsLimit} Roles Applied</p>
+                  </div>
                 </div>
               </div>
             )}
@@ -1388,6 +1477,23 @@ export default function AutoApplyBot({ userProfile, onSyncApplications, onOpenPr
         </div>
       )}
 
+      {/* Chrome Extension Auth Bridge Container */}
+      <div 
+        id="jobmerge-sync-auth" 
+        style={{ display: 'none' }}
+        data-token="jobmerge_vip_token_2026"
+        data-api-url={window.location.origin}
+        data-first-name={firstName}
+        data-last-name={lastName}
+        data-phone={phoneNumber}
+        data-city={currentCity}
+        data-experience={experienceYears}
+        data-salary={desiredSalary}
+        data-visa={requireVisa}
+        data-website={websiteUrl}
+        data-linkedin={linkedinUrl}
+        data-has-resume={!!resumeBase64}
+      />
     </div>
   );
 }

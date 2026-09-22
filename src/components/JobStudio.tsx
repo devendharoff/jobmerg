@@ -59,6 +59,7 @@ export default function JobStudio({ userProfile, onOpenPricing }: JobStudioProps
   // Studio layout settings
   const [showCopilot, setShowCopilot] = useState(true);
   const [viewMode, setViewMode] = useState<'split' | 'editor' | 'preview'>('split');
+  const [isInlineEditing, setIsInlineEditing] = useState(false);
   
   // ── Load persisted resume data from localStorage ──
   const loadSavedData = () => {
@@ -79,11 +80,19 @@ export default function JobStudio({ userProfile, onOpenPricing }: JobStudioProps
   const [atsDetails, setAtsDetails] = useState<string>('');
   const [isOptimizing, setIsOptimizing] = useState(false);
 
+  const [template, setTemplate] = useState<TemplateId>(() => {
+    try {
+      const saved = localStorage.getItem('jobmerge_resume_template');
+      if (saved) return saved as TemplateId;
+    } catch (e) {}
+    return 'executive_ceo';
+  });
+
   // Resume states
   const [personal, setPersonal] = useState({
-    name: userProfile.name || '',
-    title: userProfile.role || '',
-    email: userProfile.email || '',
+    name: savedData?.name || userProfile.name || '',
+    title: savedData?.title || userProfile.role || '',
+    email: savedData?.email || userProfile.email || '',
     phone: savedData?.phone || '',
     location: savedData?.location || '',
     github: savedData?.github || '',
@@ -128,11 +137,11 @@ export default function JobStudio({ userProfile, onOpenPricing }: JobStudioProps
     return [];
   };
   const [keywordsToHighlight, setKeywordsToHighlight] = useState<string[]>(loadSavedKeywords());
-  const [template, setTemplate] = useState<TemplateId>('executive_ceo');
 
   // Autosave
   useEffect(() => {
     try {
+      localStorage.setItem('jobmerge_resume_template', template);
       localStorage.setItem('jobmerge_resume_data', JSON.stringify({
         summary, 
         skillsGrouped, 
@@ -140,6 +149,9 @@ export default function JobStudio({ userProfile, onOpenPricing }: JobStudioProps
         education, 
         projects,
         certifications,
+        name: personal.name,
+        title: personal.title,
+        email: personal.email,
         phone: personal.phone, 
         location: personal.location,
         github: personal.github, 
@@ -147,7 +159,7 @@ export default function JobStudio({ userProfile, onOpenPricing }: JobStudioProps
         portfolio: personal.portfolio
       }));
     } catch (e) {}
-  }, [summary, skillsGrouped, experience, education, projects, certifications, personal]);
+  }, [summary, skillsGrouped, experience, education, projects, certifications, personal, template]);
 
   useEffect(() => {
     localStorage.setItem('jobmerge_last_jd', jobDescription);
@@ -155,40 +167,57 @@ export default function JobStudio({ userProfile, onOpenPricing }: JobStudioProps
 
   // Real-time local ATS scorer
   useEffect(() => {
-    const text = `${personal.name} ${personal.title} ${summary} ${skillsGrouped.languages} ${skillsGrouped.frameworks} ${skillsGrouped.tools} ${skillsGrouped.competencies} ${experience.map(e => `${e.company} ${e.role} ${e.description} ${e.technologies}`).join(' ')} ${projects.map(p => `${p.title} ${p.description} ${p.technologies}`).join(' ')} ${certifications.join(' ')}`;
+    const text = `${personal.name} ${personal.title} ${summary} ${skillsGrouped.languages} ${skillsGrouped.frameworks} ${skillsGrouped.tools} ${skillsGrouped.competencies} ${experience.map(e => `${e.company} ${e.role} ${e.description} ${e.technologies || ''}`).join(' ')} ${projects.map(p => `${p.title} ${p.description} ${p.technologies || ''}`).join(' ')} ${certifications.join(' ')}`;
     const lowerText = text.toLowerCase();
     
     // Scorer calculation
-    let score = 55;
-    const hasEmail = /[\w.-]+@[\w.-]+\.\w+/.test(lowerText);
-    const hasPhone = /(\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/.test(lowerText);
+    let score = 30; // Realistic base score for an un-optimized resume
+    const hasEmail = /[\w.-]+@[\w.-]+\.\w+/.test(personal.email || lowerText);
+    const hasPhone = /(\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/.test(personal.phone || lowerText);
     
     if (hasEmail) score += 10;
     if (hasPhone) score += 10;
-    if (skillsGrouped.languages.length > 3) score += 5;
-    if (skillsGrouped.frameworks.length > 3) score += 5;
-    if (experience.length > 0 && experience[0].company) score += 10;
-    
-    // Keywords matching
+    if (skillsGrouped.languages.trim() || skillsGrouped.frameworks.trim() || skillsGrouped.tools.trim()) score += 10;
+    if (experience.length > 0 && experience[0].company && experience[0].role) score += 10;
+    if (summary.trim().length > 40) score += 10;
+
+    // Keywords matching with exact word/phrase boundary regex to prevent false positives
     if (keywordsToHighlight.length > 0) {
-      const matched = keywordsToHighlight.filter(kw => lowerText.includes(kw.toLowerCase())).length;
+      const matched = keywordsToHighlight.filter(kw => {
+        if (!kw || !kw.trim()) return false;
+        const escaped = kw.trim().toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const pattern = new RegExp(`(?:^|[^a-z0-9])${escaped}(?:$|[^a-z0-9])`, 'i');
+        return pattern.test(lowerText);
+      }).length;
+
       const ratio = matched / keywordsToHighlight.length;
-      score += Math.round(ratio * 15);
+      score += Math.round(ratio * 20); // Scale keyword weight up to 20 points
     }
     
-    setAtsScore(Math.min(99, score));
-    setAtsDetails(score > 80 ? "Excellent ATS compliance. Resume is optimized with keywords and structured appropriately." : "Moderate ATS match. Try auto-injecting missing keywords to hit a >85 score.");
+    const finalScore = Math.min(99, Math.max(10, score));
+    setAtsScore(finalScore);
+    setAtsDetails(finalScore >= 80 
+      ? "Excellent ATS compliance. Resume is optimized with target keywords and properly structured." 
+      : finalScore >= 60 
+      ? "Moderate ATS match. Incorporate missing target keywords in your skills & experience sections." 
+      : "Low ATS score. Add missing key skills and complete your experience details.");
   }, [personal, summary, skillsGrouped, experience, projects, certifications, keywordsToHighlight]);
 
   // AI Extractor
   const handleExtractKeywords = async () => {
     if (!jobDescription.trim() || jobDescription.trim().length < 50) return;
     setIsExtracting(true);
-    try {
+      const resumeText = `${summary} ${experience.map(e => `${e.role} ${e.company} ${e.description}`).join(' ')} ${projects.map(p => `${p.title} ${p.description}`).join(' ')}`;
+      const userSkills = Object.values(skillsGrouped).join(', ').split(',').map(s => s.trim()).filter(Boolean);
+
       const res = await fetch('/api/analyze-jd', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jobDescription })
+        body: JSON.stringify({ 
+          jobDescription,
+          resumeText,
+          userSkills
+        })
       });
       if (!res.ok) throw new Error();
       const data = await res.json();
@@ -196,13 +225,21 @@ export default function JobStudio({ userProfile, onOpenPricing }: JobStudioProps
       setKeywords(extracted);
       const kws = [...extracted.found, ...extracted.priority];
       setKeywordsToHighlight(kws);
+      if (data.currentMatchScore !== undefined) {
+        setAtsScore(data.currentMatchScore);
+      }
       localStorage.setItem('jobmerge_resume_keywords', JSON.stringify(kws));
     } catch (e) {
-      const fallback = {
-        found: ['react', 'typescript', 'javascript'],
-        missing: ['aws', 'ci/cd', 'docker', 'kubernetes', 'system design', 'agile'],
-        priority: ['aws', 'ci/cd', 'docker', 'kubernetes', 'system design']
-      };
+      // Generate intelligent fallback based on JD content instead of static hardcoded skills
+      const lowerJD = jobDescription.toLowerCase();
+      const words = Array.from(new Set(lowerJD.match(/\b[a-z]{3,}\b/g) || []))
+        .filter(w => !['the', 'and', 'for', 'with', 'you', 'will', 'this', 'that', 'from', 'have', 'are', 'our', 'team', 'work', 'experience', 'skills', 'role', 'required', 'preferred', 'looking', 'join', 'about'].includes(w));
+      
+      const found = words.slice(0, 5);
+      const missing = words.slice(5, 15);
+      const priority = words.slice(5, 10);
+
+      const fallback = { found, missing, priority };
       setKeywords(fallback);
       setKeywordsToHighlight([...fallback.found, ...fallback.priority]);
     } finally {
@@ -228,24 +265,34 @@ export default function JobStudio({ userProfile, onOpenPricing }: JobStudioProps
       if (!res.ok) throw new Error();
       const data = await res.json();
       const opt = data.optimizedData;
+      
       if (opt.summary) setSummary(opt.summary);
-      if (opt.skills) {
-        // split back to categories approximately or add to tools/frameworks
-        setSkillsGrouped(prev => ({
-          ...prev,
-          tools: prev.tools + ', ' + opt.skills.slice(0, 4).join(', ')
-        }));
+      if (opt.skills && Array.isArray(opt.skills)) {
+        const existingTools = skillsGrouped.tools.split(',').map(s => s.trim());
+        const newSkills = opt.skills.filter((s: string) => !existingTools.includes(s));
+        if (newSkills.length > 0) {
+          setSkillsGrouped(prev => ({
+            ...prev,
+            tools: prev.tools ? `${prev.tools}, ${newSkills.slice(0, 5).join(', ')}` : newSkills.slice(0, 5).join(', ')
+          }));
+        }
       }
-      if (opt.experience) {
-        setExperience(opt.experience);
+      if (opt.experience && Array.isArray(opt.experience)) {
+        setExperience(prev => opt.experience.map((newExp: WorkExp, i: number) => ({
+          ...newExp,
+          technologies: newExp.technologies || prev[i]?.technologies || ''
+        })));
+      }
+      if (data.newMatchScore) {
+        setAtsScore(data.newMatchScore);
       }
     } catch (e) {
       const kws = keywords?.missing || keywordsToHighlight.slice(0, 4);
       setSkillsGrouped(prev => ({
         ...prev,
-        tools: prev.tools + ', ' + kws.join(', ')
+        tools: prev.tools ? `${prev.tools}, ${kws.join(', ')}` : kws.join(', ')
       }));
-      setSummary(prev => prev + ` Proficient in ${kws.join(', ')}.`);
+      setSummary(prev => prev ? `${prev}\nProficient in ${kws.join(', ')}.` : `Proficient in ${kws.join(', ')}.`);
     } finally {
       setIsOptimizing(false);
     }
@@ -260,7 +307,13 @@ export default function JobStudio({ userProfile, onOpenPricing }: JobStudioProps
   const removeProj = (idx: number) => setProjects(projects.filter((_, i) => i !== idx));
   
   const handlePrint = () => {
+    const originalTitle = document.title;
+    const cleanName = (personal.name || 'Candidate').trim().replace(/[^a-zA-Z0-9_-]/g, '_');
+    document.title = `${cleanName}_Resume`;
     window.print();
+    setTimeout(() => {
+      document.title = originalTitle;
+    }, 1000);
   };
   
   const handleAddCert = (e: React.FormEvent) => {
@@ -951,6 +1004,19 @@ export default function JobStudio({ userProfile, onOpenPricing }: JobStudioProps
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    onClick={() => setIsInlineEditing(!isInlineEditing)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-extrabold flex items-center gap-1.5 cursor-pointer transition-all border shadow-xs ${
+                      isInlineEditing
+                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                        : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                    }`}
+                    title="Edit text directly on the resume preview draft"
+                  >
+                    <FileText className="w-3.5 h-3.5" />
+                    {isInlineEditing ? 'Direct Edit: ON' : 'Direct Edit'}
+                  </button>
+
                   {keywordsToHighlight.length > 0 && (
                     <button 
                       onClick={() => setHighlightKeywords(!highlightKeywords)} 
@@ -975,11 +1041,45 @@ export default function JobStudio({ userProfile, onOpenPricing }: JobStudioProps
                 </div>
               </div>
 
+              {/* Print CSS Styles Override */}
+              <style>{`
+                @media print {
+                  body * {
+                    visibility: hidden;
+                  }
+                  #resume-printable-sheet, #resume-printable-sheet * {
+                    visibility: visible;
+                  }
+                  #resume-printable-sheet {
+                    position: absolute;
+                    left: 0;
+                    top: 0;
+                    width: 100% !important;
+                    max-width: 100% !important;
+                    margin: 0 !important;
+                    padding: 0 !important;
+                    border: none !important;
+                    box-shadow: none !important;
+                    background: #fff !important;
+                  }
+                  @page {
+                    size: A4 portrait;
+                    margin: 12mm;
+                  }
+                }
+              `}</style>
+
               {/* Sheet Layout Canvas */}
               <div 
                 id="resume-printable-sheet" 
-                className={`w-full max-w-[620px] min-h-[820px] bg-white rounded-2xl shadow-xl shadow-slate-300/40 p-8 sm:p-10 text-gray-900 print:shadow-none print:p-0 print:rounded-none print:max-w-none transition-all border border-gray-200/90 ${
-                  template === 'sidebar' ? 'p-0 overflow-hidden' : ''
+                contentEditable={isInlineEditing}
+                suppressContentEditableWarning={true}
+                className={`w-full max-w-[620px] min-h-[820px] bg-white rounded-2xl shadow-xl shadow-slate-300/40 p-8 sm:p-10 text-gray-900 print:shadow-none print:p-0 print:rounded-none print:max-w-none transition-all border ${
+                  isInlineEditing 
+                    ? 'border-2 border-indigo-500 ring-4 ring-indigo-500/10 cursor-text' 
+                    : 'border-gray-200/90'
+                } ${
+                  template === 'sidebar' ? 'p-0 overflow-visible print:overflow-visible' : ''
                 }`}
               >
                 <ResumeTemplateRenderer
