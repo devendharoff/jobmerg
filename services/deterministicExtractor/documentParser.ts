@@ -1,6 +1,9 @@
 import mammoth from "mammoth";
-import pdfParse from "pdf-parse";
+import { createRequire } from "module";
 import { RawPage, TextBlock } from "./types";
+
+const require = createRequire(import.meta.url);
+const pdfParse = require("pdf-parse");
 
 export interface ParsedDocument {
   full_text: string;
