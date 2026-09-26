@@ -27,6 +27,8 @@ const execAsync = promisify(exec);
 
 
 import { parsePdfBuffer, parseDocx, detectFileType, extractProfileFromText, normalizeSkills } from "./services/resumeParser.js";
+import { runDeterministicExtractionEngine } from "./services/deterministicExtractor/engine.js";
+import { saveDeterministicResume, getDeterministicResumeById, getDeterministicResumeRaw, reprocessDeterministicResume, updateDeterministicResume } from "./services/deterministicDb.js";
 import { createClient } from "@supabase/supabase-js";
 
 
@@ -1308,6 +1310,109 @@ OUTPUT SCHEMA:
       detail: "An unexpected error occurred. Please try a different file or try again.",
       stage: "pipeline_error"
     });
+  }
+});
+
+// ── DETERMINISTIC RESUME EXTRACTION API ENDPOINTS (NO LLM / NO AI) ───
+
+// POST /api/resumes - Upload & run deterministic extraction engine
+app.post("/api/resumes", async (req, res) => {
+  try {
+    const { resumeFile, fileName, userId } = req.body;
+
+    if (!resumeFile) {
+      return res.status(400).json({ error: "Missing resumeFile parameter (base64 encoded document)." });
+    }
+
+    const safeFileName = fileName ? String(fileName).replace(/[^\w.\-]/g, '_') : 'uploaded_resume.pdf';
+    const buffer = Buffer.from(resumeFile, 'base64');
+
+    console.log(`[DeterministicEngine] Running extraction pipeline for: ${safeFileName} (${buffer.length} bytes)`);
+
+    const canonicalResume = await runDeterministicExtractionEngine(buffer, safeFileName);
+    await saveDeterministicResume(canonicalResume, buffer, userId);
+
+    return res.status(201).json({
+      resume_id: canonicalResume.resume_id,
+      status: "completed",
+      data: canonicalResume
+    });
+
+  } catch (err: any) {
+    console.error("[DeterministicEngine] Extraction failed:", err.message);
+    return res.status(422).json({
+      error: "Deterministic resume extraction failed.",
+      detail: err.message,
+      stage: "deterministic_extraction"
+    });
+  }
+});
+
+// GET /api/resumes/:id - Get structured extraction
+app.get("/api/resumes/:id", async (req, res) => {
+  try {
+    const resumeId = req.params.id;
+    const resume = await getDeterministicResumeById(resumeId);
+
+    if (!resume) {
+      return res.status(404).json({ error: `Resume with ID "${resumeId}" not found.` });
+    }
+
+    return res.json(resume);
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/resumes/:id/reprocess - Reprocess extraction engine
+app.post("/api/resumes/:id/reprocess", async (req, res) => {
+  try {
+    const resumeId = req.params.id;
+    const freshResume = await reprocessDeterministicResume(resumeId);
+
+    if (!freshResume) {
+      return res.status(404).json({ error: `Resume "${resumeId}" not found in buffer cache.` });
+    }
+
+    return res.json({
+      message: "Resume reprocessed successfully.",
+      data: freshResume
+    });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/resumes/:id/raw - Get raw document information & blocks
+app.get("/api/resumes/:id/raw", async (req, res) => {
+  try {
+    const resumeId = req.params.id;
+    const rawData = await getDeterministicResumeRaw(resumeId);
+
+    if (!rawData) {
+      return res.status(404).json({ error: `Raw data for resume "${resumeId}" not found.` });
+    }
+
+    return res.json(rawData);
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// PUT /api/resumes/:id - Update structured fields (User Edit)
+app.put("/api/resumes/:id", async (req, res) => {
+  try {
+    const resumeId = req.params.id;
+    const updatedResume = req.body;
+
+    const success = updateDeterministicResume(resumeId, updatedResume);
+    if (!success) {
+      return res.status(404).json({ error: `Resume "${resumeId}" not found.` });
+    }
+
+    return res.json({ message: "Resume updated successfully.", data: updatedResume });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
   }
 });
 

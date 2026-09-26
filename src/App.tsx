@@ -26,6 +26,7 @@ const ResumeStudio = lazy(() => import('./components/ResumeStudio'));
 const AutoApplyBot = lazy(() => import('./components/AutoApplyBot'));
 import CoverLetterGenerator from './components/CoverLetterGenerator';
 import UserProfileManager from './components/UserProfileManager';
+import DeterministicResumeScanner from './components/DeterministicResumeScanner';
 import { AdminPanel } from './components/AdminPanel';
 
 function CircularProgress({ percentage, size = 48, strokeWidth = 4 }: { percentage: number; size?: number; strokeWidth?: number }) {
@@ -1683,6 +1684,21 @@ export default function App() {
                     </button>
 
                     <button
+                      onClick={() => setActiveDashboardTab('DeterministicExtractor' as any)}
+                      className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
+                        activeDashboardTab === ('DeterministicExtractor' as any)
+                          ? 'bg-[#4f46e5]/10 text-[#4f46e5] font-extrabold border border-[#4f46e5]/20'
+                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                        <span>Fact Extractor</span>
+                      </div>
+                      <span className="px-1.5 py-0.5 bg-emerald-50 text-emerald-700 text-[9px] font-black rounded border border-emerald-200">No AI</span>
+                    </button>
+
+                    <button
                       onClick={() => setActiveDashboardTab('Salaries')}
                       className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
                         activeDashboardTab === 'Salaries'
@@ -2459,6 +2475,18 @@ export default function App() {
             </Suspense>
 
 
+
+              {/* Deterministic Fact Resume Extractor View */}
+              {activeDashboardTab === ('DeterministicExtractor' as any) && (
+                <div className="flex-1 lg:overflow-y-auto pb-6">
+                  <DeterministicResumeScanner
+                    userProfileName={userProfile.name}
+                    onExtractionComplete={(canonical) => {
+                      showToast(`Fact Extraction Completed for ${canonical.metadata.file_name}!`);
+                    }}
+                  />
+                </div>
+              )}
 
             {/* Saved Jobs View */}
             {activeDashboardTab === 'Saved' && (
