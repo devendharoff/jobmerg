@@ -219,9 +219,14 @@ export function findSourceForText(
   pages: RawPage[],
   sectionName: string | null
 ): ExtractedSource | null {
+  if (!targetText || targetText.trim().length < 2) return null;
+
+  const cleanTarget = targetText.toLowerCase().trim();
+
   for (const p of pages) {
     for (const b of p.blocks) {
-      if (b.text.includes(targetText) || targetText.includes(b.text)) {
+      const blockLower = b.text.toLowerCase();
+      if (blockLower.includes(cleanTarget) || cleanTarget.includes(blockLower)) {
         return {
           page: p.page,
           section: sectionName,
