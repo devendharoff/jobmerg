@@ -522,6 +522,86 @@ export default function DeterministicResumeScanner({
                   )}
                 </div>
 
+                {/* Professional Summary */}
+                {extractedResume.summary.value && (
+                  <div className="bg-white border border-gray-150 rounded-3xl p-6 shadow-sm space-y-3">
+                    <div className="border-b border-gray-100 pb-3">
+                      <h3 className="text-xs font-black uppercase text-gray-400 tracking-wider">
+                        Professional Summary
+                      </h3>
+                    </div>
+                    <p className="text-xs font-medium text-gray-700 leading-relaxed">
+                      {extractedResume.summary.value}
+                    </p>
+                  </div>
+                )}
+
+                {/* Projects */}
+                {extractedResume.projects.length > 0 && (
+                  <div className="bg-white border border-gray-150 rounded-3xl p-6 shadow-sm space-y-4">
+                    <div className="border-b border-gray-100 pb-3">
+                      <h3 className="text-xs font-black uppercase text-gray-400 tracking-wider">
+                        Projects ({extractedResume.projects.length})
+                      </h3>
+                    </div>
+                    <div className="space-y-3">
+                      {extractedResume.projects.map((proj, idx) => (
+                        <div key={idx} className="p-4 bg-slate-50 border border-slate-200/80 rounded-2xl space-y-2">
+                          <h4 className="text-xs font-extrabold text-gray-900">{proj.name}</h4>
+                          {proj.description.length > 0 && (
+                            <ul className="list-disc list-inside text-xs text-gray-700 space-y-1 font-medium">
+                              {proj.description.map((desc, dIdx) => (
+                                <li key={dIdx}>{desc}</li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Certifications & Achievements */}
+                {(extractedResume.certifications.length > 0 || extractedResume.achievements.length > 0) && (
+                  <div className="bg-white border border-gray-150 rounded-3xl p-6 shadow-sm space-y-4">
+                    <div className="border-b border-gray-100 pb-3">
+                      <h3 className="text-xs font-black uppercase text-gray-400 tracking-wider">
+                        Certifications & Achievements
+                      </h3>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {extractedResume.certifications.map((c, idx) => (
+                        <span key={`cert_${idx}`} className="px-3 py-1.5 bg-indigo-50 border border-indigo-200 text-indigo-900 text-xs font-bold rounded-xl">
+                          📜 {c.name}
+                        </span>
+                      ))}
+                      {extractedResume.achievements.map((a, idx) => (
+                        <span key={`ach_${idx}`} className="px-3 py-1.5 bg-amber-50 border border-amber-200 text-amber-900 text-xs font-bold rounded-xl">
+                          🏆 {a.title}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Languages */}
+                {extractedResume.languages.length > 0 && (
+                  <div className="bg-white border border-gray-150 rounded-3xl p-6 shadow-sm space-y-3">
+                    <div className="border-b border-gray-100 pb-3">
+                      <h3 className="text-xs font-black uppercase text-gray-400 tracking-wider">
+                        Languages ({extractedResume.languages.length})
+                      </h3>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {extractedResume.languages.map((lang, idx) => (
+                        <span key={idx} className="px-3 py-1 bg-slate-100 text-slate-800 font-extrabold text-xs rounded-xl border border-slate-200">
+                          {lang.name} {lang.proficiency ? `(${lang.proficiency})` : ""}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
               </div>
             </div>
           )}
