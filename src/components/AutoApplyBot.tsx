@@ -15,14 +15,70 @@ interface AutoApplyBotProps {
 
 export type TargetPortal = 'LinkedIn' | 'Indeed' | 'ZipRecruiter' | 'Glassdoor' | 'Naukri' | 'Unstop' | 'Wellfound';
 
-const PORTAL_CONFIGS: Record<TargetPortal, { name: string; badge: string; color: string; bg: string; icon: string }> = {
-  LinkedIn: { name: 'LinkedIn', badge: 'Easy Apply', color: 'text-blue-600 border-blue-200', bg: 'bg-blue-60', icon: 'in' },
-  Indeed: { name: 'Indeed', badge: 'Easy Apply', color: 'text-indigo-600 border-indigo-200', bg: 'bg-indigo-50', icon: 'i' },
-  ZipRecruiter: { name: 'ZipRecruiter', badge: '1-Click Apply', color: 'text-[#10b981] border-emerald-200', bg: 'bg-emerald-50', icon: 'Z' },
-  Glassdoor: { name: 'Glassdoor', badge: 'Direct Apply', color: 'text-emerald-700 border-emerald-300', bg: 'bg-emerald-50', icon: 'G' },
-  Naukri: { name: 'Naukri.com', badge: 'FastApply 🇮🇳', color: 'text-sky-600 border-sky-200', bg: 'bg-sky-50', icon: 'N' },
-  Unstop: { name: 'Unstop', badge: 'Campus Drive', color: 'text-purple-600 border-purple-200', bg: 'bg-purple-50', icon: 'U' },
-  Wellfound: { name: 'Wellfound', badge: 'Startup Apply', color: 'text-rose-600 border-rose-200', bg: 'bg-rose-50', icon: 'W' },
+const PORTAL_CONFIGS: Record<TargetPortal, { 
+  name: string; 
+  badge: string; 
+  color: string; 
+  bg: string; 
+  logo: string; 
+  fallbackLogo: string 
+}> = {
+  LinkedIn: { 
+    name: 'LinkedIn', 
+    badge: 'Easy Apply', 
+    color: 'text-blue-600 border-blue-200', 
+    bg: 'bg-blue-50', 
+    logo: '/assets/logos/job_websites/linkedin.png', 
+    fallbackLogo: 'https://cdn.simpleicons.org/linkedin/0A66C2' 
+  },
+  Indeed: { 
+    name: 'Indeed', 
+    badge: 'Easy Apply', 
+    color: 'text-indigo-600 border-indigo-200', 
+    bg: 'bg-indigo-50', 
+    logo: '/assets/logos/job_websites/indeed.png', 
+    fallbackLogo: 'https://cdn.simpleicons.org/indeed/2164F3' 
+  },
+  ZipRecruiter: { 
+    name: 'ZipRecruiter', 
+    badge: '1-Click Apply', 
+    color: 'text-[#10b981] border-emerald-200', 
+    bg: 'bg-emerald-50', 
+    logo: '/assets/logos/job_websites/ziprecruiter.png', 
+    fallbackLogo: 'https://www.google.com/s2/favicons?sz=128&domain=ziprecruiter.com' 
+  },
+  Glassdoor: { 
+    name: 'Glassdoor', 
+    badge: 'Direct Apply', 
+    color: 'text-emerald-700 border-emerald-300', 
+    bg: 'bg-emerald-50', 
+    logo: '/assets/logos/job_websites/glassdoor.png', 
+    fallbackLogo: 'https://cdn.simpleicons.org/glassdoor/0CAA41' 
+  },
+  Naukri: { 
+    name: 'Naukri.com', 
+    badge: 'FastApply 🇮🇳', 
+    color: 'text-sky-600 border-sky-200', 
+    bg: 'bg-sky-50', 
+    logo: 'https://www.google.com/s2/favicons?sz=128&domain=naukri.com', 
+    fallbackLogo: 'https://cdn.simpleicons.org/naukri' 
+  },
+  Unstop: { 
+    name: 'Unstop', 
+    badge: 'Campus Drive', 
+    color: 'text-purple-600 border-purple-200', 
+    bg: 'bg-purple-50', 
+    logo: 'https://www.google.com/s2/favicons?sz=128&domain=unstop.com', 
+    fallbackLogo: 'https://unstop.com/favicon.ico' 
+  },
+  Wellfound: { 
+    name: 'Wellfound', 
+    badge: 'Startup Apply', 
+    color: 'text-rose-600 border-rose-200', 
+    bg: 'bg-rose-50', 
+    logo: 'https://cdn.simpleicons.org/wellfound/000000', 
+    fallbackLogo: 'https://www.google.com/s2/favicons?sz=128&domain=wellfound.com' 
+  },
 };
 
 const STRATEGY_PRESETS = [
@@ -272,14 +328,13 @@ export default function AutoApplyBot({ userProfile, onSyncApplications, onOpenPr
       <header className="bg-white rounded-3xl p-6 border border-gray-150 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           {/* Portal Brand Icon Badge */}
-          <div className="w-13 h-13 rounded-2xl bg-[#0a66c2] text-white flex items-center justify-center font-black text-2xl shadow-md shrink-0">
-            {targetPortal === 'LinkedIn' && 'in'}
-            {targetPortal === 'Indeed' && 'i'}
-            {targetPortal === 'ZipRecruiter' && 'Z'}
-            {targetPortal === 'Glassdoor' && 'G'}
-            {targetPortal === 'Naukri' && 'N'}
-            {targetPortal === 'Unstop' && 'U'}
-            {targetPortal === 'Wellfound' && 'W'}
+          <div className="w-13 h-13 rounded-2xl bg-white border border-gray-200 p-2.5 flex items-center justify-center shadow-sm shrink-0">
+            <img 
+              src={PORTAL_CONFIGS[targetPortal].logo} 
+              alt={targetPortal} 
+              className="w-full h-full object-contain"
+              onError={(e) => { (e.target as HTMLImageElement).src = PORTAL_CONFIGS[targetPortal].fallbackLogo; }}
+            />
           </div>
           <div>
             <h1 className="text-2xl font-black text-gray-900 tracking-tight font-display">
@@ -373,12 +428,17 @@ export default function AutoApplyBot({ userProfile, onSyncApplications, onOpenPr
                     }`}
                   >
                     <div className="flex items-center justify-between">
-                      <div className={`w-8 h-8 rounded-xl ${config.bg} ${config.color} flex items-center justify-center font-black text-sm`}>
-                        {config.icon}
+                      <div className="w-10 h-10 rounded-xl bg-white border border-gray-200 p-1.5 flex items-center justify-center shadow-2xs">
+                        <img 
+                          src={config.logo} 
+                          alt={config.name} 
+                          className="w-full h-full object-contain"
+                          onError={(e) => { (e.target as HTMLImageElement).src = config.fallbackLogo; }}
+                        />
                       </div>
 
                       {isSelected && (
-                        <div className="w-4 h-4 bg-[#4f46e5] text-white rounded-full flex items-center justify-center text-[10px] font-black shadow-xs">
+                        <div className="w-4.5 h-4.5 bg-[#4f46e5] text-white rounded-full flex items-center justify-center text-[10px] font-black shadow-xs">
                           ✓
                         </div>
                       )}
@@ -882,30 +942,47 @@ export default function AutoApplyBot({ userProfile, onSyncApplications, onOpenPr
             </div>
 
             <div className="space-y-2.5">
-              {historyJobs.slice(0, 5).map((job, idx) => (
-                <div key={idx} className="flex items-center justify-between p-2.5 hover:bg-gray-50 rounded-2xl transition-colors text-xs border border-transparent hover:border-gray-200/80">
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="w-8 h-8 bg-gray-900 text-white rounded-xl flex items-center justify-center font-black text-xs shrink-0">
-                      {job.Company[0]}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="font-extrabold text-gray-900 truncate">{job.Company}</p>
-                      <p className="text-[10px] font-bold text-gray-400 truncate">{job.Title}</p>
-                    </div>
-                  </div>
+              {historyJobs.slice(0, 5).map((job, idx) => {
+                const companyName = job.Company || 'Company';
+                let logoUrl = '/assets/logos/software_companies/google.png';
+                const lower = companyName.toLowerCase();
+                if (lower.includes('microsoft')) logoUrl = '/assets/logos/software_companies/microsoft.png';
+                else if (lower.includes('meta')) logoUrl = '/assets/logos/software_companies/meta.png';
+                else if (lower.includes('ibm') || lower.includes('abc')) logoUrl = '/assets/logos/software_companies/ibm.png';
+                else if (lower.includes('amazon')) logoUrl = 'https://cdn.simpleicons.org/amazon/FF9900';
 
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-black ${
-                      job.Status === 'Applied' 
-                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' 
-                        : 'bg-gray-100 text-gray-600 border border-gray-200'
-                    }`}>
-                      {job.Status}
-                    </span>
-                    <span className="text-[9px] font-bold text-gray-400">{job.Date_Applied}</span>
+                return (
+                  <div key={idx} className="flex items-center justify-between p-2.5 hover:bg-gray-50 rounded-2xl transition-colors text-xs border border-transparent hover:border-gray-200/80">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-8 h-8 rounded-xl bg-gray-50 border border-gray-200 p-1 flex items-center justify-center shrink-0">
+                        <img 
+                          src={logoUrl} 
+                          alt={companyName} 
+                          className="w-full h-full object-contain"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = `https://logo.clearbit.com/${companyName.replace(/[^a-z0-9]/g, '')}.com`;
+                          }}
+                        />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-extrabold text-gray-900 truncate">{job.Company}</p>
+                        <p className="text-[10px] font-bold text-gray-400 truncate">{job.Title}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className={`px-2 py-0.5 rounded-full text-[9px] font-black ${
+                        job.Status === 'Applied' 
+                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' 
+                          : 'bg-gray-100 text-gray-600 border border-gray-200'
+                      }`}>
+                        {job.Status}
+                      </span>
+                      <span className="text-[9px] font-bold text-gray-400">{job.Date_Applied}</span>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
