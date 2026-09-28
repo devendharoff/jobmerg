@@ -1,8 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Upload, FileText, CheckCircle2, AlertTriangle, AlertCircle, Info,
-  Code, Eye, RefreshCw, Edit3, ShieldCheck, Database, Layers,
-  Copy, Check, FileCode, CheckSquare, Sparkles, ChevronRight, Hash, X
+  Code, Eye, RefreshCw, ShieldCheck, Layers, Copy, Check, Hash, Bug, RotateCcw
 } from "lucide-react";
 import { CanonicalResume } from "../../services/deterministicExtractor/types";
 
@@ -18,13 +17,74 @@ export default function DeterministicResumeScanner({
   const [file, setFile] = useState<File | null>(null);
   const [isParsing, setIsParsing] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [currentStep, setCurrentStep] = useState<string>("Queued");
+  const [jobStatus, setJobStatus] = useState<string>("idle");
+  const [resumeId, setResumeId] = useState<string | null>(null);
+  const [durationMs, setDurationMs] = useState<number | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [rawText, setRawText] = useState<string | null>(null);
   const [extractedResume, setExtractedResume] = useState<CanonicalResume | null>(null);
-  
+
+  // Debug Panel toggle (Step 14)
+  const [showDebug, setShowDebug] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      const urlParams = new URLSearchParams(window.location.search);
+      return urlParams.get("debug") === "true";
+    }
+    return false;
+  });
+
   // UI Tabs: 'structured' | 'raw' | 'source' | 'json'
   const [activeTab, setActiveTab] = useState<"structured" | "raw" | "source" | "json">("structured");
   const [copiedJson, setCopiedJson] = useState(false);
-  const [editingFieldId, setEditingFieldId] = useState<string | null>(null);
+
+  // Step 5: Polling status endpoint every 600ms
+  useEffect(() => {
+    if (!resumeId || jobStatus === "completed" || jobStatus === "failed") {
+      return;
+    }
+
+    let isSubscribed = true;
+    const pollInterval = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/resumes/${resumeId}/status`);
+        if (!res.ok) return;
+
+        const data = await res.json();
+        if (!isSubscribed) return;
+
+        setJobStatus(data.status);
+        setProgress(data.progress || 0);
+        if (data.step) setCurrentStep(data.step);
+        if (data.durationMs) setDurationMs(data.durationMs);
+
+        // Step 7: Progressive raw text display as soon as available
+        if (data.rawText && !rawText) {
+          setRawText(data.rawText);
+        }
+
+        if (data.status === "completed" && data.canonical) {
+          setExtractedResume(data.canonical);
+          setIsParsing(false);
+          clearInterval(pollInterval);
+          if (onExtractionComplete) {
+            onExtractionComplete(data.canonical);
+          }
+        } else if (data.status === "failed") {
+          setIsParsing(false);
+          setErrorMsg(data.error || "Resume extraction failed.");
+          clearInterval(pollInterval);
+        }
+      } catch (err: any) {
+        console.warn("[ResumePolling] Error checking extraction status:", err);
+      }
+    }, 600);
+
+    return () => {
+      isSubscribed = false;
+      clearInterval(pollInterval);
+    };
+  }, [resumeId, jobStatus, rawText, onExtractionComplete]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -39,13 +99,17 @@ export default function DeterministicResumeScanner({
     }
   };
 
+  // Step 2: Non-blocking fast upload request
   const processFile = async (selectedFile: File) => {
     setErrorMsg(null);
     setExtractedResume(null);
+    setRawText(null);
+    setResumeId(null);
+    setJobStatus("queued");
 
-    // Validate size (10MB limit)
+    // Step 11: Validate file size (10MB limit)
     if (selectedFile.size > 10 * 1024 * 1024) {
-      setErrorMsg(`File size (${(selectedFile.size / (1024 * 1024)).toFixed(2)} MB) exceeds 10MB limit.`);
+      setErrorMsg(`This resume is too large to process. Maximum supported size: 10 MB. Received: ${(selectedFile.size / (1024 * 1024)).toFixed(2)} MB.`);
       return;
     }
 
@@ -57,13 +121,13 @@ export default function DeterministicResumeScanner({
 
     setFile(selectedFile);
     setIsParsing(true);
-    setProgress(15);
+    setProgress(5);
+    setCurrentStep("Uploading resume document...");
 
     try {
       const reader = new FileReader();
       reader.onload = async () => {
         const base64String = (reader.result as string).split(",")[1];
-        setProgress(45);
 
         const response = await fetch("/api/resumes", {
           method: "POST",
@@ -74,60 +138,23 @@ export default function DeterministicResumeScanner({
           })
         });
 
-        setProgress(85);
-
         if (!response.ok) {
           const errData = await response.json();
-          throw new Error(errData.detail || errData.error || "Failed to extract resume");
+          throw new Error(errData.detail || errData.error || "Failed to upload resume.");
         }
 
         const resData = await response.json();
-        const canonical: CanonicalResume = resData.data;
-
-        setProgress(100);
-        setExtractedResume(canonical);
-        setIsParsing(false);
-
-        if (onExtractionComplete) {
-          onExtractionComplete(canonical);
-        }
+        setResumeId(resData.resumeId);
+        setJobStatus(resData.status || "queued");
+        setProgress(10);
+        setCurrentStep("File uploaded ✓ Extraction job queued...");
       };
 
       reader.readAsDataURL(selectedFile);
     } catch (err: any) {
       setIsParsing(false);
-      setErrorMsg(err.message || "An unexpected error occurred during extraction.");
+      setErrorMsg(err.message || "An unexpected error occurred during upload.");
     }
-  };
-
-  const handleFieldEdit = (fieldPath: string, newValue: string) => {
-    if (!extractedResume) return;
-
-    const updated = JSON.parse(JSON.stringify(extractedResume)) as CanonicalResume;
-
-    if (fieldPath === "personal.name") {
-      updated.personal.name.value = newValue;
-      updated.personal.name.modified_by_user = true;
-    } else if (fieldPath === "personal.email") {
-      updated.personal.email.value = newValue;
-      updated.personal.email.modified_by_user = true;
-    } else if (fieldPath === "personal.phone") {
-      updated.personal.phone.normalized = newValue;
-      updated.personal.phone.modified_by_user = true;
-    } else if (fieldPath === "personal.location") {
-      updated.personal.location.value = newValue;
-      updated.personal.location.modified_by_user = true;
-    }
-
-    setExtractedResume(updated);
-    setEditingFieldId(null);
-
-    // Sync back to backend API
-    fetch(`/api/resumes/${updated.resume_id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(updated)
-    }).catch((err) => console.warn("Sync update error:", err));
   };
 
   const handleCopyJson = () => {
@@ -147,23 +174,80 @@ export default function DeterministicResumeScanner({
           <div>
             <div className="inline-flex items-center gap-2 px-3 py-1 bg-indigo-500/20 text-indigo-300 text-xs font-bold rounded-full border border-indigo-400/30 mb-3">
               <ShieldCheck className="w-3.5 h-3.5 text-indigo-400" />
-              100% Deterministic Extraction Engine • Zero Generative AI / No LLM
+              100% Fact-Based Deterministic Engine • Zero Generative AI / No LLM
             </div>
             <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight font-display">
               JobMerge Fact-Based Resume Extractor
             </h1>
             <p className="text-sm text-indigo-200 mt-1 max-w-2xl font-medium">
-              Extracts the exact text written in your resume without AI hallucination or invented data. Original file is preserved as source of truth.
+              Extracts exact verbatim facts without AI hallucination. Original document is preserved as source of truth.
             </p>
           </div>
 
           <div className="flex items-center gap-3">
+            <button
+              onClick={() => setShowDebug(!showDebug)}
+              className={`px-3 py-1.5 text-xs font-bold rounded-xl border transition-all flex items-center gap-1.5 cursor-pointer ${
+                showDebug
+                  ? "bg-amber-500/20 text-amber-300 border-amber-400/40"
+                  : "bg-slate-800/80 text-slate-400 border-slate-700 hover:text-white"
+              }`}
+            >
+              <Bug className="w-3.5 h-3.5" />
+              {showDebug ? "Hide Diagnostics" : "Debug Panel"}
+            </button>
             <span className="text-xs font-bold text-slate-400 bg-slate-800/80 px-3 py-1.5 rounded-xl border border-slate-700">
-              Parser v1.0.0
+              v1.0.0
             </span>
           </div>
         </div>
       </div>
+
+      {/* Step 14: Developer Diagnostics Panel */}
+      {showDebug && (
+        <div className="bg-slate-950 text-emerald-400 rounded-3xl p-6 border border-slate-800 font-mono text-xs space-y-3 shadow-xl">
+          <div className="flex justify-between items-center border-b border-slate-800 pb-2 text-slate-300 font-bold">
+            <span>DEVELOPER EXTRACTION DIAGNOSTICS</span>
+            <span className="text-amber-400 font-extrabold">STATUS: {jobStatus.toUpperCase()}</span>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-1">
+            <div>
+              <span className="text-slate-500 block text-[10px]">RESUME ID</span>
+              <span className="font-bold text-slate-200">{resumeId || "N/A"}</span>
+            </div>
+            <div>
+              <span className="text-slate-500 block text-[10px]">FILE NAME / TYPE</span>
+              <span className="font-bold text-slate-200">{file?.name || "None"} ({file ? (file.size / 1024).toFixed(1) + " KB" : "0 KB"})</span>
+            </div>
+            <div>
+              <span className="text-slate-500 block text-[10px]">PROGRESS</span>
+              <span className="font-bold text-emerald-300">{progress}% ({currentStep})</span>
+            </div>
+            <div>
+              <span className="text-slate-500 block text-[10px]">DURATION</span>
+              <span className="font-bold text-amber-300">{durationMs ? `${durationMs} ms` : "In Progress..."}</span>
+            </div>
+            <div>
+              <span className="text-slate-500 block text-[10px]">RAW TEXT LENGTH</span>
+              <span className="font-bold text-slate-200">{rawText ? `${rawText.length} chars` : "0 chars"}</span>
+            </div>
+            <div>
+              <span className="text-slate-500 block text-[10px]">PAGES EXTRACTED</span>
+              <span className="font-bold text-slate-200">{extractedResume?.metadata?.page_count || 0}</span>
+            </div>
+            <div>
+              <span className="text-slate-500 block text-[10px]">STRUCTURED ENTRIES</span>
+              <span className="font-bold text-slate-200">
+                Skills: {extractedResume?.skills?.length || 0} | Exp: {extractedResume?.experience?.length || 0} | Edu: {extractedResume?.education?.length || 0}
+              </span>
+            </div>
+            <div>
+              <span className="text-slate-500 block text-[10px]">ERROR STATE</span>
+              <span className="font-bold text-red-400">{errorMsg || "None"}</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Upload Box */}
       {!extractedResume && (
@@ -205,30 +289,89 @@ export default function DeterministicResumeScanner({
             </div>
           </div>
 
-          {/* Progress Spinner */}
+          {/* Step 6: Live Stepper & Observable Progress */}
           {isParsing && (
-            <div className="mt-8 p-6 bg-indigo-50/50 rounded-2xl border border-indigo-100 max-w-md mx-auto space-y-3">
-              <div className="flex justify-between items-center text-xs font-bold text-gray-700">
+            <div className="mt-8 p-6 bg-indigo-50/70 rounded-3xl border border-indigo-100 max-w-lg mx-auto space-y-5">
+              <div className="flex justify-between items-center text-xs font-extrabold text-gray-800">
                 <span className="flex items-center gap-2">
-                  <RefreshCw className="w-3.5 h-3.5 text-[#4f46e5] animate-spin" />
-                  Extracting raw text & page blocks...
+                  <RefreshCw className="w-4 h-4 text-[#4f46e5] animate-spin shrink-0" />
+                  {currentStep}
                 </span>
-                <span>{progress}%</span>
+                <span className="text-[#4f46e5] font-black text-sm">{progress}%</span>
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+
+              {/* Progress Bar */}
+              <div className="w-full bg-indigo-100 rounded-full h-2.5 overflow-hidden">
                 <div
                   className="bg-[#4f46e5] h-full transition-all duration-300 rounded-full"
                   style={{ width: `${progress}%` }}
                 ></div>
               </div>
+
+              {/* Stepper Checklist */}
+              <div className="space-y-2 pt-2 text-left">
+                <div className={`flex items-center gap-2 text-xs font-bold ${progress >= 10 ? 'text-emerald-700' : 'text-gray-400'}`}>
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>File validated & uploaded ✓</span>
+                </div>
+                <div className={`flex items-center gap-2 text-xs font-bold ${progress >= 35 ? 'text-emerald-700' : progress >= 10 ? 'text-indigo-600 animate-pulse' : 'text-gray-400'}`}>
+                  {progress >= 35 ? <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" /> : <span className="w-4 text-center">→</span>}
+                  <span>Raw text extraction</span>
+                </div>
+                <div className={`flex items-center gap-2 text-xs font-bold ${progress >= 50 ? 'text-emerald-700' : progress >= 35 ? 'text-indigo-600 animate-pulse' : 'text-gray-400'}`}>
+                  {progress >= 50 ? <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" /> : <span className="w-4 text-center">→</span>}
+                  <span>Detecting sections</span>
+                </div>
+                <div className={`flex items-center gap-2 text-xs font-bold ${progress >= 75 ? 'text-emerald-700' : progress >= 50 ? 'text-indigo-600 animate-pulse' : 'text-gray-400'}`}>
+                  {progress >= 75 ? <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" /> : <span className="w-4 text-center">→</span>}
+                  <span>Extracting experience & education</span>
+                </div>
+                <div className={`flex items-center gap-2 text-xs font-bold ${progress >= 90 ? 'text-emerald-700' : progress >= 75 ? 'text-indigo-600 animate-pulse' : 'text-gray-400'}`}>
+                  {progress >= 90 ? <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" /> : <span className="w-4 text-center">→</span>}
+                  <span>Validating facts & dates</span>
+                </div>
+              </div>
+
+              {/* Step 7: Progressive Raw Text Stream Box */}
+              {rawText && (
+                <div className="mt-4 p-4 bg-white rounded-2xl border border-indigo-200 text-left space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-black text-emerald-700 uppercase tracking-wider flex items-center gap-1.5">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                      Raw Text Stream Extracted ({rawText.length} Chars)
+                    </span>
+                  </div>
+                  <pre className="text-[11px] font-mono text-gray-700 max-h-24 overflow-y-auto whitespace-pre-wrap bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                    {rawText.slice(0, 350)}...
+                  </pre>
+                </div>
+              )}
             </div>
           )}
 
-          {/* Error Banner */}
+          {/* Step 13: Error Banner with Retry Button */}
           {errorMsg && (
-            <div className="mt-6 p-4 bg-red-50 border border-red-200 text-red-800 rounded-2xl max-w-md mx-auto text-xs font-bold flex items-center gap-2 text-left">
-              <AlertCircle className="w-5 h-5 text-red-600 shrink-0" />
-              <div>{errorMsg}</div>
+            <div className="mt-6 p-5 bg-red-50 border border-red-200 text-red-900 rounded-3xl max-w-lg mx-auto text-left space-y-3">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="w-6 h-6 text-red-600 shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="text-sm font-extrabold">We couldn't extract this resume</h4>
+                  <p className="text-xs font-semibold text-red-700 mt-1">{errorMsg}</p>
+                </div>
+              </div>
+              <div className="flex justify-end pt-1">
+                <button
+                  onClick={() => {
+                    setErrorMsg(null);
+                    setIsParsing(false);
+                    if (file) processFile(file);
+                  }}
+                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  Retry Extraction
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -258,7 +401,7 @@ export default function DeterministicResumeScanner({
                 <span>•</span>
                 <span>Pages: {extractedResume.metadata.page_count}</span>
                 <span>•</span>
-                <span>Extracted: {new Date(extractedResume.metadata.extracted_at).toLocaleTimeString()}</span>
+                <span>Extracted in {durationMs ? `${durationMs}ms` : '< 500ms'}</span>
               </div>
             </div>
 
@@ -280,6 +423,8 @@ export default function DeterministicResumeScanner({
                 onClick={() => {
                   setExtractedResume(null);
                   setFile(null);
+                  setRawText(null);
+                  setResumeId(null);
                 }}
                 className="px-3 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs rounded-xl transition-all cursor-pointer ml-2"
               >

@@ -12,14 +12,25 @@ interface AutoApplyBotProps {
   onOpenPricing?: () => void;
 }
 
-const PRESET_TEMPLATES = [
+export type TargetPortal = 'LinkedIn' | 'Indeed' | 'Naukri' | 'Unstop' | 'Wellfound' | 'ZipRecruiter' | 'Glassdoor';
+
+const PRESET_TEMPLATES: Array<{
+  id: string;
+  name: string;
+  desc: string;
+  terms: string;
+  location: string;
+  datePosted: string;
+  portal: TargetPortal;
+}> = [
   {
     id: 'fullstack-us',
     name: '🔥 Full-Stack Dev (US Remote)',
     desc: 'Target High-Yield Remote Senior & Full-Stack roles',
     terms: 'Software Engineer, Full Stack Developer, React Developer, Node.js Developer',
     location: 'United States',
-    datePosted: 'Past week'
+    datePosted: 'Past week',
+    portal: 'LinkedIn'
   },
   {
     id: 'entry-tech',
@@ -27,7 +38,53 @@ const PRESET_TEMPLATES = [
     desc: 'Focus on Entry, Associate & Junior engineering openings',
     terms: 'Graduate Software Engineer, Junior Frontend Developer, Associate Developer',
     location: 'United States',
-    datePosted: 'Past 24 hours'
+    datePosted: 'Past 24 hours',
+    portal: 'Indeed'
+  },
+  {
+    id: 'naukri-tech-in',
+    name: '🇮🇳 India MNCs & Tech Hubs',
+    desc: 'Naukri FastApply for Bangalore, Hyderabad, Pune & Remote',
+    terms: 'Software Engineer, Java Developer, React Developer, Backend Engineer, Full Stack',
+    location: 'India',
+    datePosted: 'Past week',
+    portal: 'Naukri'
+  },
+  {
+    id: 'unstop-campus',
+    name: '⚡ Off-Campus & Internships',
+    desc: 'Unstop drives for SDE Interns, Graduate Trainees & Freshers',
+    terms: 'Software Engineer Intern, SDE Intern, Graduate Engineer Trainee, Junior Developer',
+    location: 'India (Remote/Hybrid)',
+    datePosted: 'Past 3 days',
+    portal: 'Unstop'
+  },
+  {
+    id: 'wellfound-startup',
+    name: '🚀 High-Growth Startup Roles',
+    desc: 'AngelList & Wellfound 1-Click Apply for founding tech roles',
+    terms: 'Founding Engineer, Fullstack Engineer, Lead Frontend Engineer, AI Engineer',
+    location: 'Remote Worldwide',
+    datePosted: 'Past week',
+    portal: 'Wellfound'
+  },
+  {
+    id: 'aiml-data',
+    name: '🤖 AI, ML & Data Science',
+    desc: 'Target Machine Learning, LLM & Data Science positions',
+    terms: 'Machine Learning Engineer, Data Scientist, AI Research Engineer, Python Developer',
+    location: 'Remote / Hybrid',
+    datePosted: 'Past week',
+    portal: 'LinkedIn'
+  },
+  {
+    id: 'cloud-devops',
+    name: '☁️ Cloud & DevOps SRE',
+    desc: 'Infrastructure, Kubernetes, AWS & Cloud Architecture',
+    terms: 'DevOps Engineer, Site Reliability Engineer, SRE, Cloud Architect, AWS Specialist',
+    location: 'United States / Remote',
+    datePosted: 'Past 24 hours',
+    portal: 'Indeed'
   },
   {
     id: 'design-uiux',
@@ -35,7 +92,8 @@ const PRESET_TEMPLATES = [
     desc: 'Target Product & Visual Design positions',
     terms: 'Product Designer, UI/UX Designer, UX Engineer',
     location: 'Remote',
-    datePosted: 'Past month'
+    datePosted: 'Past month',
+    portal: 'Glassdoor'
   }
 ];
 
@@ -43,8 +101,8 @@ export default function AutoApplyBot({ userProfile, onSyncApplications, onOpenPr
   // Navigation wizard steps: 1. Setup Persona & Credentials -> 2. Job Targets -> 3. Live Bot Console
   const [activeStep, setActiveStep] = useState<'profile' | 'targets' | 'console'>('targets');
 
-  // Target Portal Selection State ('LinkedIn' | 'Indeed' | 'ZipRecruiter' | 'Glassdoor')
-  const [targetPortal, setTargetPortal] = useState<'LinkedIn' | 'Indeed' | 'ZipRecruiter' | 'Glassdoor'>(() => {
+  // Target Portal Selection State ('LinkedIn' | 'Indeed' | 'Naukri' | 'Unstop' | 'Wellfound' | 'ZipRecruiter' | 'Glassdoor')
+  const [targetPortal, setTargetPortal] = useState<TargetPortal>(() => {
     return (localStorage.getItem('jobmerge_target_portal') as any) || 'LinkedIn';
   });
 
@@ -413,7 +471,11 @@ export default function AutoApplyBot({ userProfile, onSyncApplications, onOpenPr
     setSearchTerms(preset.terms);
     setSearchLocation(preset.location);
     setDatePosted(preset.datePosted);
-    showToast(`Loaded strategy preset: ${preset.name}`);
+    if (preset.portal) {
+      setTargetPortal(preset.portal);
+      localStorage.setItem('jobmerge_target_portal', preset.portal);
+    }
+    showToast(`Loaded strategy preset: ${preset.name} (${preset.portal} target)`);
   };
 
   const handleStartBot = async (e: React.FormEvent) => {
@@ -448,6 +510,7 @@ export default function AutoApplyBot({ userProfile, onSyncApplications, onOpenPr
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          portal: targetPortal,
           searchTerms: termsArray.length > 0 ? termsArray : ['Software Engineer'],
           searchLocation: searchLocation || 'United States',
           easyApplyOnly,
@@ -628,11 +691,14 @@ export default function AutoApplyBot({ userProfile, onSyncApplications, onOpenPr
               </span>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5">
               {[
                 { id: 'LinkedIn', name: 'LinkedIn', badge: 'Easy Apply', color: 'border-blue-500 bg-blue-50/40 text-blue-700', icon: '💼' },
                 { id: 'Indeed', name: 'Indeed', badge: 'Indeed Apply', color: 'border-indigo-500 bg-indigo-50/40 text-indigo-700', icon: '🔍' },
-                { id: 'ZipRecruiter', name: 'ZipRecruiter', badge: '1-Click Apply', color: 'border-emerald-500 bg-emerald-50/40 text-emerald-700', icon: '⚡' },
+                { id: 'Naukri', name: 'Naukri.com', badge: 'FastApply 🇮🇳', color: 'border-sky-500 bg-sky-50/40 text-sky-700', icon: '🚀' },
+                { id: 'Unstop', name: 'Unstop', badge: 'Campus & Off-Campus', color: 'border-purple-500 bg-purple-50/40 text-purple-700', icon: '⚡' },
+                { id: 'Wellfound', name: 'Wellfound', badge: 'Startup Apply', color: 'border-emerald-500 bg-emerald-50/40 text-emerald-700', icon: '🎯' },
+                { id: 'ZipRecruiter', name: 'ZipRecruiter', badge: '1-Click Apply', color: 'border-teal-500 bg-teal-50/40 text-teal-700', icon: '⚡' },
                 { id: 'Glassdoor', name: 'Glassdoor', badge: 'Direct Apply', color: 'border-amber-500 bg-amber-50/40 text-amber-700', icon: '🏢' }
               ].map((portal) => {
                 const isSelected = targetPortal === portal.id;
@@ -645,23 +711,23 @@ export default function AutoApplyBot({ userProfile, onSyncApplications, onOpenPr
                       localStorage.setItem('jobmerge_target_portal', portal.id);
                       showToast(`Target portal switched to ${portal.name}!`);
                     }}
-                    className={`p-4 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between space-y-2 relative ${
+                    className={`p-3 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between space-y-1.5 relative ${
                       isSelected 
                         ? 'border-[#3f37c9] bg-indigo-50/70 ring-2 ring-[#3f37c9]/30 shadow-md scale-[1.02]' 
                         : 'border-gray-150 bg-white hover:border-gray-300 hover:bg-gray-50 shadow-xs'
                     }`}
                   >
                     <div className="flex items-center justify-between w-full">
-                      <span className="text-lg">{portal.icon}</span>
+                      <span className="text-base">{portal.icon}</span>
                       {isSelected ? (
-                        <span className="w-5 h-5 bg-[#3f37c9] text-white rounded-full flex items-center justify-center text-xs font-bold">✓</span>
+                        <span className="w-4 h-4 bg-[#3f37c9] text-white rounded-full flex items-center justify-center text-[10px] font-bold">✓</span>
                       ) : (
                         <span className="w-2 h-2 rounded-full bg-gray-200" />
                       )}
                     </div>
                     <div>
-                      <h3 className="font-extrabold text-xs text-gray-900">{portal.name}</h3>
-                      <span className="text-[9px] font-bold uppercase tracking-wider text-gray-400 block mt-0.5">{portal.badge}</span>
+                      <h3 className="font-extrabold text-[11px] text-gray-900 truncate">{portal.name}</h3>
+                      <span className="text-[8px] font-bold uppercase tracking-wider text-gray-400 block truncate mt-0.5">{portal.badge}</span>
                     </div>
                   </button>
                 );
@@ -679,14 +745,14 @@ export default function AutoApplyBot({ userProfile, onSyncApplications, onOpenPr
               <span className="text-[11px] text-gray-400 font-semibold">1-click configuration</span>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {PRESET_TEMPLATES.map((preset) => {
                 const isSelected = selectedPresetId === preset.id;
                 return (
                   <div
                     key={preset.id}
                     onClick={() => applyPreset(preset)}
-                    className={`p-5 rounded-3xl border transition-all cursor-pointer space-y-3 relative ${
+                    className={`p-5 rounded-3xl border transition-all cursor-pointer space-y-3 relative flex flex-col justify-between ${
                       isSelected 
                         ? 'border-[#3f37c9] bg-indigo-50/40 shadow-md ring-2 ring-[#3f37c9]/20' 
                         : 'border-gray-100 bg-white hover:border-gray-200 shadow-sm'
@@ -697,16 +763,25 @@ export default function AutoApplyBot({ userProfile, onSyncApplications, onOpenPr
                         <Check className="w-3 h-3 stroke-[3]" />
                       </div>
                     )}
-                    <div>
-                      <h3 className="font-extrabold text-xs text-gray-900">{preset.name}</h3>
-                      <p className="text-[11px] text-gray-500 mt-0.5">{preset.desc}</p>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between pr-6">
+                        <span className="px-2 py-0.5 bg-indigo-50 text-[#3f37c9] text-[9px] font-extrabold rounded-full border border-indigo-100">
+                          {preset.portal} Target
+                        </span>
+                      </div>
+                      <div>
+                        <h3 className="font-extrabold text-xs text-gray-900 leading-snug">{preset.name}</h3>
+                        <p className="text-[11px] text-gray-500 mt-0.5">{preset.desc}</p>
+                      </div>
                     </div>
-                    <div className="text-[11px] font-mono text-[#3f37c9] bg-white p-2 rounded-xl border border-gray-100 truncate">
-                      {preset.terms}
-                    </div>
-                    <div className="flex justify-between text-[10px] text-gray-400 font-bold pt-1">
-                      <span>📍 {preset.location}</span>
-                      <span>⏳ {preset.datePosted}</span>
+                    <div className="space-y-2 pt-1">
+                      <div className="text-[10px] font-mono text-[#3f37c9] bg-white p-2 rounded-xl border border-gray-100 truncate">
+                        {preset.terms}
+                      </div>
+                      <div className="flex items-center justify-between text-[10px] text-gray-400 font-bold pt-1 border-t border-gray-50">
+                        <span className="truncate max-w-[50%]">📍 {preset.location}</span>
+                        <span>⏳ {preset.datePosted}</span>
+                      </div>
                     </div>
                   </div>
                 );
@@ -714,48 +789,34 @@ export default function AutoApplyBot({ userProfile, onSyncApplications, onOpenPr
             </div>
           </div>
 
-          {/* Resume Upload Card */}
-          <div className="bg-white border border-gray-100 rounded-3xl p-6 shadow-sm space-y-4">
-            <div className="flex items-center justify-between border-b border-gray-100 pb-4">
-              <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
-                <FileSpreadsheet className="w-4 h-4 text-[#3f37c9]" />
-                Job Applier Resume Config
-              </h2>
-              {resumeInfo?.exists ? (
-                <span className="px-3 py-1 bg-emerald-50 text-emerald-600 rounded-full font-bold text-[10px] flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block animate-pulse" />
-                  Active Resume Loaded ({Math.round(resumeInfo.size / 1024)} KB)
-                </span>
-              ) : (
-                <span className="px-3 py-1 bg-amber-50 text-amber-600 rounded-full font-bold text-[10px] flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block animate-pulse" />
-                  No local resume.pdf found
-                </span>
-              )}
-            </div>
-
-            <div className="flex flex-col md:flex-row items-center justify-between gap-4 text-xs">
-              <div className="space-y-1 text-slate-500">
-                <p className="font-semibold">
-                  The LinkedIn automation engine requires a default PDF resume located at `all resumes/default/resume.pdf`.
-                </p>
-                <p className="text-[10px] text-slate-400 font-medium">
-                  {resumeInfo?.exists 
-                    ? "If you want to update it, choose a new PDF file below. The bot will automatically use it on next launch." 
-                    : "Upload your resume below to configure it directly for the bot runner."}
+          {/* Chrome Extension Connection & Download Card */}
+          <div className="bg-gradient-to-r from-slate-900 to-indigo-950 text-white rounded-3xl p-6 shadow-xl space-y-4 border border-indigo-500/30">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <span className="px-3 py-1 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded-full text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                    Chrome Extension Ready
+                  </span>
+                  <span className="px-2.5 py-1 bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 rounded-full text-[10px] font-bold">
+                    v1.0.0 Installed
+                  </span>
+                </div>
+                <h3 className="text-base font-extrabold text-white">JobMerge Extension Direct Automation</h3>
+                <p className="text-xs text-indigo-200/80 max-w-2xl font-medium">
+                  Applications execute natively inside your own Chrome browser session for 100% account security, zero CAPTCHA flags, and instant form completion across LinkedIn, Indeed, Naukri, and Unstop.
                 </p>
               </div>
-              <div className="flex items-center gap-3">
-                <label className="relative px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-xl font-bold cursor-pointer transition-all flex items-center gap-2">
-                  <span>{isUploadingResume ? "Uploading..." : "Select Resume PDF"}</span>
-                  <input
-                    type="file"
-                    accept=".pdf"
-                    onChange={handleResumeFileChange}
-                    className="hidden"
-                    disabled={isUploadingResume}
-                  />
-                </label>
+
+              <div className="flex items-center gap-3 shrink-0">
+                <a
+                  href="/jobmerge-extension.zip"
+                  download="jobmerge-extension.zip"
+                  className="px-5 py-3 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-black rounded-2xl shadow-lg transition-all flex items-center gap-2 cursor-pointer active:scale-95 border border-indigo-400/30"
+                >
+                  <Globe className="w-4 h-4" />
+                  <span>Download Extension (.zip)</span>
+                </a>
               </div>
             </div>
           </div>
@@ -823,9 +884,9 @@ export default function AutoApplyBot({ userProfile, onSyncApplications, onOpenPr
                     onChange={(e) => setSwitchNumber(parseInt(e.target.value, 10))}
                     className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl font-medium text-gray-800 focus:outline-none focus:border-[#3f37c9]"
                   >
-                    <option value={15}>15 applications per switch</option>
-                    <option value={30}>30 applications per switch (Recommended)</option>
-                    <option value={50}>50 applications per switch</option>
+                    <option value={15}>15 applications per batch</option>
+                    <option value={30}>30 applications per batch (Recommended)</option>
+                    <option value={50}>50 applications per batch</option>
                   </select>
                 </div>
 
@@ -842,21 +903,6 @@ export default function AutoApplyBot({ userProfile, onSyncApplications, onOpenPr
                     <option value={50}>Apply to 50 jobs strictly</option>
                     <option value={100}>Apply to 100 jobs strictly</option>
                   </select>
-                </div>
-
-                <div>
-                  <label className="block font-bold text-gray-700 mb-1.5">Browser Visibility</label>
-                  <div className="pt-2">
-                    <label className="inline-flex items-center gap-2 cursor-pointer font-bold text-gray-700">
-                      <input
-                        type="checkbox"
-                        checked={showChromeWindow}
-                        onChange={(e) => setShowChromeWindow(e.target.checked)}
-                        className="w-4 h-4 rounded text-[#3f37c9] focus:ring-0"
-                      />
-                      Show Chrome Window on Monitor
-                    </label>
-                  </div>
                 </div>
 
                 <div>

@@ -89,7 +89,7 @@ stealth_mode = False                # True or False, Note: True or False are cas
 showAiErrorAlerts = False            # True or False, Note: True or False are case-sensitive
 
 # Maximum total easy apply applications to submit before stopping execution strictly.
-total_applications_limit = 10
+total_applications_limit = 30
 
 # Use ChatGPT for resume building (Experimental Feature can break the application. Recommended to leave it as False) 
 # use_resume_generator = False       # True or False, Note: True or False are case-sensitive ,   This feature may only work with 'stealth_mode = True'. As ChatGPT website is hosted by CloudFlare which is protected by Anti-bot protections!

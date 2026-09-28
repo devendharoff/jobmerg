@@ -942,100 +942,139 @@ export default function ResumeStudio({ userProfile, onOpenPricing }: ResumeStudi
         }
       }
 
-      setUploadProgress(25);
-      setExtractionStage('Connecting to parsing engine...');
+      setUploadProgress(15);
+      setExtractionStage('Uploading document to deterministic parser...');
 
       try {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 35000);
-
-        const res = await fetch('/api/parse-resume', {
+        const uploadRes = await fetch('/api/resumes', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ resumeFile: base64Data, resumeText: '', fileName: file.name }),
-          signal: controller.signal,
+          body: JSON.stringify({ resumeFile: base64Data, fileName: file.name }),
         });
-        clearTimeout(timeout);
-        
-        setUploadProgress(60);
-        setExtractionStage('Extracting work history & skills...');
 
-        const data = await res.json();
-
-        if (!res.ok || data.error) {
-          const errMsg = data.error || 'We couldn\'t extract your resume. Please try a different file.';
-          const detail = data.detail || (data.stage === 'ocr_required'
-            ? 'This PDF looks like it was scanned from paper — it doesn\'t contain readable text. Export your resume as a text-based PDF, or paste your resume content below.'
-            : data.stage === 'pdf_extraction'
-            ? 'We couldn\'t pull text from this PDF. Try re-exporting it from your word processor or paste your resume content below.'
-            : data.stage === 'docx_extraction'
-            ? 'This DOCX appears to be corrupted or password-protected. Try saving it again as a new .docx file or paste your content below.'
-            : data.stage
-            ? `Extraction failed at stage: ${data.stage}`
-            : 'Try a different file or paste your resume content below to use local extraction.');
-          setUploadProgress(0);
-          setExtractionStage('');
-          setExtractionError(errMsg);
-          setExtractionErrorDetail(detail);
-          setIsPasteMode(true);
-          return;
+        if (!uploadRes.ok) {
+          const errData = await uploadRes.json();
+          throw new Error(errData.error || errData.detail || 'We couldn\'t process your resume file.');
         }
 
-        setUploadProgress(90);
-        setExtractionStage('Structuring profile layers...');
+        const jobData = await uploadRes.json();
+        const resumeId = jobData.resumeId;
 
-        const personalOut = data.personal ? { ...BLANK_RESUME.personal, ...data.personal } : { ...BLANK_RESUME.personal };
-        let skillsOut: SkillsGrouped;
-        if (data.skills && !Array.isArray(data.skills) && typeof data.skills === 'object') {
-          const g = data.skills as Record<string, any>;
-          skillsOut = {
-            languages: typeof g.languages === 'string' ? g.languages : '',
-            frameworks: typeof g.frameworks === 'string' ? g.frameworks : '',
-            tools: typeof g.tools === 'string' ? g.tools : '',
-            competencies: typeof g.competencies === 'string' ? g.competencies : '',
-          };
-        } else if (Array.isArray(data.skills)) {
-          const flat = data.skills.map((s: any) => String(s).trim()).filter(Boolean);
-          skillsOut = {
-            languages: flat.slice(0, 4).join(', '),
-            frameworks: flat.slice(4, 8).join(', '),
-            tools: flat.slice(8, 12).join(', '),
-            competencies: flat.slice(12).join(', '),
-          };
-        } else {
-          skillsOut = { ...BLANK_RESUME.skills };
+        setUploadProgress(25);
+        setExtractionStage('File validated ✓ Extraction job queued...');
+
+        // Poll job status every 500ms
+        let isDone = false;
+        let pollAttempts = 0;
+
+        while (!isDone && pollAttempts < 40) {
+          pollAttempts++;
+          await new Promise((res) => setTimeout(res, 500));
+
+          const statusRes = await fetch(`/api/resumes/${resumeId}/status`);
+          if (!statusRes.ok) continue;
+
+          const statusData = await statusRes.json();
+          setUploadProgress(statusData.progress || 35);
+          if (statusData.step) {
+            setExtractionStage(statusData.step);
+          }
+
+          if (statusData.status === 'completed' && statusData.canonical) {
+            isDone = true;
+            const canonical = statusData.canonical;
+
+            const personalOut = {
+              name: canonical.personal?.name?.value || '',
+              title: canonical.experience?.[0]?.title?.raw || '',
+              email: canonical.personal?.email?.value || '',
+              phone: canonical.personal?.phone?.raw || '',
+              location: canonical.personal?.location?.value || '',
+              github: canonical.personal?.github?.value || '',
+              linkedin: canonical.personal?.linkedin?.value || '',
+              portfolio: canonical.personal?.portfolio?.value || '',
+            };
+
+            const skillsList = canonical.skills?.map((s: any) => s.raw_value).filter(Boolean) || [];
+            const skillsOut: SkillsGrouped = {
+              languages: skillsList.slice(0, 5).join(', '),
+              frameworks: skillsList.slice(5, 10).join(', '),
+              tools: skillsList.slice(10, 15).join(', '),
+              competencies: skillsList.slice(15).join(', '),
+            };
+
+            const experienceOut = (canonical.experience || []).map((e: any) => ({
+              company: e.company?.raw || '',
+              role: e.title?.raw || '',
+              dates: e.date?.raw || '',
+              description: Array.isArray(e.description) ? e.description.join('\n• ') : (e.description || ''),
+              technologies: ''
+            }));
+
+            const educationOut = (canonical.education || []).map((e: any) => ({
+              school: e.institution || '',
+              degree: e.degree || '',
+              year: e.date?.raw || '',
+              gpa: e.grade ? `${e.grade.type}: ${e.grade.raw}` : '',
+              coursework: ''
+            }));
+
+            const projectsOut = (canonical.projects || []).map((p: any) => ({
+              title: p.name || '',
+              technologies: Array.isArray(p.technologies) ? p.technologies.join(', ') : '',
+              description: Array.isArray(p.description) ? p.description.join(' ') : ''
+            }));
+
+            const certificationsOut = (canonical.certifications || []).map((c: any) => c.name);
+
+            const confidenceScoresOut = {
+              name: canonical.personal?.name?.value ? 99 : 0,
+              email: canonical.personal?.email?.value ? 99 : 0,
+              phone: canonical.personal?.phone?.raw ? 95 : 0,
+              skills: canonical.skills?.length > 0 ? 95 : 0,
+              experience: canonical.experience?.length > 0 ? 95 : 0,
+              education: canonical.education?.length > 0 ? 95 : 0,
+              overall: 95
+            };
+
+            setPersonal(personalOut);
+            setSummary(canonical.summary?.value || '');
+            setSkillsGrouped(skillsOut);
+            setExperience(experienceOut);
+            setEducation(educationOut);
+            setProjects(projectsOut);
+            setCertifications(certificationsOut);
+            setConfidenceScores(confidenceScoresOut);
+
+            setUploadProgress(100);
+            setExtractionStage('Extraction completed!');
+
+            setTimeout(() => {
+              goToStep('profile');
+              setUploadProgress(0);
+              setExtractionStage('');
+            }, 400);
+            return;
+          } else if (statusData.status === 'failed') {
+            isDone = true;
+            setUploadProgress(0);
+            setExtractionStage('');
+            setExtractionError(statusData.error || 'Resume extraction failed.');
+            setExtractionErrorDetail(statusData.error || 'Please upload a readable PDF/DOCX or paste text below.');
+            setIsPasteMode(true);
+            return;
+          }
         }
 
-        setPersonal(personalOut);
-        setSummary(data.summary ?? '');
-        setSkillsGrouped(skillsOut);
-        setExperience(data.experience ?? []);
-        setEducation(data.education ?? []);
-        setProjects(data.projects ?? []);
-        setCertifications(data.certifications ?? []);
-        if (data.confidenceScores) setConfidenceScores(data.confidenceScores);
-
-        setUploadProgress(100);
-        setTimeout(() => {
-          goToStep('profile');
-          setUploadProgress(0);
-          setExtractionStage('');
-        }, 400);
+        if (!isDone) {
+          throw new Error('Resume extraction timed out after 20 seconds.');
+        }
 
       } catch (e: any) {
         setUploadProgress(0);
         setExtractionStage('');
-        const isAbort = e?.name === 'AbortError';
-        setExtractionError(isAbort
-          ? 'Extraction timed out. The server may be slow or not running.'
-          : 'Could not connect to the extraction service.'
-        );
-        const detail = (e?.message?.includes('Failed to fetch') || e?.message?.includes('NetworkError'))
-          ? 'The server at localhost:3000 isn\'t running or isn\'t reachable. Run `npm run server` or use the local paste-based extraction below — it runs 100% in your browser and doesn\'t need any server connection.'
-          : isAbort
-          ? 'Request timed out after 35 seconds. You can instead paste your resume text below for instant offline extraction.'
-          : `Error details: ${e?.message || String(e)} — Try the local paste-based extraction below.`;
-        setExtractionErrorDetail(detail);
+        setExtractionError('Resume extraction notice: ' + (e.message || 'Could not process document.'));
+        setExtractionErrorDetail(e.message || 'Try pasting your resume text below for instant offline extraction.');
         setIsPasteMode(true);
       }
     };

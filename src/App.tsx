@@ -1906,21 +1906,41 @@ export default function App() {
                       </button>
                     </div>
 
-                    {/* Category Selection Tabs */}
-                    <div className="flex items-center gap-1 bg-gray-100/80 p-1 rounded-2xl overflow-x-auto no-scrollbar max-w-full">
-                      {['Recommended', 'Recent Jobs', 'Saved Jobs', 'Applied Jobs'].map(tab => (
-                        <button 
-                          key={tab}
-                          onClick={() => setActiveFilterCategory(tab)}
-                          className={`px-4 py-2 rounded-xl text-xs font-black transition-all duration-200 cursor-pointer shrink-0 whitespace-nowrap ${
-                            activeFilterCategory === tab 
-                              ? 'bg-[#4f46e5] text-white shadow-md shadow-[#4f46e5]/20 ring-2 ring-[#4f46e5]/20 font-black' 
-                              : 'text-gray-600 hover:bg-white hover:text-gray-900 font-bold'
-                          }`}
-                        >
-                          {tab}
-                        </button>
-                      ))}
+                    {/* Category Selection Tabs & Role Level Pills */}
+                    <div className="flex flex-wrap items-center gap-2">
+                      <div className="flex items-center gap-1 bg-gray-100/80 p-1 rounded-2xl overflow-x-auto no-scrollbar max-w-full">
+                        {['Recommended', 'Recent Jobs', 'Saved Jobs', 'Applied Jobs'].map(tab => (
+                          <button 
+                            key={tab}
+                            onClick={() => setActiveFilterCategory(tab)}
+                            className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all duration-200 cursor-pointer shrink-0 whitespace-nowrap ${
+                              activeFilterCategory === tab 
+                                ? 'bg-[#4f46e5] text-white shadow-md shadow-[#4f46e5]/20 ring-2 ring-[#4f46e5]/20 font-black' 
+                                : 'text-gray-600 hover:bg-white hover:text-gray-900 font-bold'
+                            }`}
+                          >
+                            {tab}
+                          </button>
+                        ))}
+                      </div>
+
+                      <div className="h-4 w-px bg-gray-200 hidden sm:block" />
+
+                      <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-2xl overflow-x-auto no-scrollbar max-w-full border border-gray-200/60">
+                        {['All', 'Experienced', 'Freshers', 'Graduates', 'Students'].map(cat => (
+                          <button 
+                            key={cat}
+                            onClick={() => setSelectedCategory(cat)}
+                            className={`px-3 py-1 rounded-xl text-[11px] font-extrabold transition-all duration-200 cursor-pointer shrink-0 whitespace-nowrap ${
+                              selectedCategory === cat 
+                                ? 'bg-slate-900 text-white shadow-sm font-black' 
+                                : 'text-gray-500 hover:bg-white hover:text-gray-900'
+                            }`}
+                          >
+                            {cat === 'All' ? 'All Roles' : cat}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -2274,21 +2294,41 @@ export default function App() {
                       </button>
                     </div>
 
-                    {/* Category Selection Tabs */}
-                    <div className="flex items-center gap-1 bg-gray-100/80 p-1 rounded-2xl overflow-x-auto no-scrollbar max-w-full">
-                      {['Recommended', 'Recent Jobs', 'Saved Jobs', 'Applied Jobs'].map(tab => (
-                        <button 
-                          key={tab}
-                          onClick={() => setActiveFilterCategory(tab)}
-                          className={`px-4 py-2 rounded-xl text-xs font-black transition-all duration-200 cursor-pointer shrink-0 whitespace-nowrap ${
-                            activeFilterCategory === tab 
-                              ? 'bg-[#4f46e5] text-white shadow-md shadow-[#4f46e5]/20 ring-2 ring-[#4f46e5]/20 font-black' 
-                              : 'text-gray-600 hover:bg-white hover:text-gray-900 font-bold'
-                          }`}
-                        >
-                          {tab}
-                        </button>
-                      ))}
+                    {/* Category Selection Tabs & Role Level Pills */}
+                    <div className="flex flex-wrap items-center gap-2">
+                      <div className="flex items-center gap-1 bg-gray-100/80 p-1 rounded-2xl overflow-x-auto no-scrollbar max-w-full">
+                        {['Recommended', 'Recent Jobs', 'Saved Jobs', 'Applied Jobs'].map(tab => (
+                          <button 
+                            key={tab}
+                            onClick={() => setActiveFilterCategory(tab)}
+                            className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all duration-200 cursor-pointer shrink-0 whitespace-nowrap ${
+                              activeFilterCategory === tab 
+                                ? 'bg-[#4f46e5] text-white shadow-md shadow-[#4f46e5]/20 ring-2 ring-[#4f46e5]/20 font-black' 
+                                : 'text-gray-600 hover:bg-white hover:text-gray-900 font-bold'
+                            }`}
+                          >
+                            {tab}
+                          </button>
+                        ))}
+                      </div>
+
+                      <div className="h-4 w-px bg-gray-200 hidden sm:block" />
+
+                      <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-2xl overflow-x-auto no-scrollbar max-w-full border border-gray-200/60">
+                        {['All', 'Experienced', 'Freshers', 'Graduates', 'Students'].map(cat => (
+                          <button 
+                            key={cat}
+                            onClick={() => setSelectedCategory(cat)}
+                            className={`px-3 py-1 rounded-xl text-[11px] font-extrabold transition-all duration-200 cursor-pointer shrink-0 whitespace-nowrap ${
+                              selectedCategory === cat 
+                                ? 'bg-slate-900 text-white shadow-sm font-black' 
+                                : 'text-gray-500 hover:bg-white hover:text-gray-900'
+                            }`}
+                          >
+                            {cat === 'All' ? 'All Roles' : cat}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 </div>

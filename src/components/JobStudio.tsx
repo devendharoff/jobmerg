@@ -207,6 +207,7 @@ export default function JobStudio({ userProfile, onOpenPricing }: JobStudioProps
   const handleExtractKeywords = async () => {
     if (!jobDescription.trim() || jobDescription.trim().length < 50) return;
     setIsExtracting(true);
+    try {
       const resumeText = `${summary} ${experience.map(e => `${e.role} ${e.company} ${e.description}`).join(' ')} ${projects.map(p => `${p.title} ${p.description}`).join(' ')}`;
       const userSkills = Object.values(skillsGrouped).join(', ').split(',').map(s => s.trim()).filter(Boolean);
 
@@ -233,7 +234,7 @@ export default function JobStudio({ userProfile, onOpenPricing }: JobStudioProps
       // Generate intelligent fallback based on JD content instead of static hardcoded skills
       const lowerJD = jobDescription.toLowerCase();
       const words = Array.from(new Set(lowerJD.match(/\b[a-z]{3,}\b/g) || []))
-        .filter(w => !['the', 'and', 'for', 'with', 'you', 'will', 'this', 'that', 'from', 'have', 'are', 'our', 'team', 'work', 'experience', 'skills', 'role', 'required', 'preferred', 'looking', 'join', 'about'].includes(w));
+        .filter((w: string) => !['the', 'and', 'for', 'with', 'you', 'will', 'this', 'that', 'from', 'have', 'are', 'our', 'team', 'work', 'experience', 'skills', 'role', 'required', 'preferred', 'looking', 'join', 'about'].includes(w));
       
       const found = words.slice(0, 5);
       const missing = words.slice(5, 15);
