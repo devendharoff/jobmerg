@@ -42,7 +42,15 @@ export type TemplateId =
   | 'sidebar'
   | 'indigo'
   | 'slate'
-  | 'emerald';
+  | 'emerald'
+  | 'aditya_srikar'
+  | 'classic_formal'
+  | 'data_scientist'
+  | 'experienced_hire_v1'
+  | 'experienced_hire_v2'
+  | 'student_graduate'
+  | 'tech_program_mgr'
+  | 'corporate_bullet';
 
 interface TemplateOption {
   id: TemplateId;
@@ -52,6 +60,7 @@ interface TemplateOption {
   description: string;
   badgeBg: string;
   badgeText: string;
+  docFile?: string;
 }
 
 const TEMPLATE_OPTIONS: TemplateOption[] = [
@@ -135,6 +144,86 @@ const TEMPLATE_OPTIONS: TemplateOption[] = [
     description: 'Emerald green header grid, rounded skill badge pills, green section headers.',
     badgeBg: 'bg-emerald-700',
     badgeText: 'text-emerald-50'
+  },
+  {
+    id: 'aditya_srikar',
+    name: 'Aditya Srikar Senior Tech Lead',
+    tag: 'High Impact Lead',
+    category: 'Technical',
+    description: 'Clean header with prominent project callouts and technical skills matrix.',
+    badgeBg: 'bg-indigo-900',
+    badgeText: 'text-indigo-100',
+    docFile: '/resume_templates_all/aditya_srikar.docx'
+  },
+  {
+    id: 'classic_formal',
+    name: 'Classic Formal ATS (Word standard)',
+    tag: 'Classic Corporate',
+    category: 'Corporate',
+    description: 'Clean traditional layout with crisp horizontal rules and structured timeline font hierarchy.',
+    badgeBg: 'bg-slate-800',
+    badgeText: 'text-slate-100',
+    docFile: '/resume_templates_all/classic_formal.docx'
+  },
+  {
+    id: 'data_scientist',
+    name: 'Entry Level Data Scientist & AI',
+    tag: 'Data & Analytics',
+    category: 'Technical',
+    description: 'Tailored for data science, machine learning models, research projects, and academic background.',
+    badgeBg: 'bg-blue-800',
+    badgeText: 'text-blue-100',
+    docFile: '/resume_templates_all/data_scientist.docx'
+  },
+  {
+    id: 'experienced_hire_v1',
+    name: 'Experienced Hire Executive v1',
+    tag: 'Senior Professional',
+    category: 'Executive',
+    description: 'Designed for 5+ years experienced hires, focusing on high-level achievements and leadership role progression.',
+    badgeBg: 'bg-amber-800',
+    badgeText: 'text-amber-100',
+    docFile: '/resume_templates_all/experienced_hire_v1.doc'
+  },
+  {
+    id: 'experienced_hire_v2',
+    name: 'Experienced Hire Modern v2',
+    tag: 'Senior Specialist',
+    category: 'Executive',
+    description: 'Modern executive formatting with compact competency grids and highlighted impact bullets.',
+    badgeBg: 'bg-[#1e1b4b]',
+    badgeText: 'text-white',
+    docFile: '/resume_templates_all/experienced_hire_v2.docx'
+  },
+  {
+    id: 'student_graduate',
+    name: 'University Student & Graduate',
+    tag: 'Entry Level',
+    category: 'Corporate',
+    description: 'Puts education, academic projects, leadership activities, and coursework front and center.',
+    badgeBg: 'bg-emerald-800',
+    badgeText: 'text-emerald-100',
+    docFile: '/resume_templates_all/student_graduate.docx'
+  },
+  {
+    id: 'tech_program_mgr',
+    name: 'Technical Program Manager (TPM)',
+    tag: 'Engineering Lead',
+    category: 'Technical',
+    description: 'Structured for TPMs, Scrum Masters, and Product leads balancing tech depth with cross-functional execution.',
+    badgeBg: 'bg-purple-900',
+    badgeText: 'text-purple-100',
+    docFile: '/resume_templates_all/tech_program_mgr.docx'
+  },
+  {
+    id: 'corporate_bullet',
+    name: 'Corporate Bullet Minimalist',
+    tag: 'Minimal Bullet',
+    category: 'Corporate',
+    description: 'High-density bullet point structure optimized for ATS parsing without visual distractions.',
+    badgeBg: 'bg-gray-900',
+    badgeText: 'text-gray-100',
+    docFile: '/resume_templates_all/corporate_bullet.doc'
   }
 ];
 

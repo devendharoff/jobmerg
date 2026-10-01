@@ -1020,6 +1020,560 @@ export default function ResumeTemplateRenderer({
           )}
         </div>
       )}
+
+      {/* ==================== TEMPLATE 10: ADITYA SRIKAR SENIOR TECH ==================== */}
+      {template === 'aditya_srikar' && (
+        <div className="space-y-4 text-left font-sans text-slate-900">
+          <div className="bg-slate-900 text-white p-5 rounded-2xl space-y-2">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <h1 className="text-2xl font-black tracking-tight text-white">{personal.name || 'Aditya Srikar'}</h1>
+                <p className="text-xs font-bold text-indigo-300 mt-0.5">{personal.title || 'Senior Software Engineer & Tech Lead'}</p>
+              </div>
+              <div className="text-[10px] font-semibold text-slate-300 space-y-0.5 text-left sm:text-right shrink-0">
+                {personal.email && <p>✉ {personal.email}</p>}
+                {personal.phone && <p>☎ {personal.phone}</p>}
+                {personal.location && <p>📍 {personal.location}</p>}
+              </div>
+            </div>
+            <div className="pt-2 border-t border-slate-700 flex flex-wrap gap-3 text-[10px] text-indigo-200 font-bold">
+              {personal.linkedin && <span>🔗 {cleanUrl(personal.linkedin)}</span>}
+              {personal.github && <span>🐙 {cleanUrl(personal.github)}</span>}
+              {personal.portfolio && <span>🌐 {cleanUrl(personal.portfolio)}</span>}
+            </div>
+          </div>
+
+          {summary && (
+            <div className="space-y-1">
+              <h3 className="text-xs font-black uppercase tracking-wider text-indigo-900 border-b-2 border-indigo-600 pb-1">Professional Overview</h3>
+              <div className="text-xs text-gray-700 leading-relaxed font-medium">{summary}</div>
+            </div>
+          )}
+
+          <div className="space-y-1.5">
+            <h3 className="text-xs font-black uppercase tracking-wider text-indigo-900 border-b-2 border-indigo-600 pb-1">Technical Skills & Expertise</h3>
+            <div className="bg-indigo-50/40 p-3 rounded-xl border border-indigo-100/60">
+              {renderSkillsSection("font-bold text-indigo-950", "text-[11px] text-gray-800 leading-relaxed")}
+            </div>
+          </div>
+
+          {experience.length > 0 && (
+            <div className="space-y-3">
+              <h3 className="text-xs font-black uppercase tracking-wider text-indigo-900 border-b-2 border-indigo-600 pb-1">Professional Experience</h3>
+              {experience.map((work, idx) => (
+                <div key={idx} className="space-y-1 text-xs">
+                  <div className="flex justify-between font-extrabold text-slate-900">
+                    <span>{work.role} <span className="text-indigo-600">@ {work.company}</span></span>
+                    <span className="text-gray-500 text-[11px]">{work.dates}</span>
+                  </div>
+                  {work.technologies && (
+                    <p className="text-[10px] text-indigo-700 font-bold">Tech: {work.technologies}</p>
+                  )}
+                  <div className="text-[11px] text-gray-700 leading-relaxed whitespace-pre-line pl-1">{work.description}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {projects.length > 0 && (
+            <div className="space-y-3">
+              <h3 className="text-xs font-black uppercase tracking-wider text-indigo-900 border-b-2 border-indigo-600 pb-1">Key Engineering Projects</h3>
+              {projects.map((proj, idx) => (
+                <div key={idx} className="space-y-1 text-xs">
+                  <div className="flex justify-between font-bold text-slate-900">
+                    <span>{proj.title}</span>
+                    <span className="text-[10px] text-indigo-600 font-extrabold">{proj.technologies}</span>
+                  </div>
+                  <div className="text-[11px] text-gray-650 leading-relaxed">{proj.description}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {education.length > 0 && (
+            <div className="space-y-2">
+              <h3 className="text-xs font-black uppercase tracking-wider text-indigo-900 border-b-2 border-indigo-600 pb-1">Education</h3>
+              {education.map((edu, idx) => (
+                <div key={idx} className="text-xs font-bold text-slate-850 flex justify-between">
+                  <span>{edu.degree} — {edu.school}</span>
+                  <span className="text-gray-500">{edu.year}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {renderCertificationsSection("text-xs font-black uppercase tracking-wider text-indigo-900 border-b-2 border-indigo-600 pb-1", "text-[10px] space-y-1 pt-1")}
+        </div>
+      )}
+
+      {/* ==================== TEMPLATE 11: CLASSIC FORMAL ATS ==================== */}
+      {template === 'classic_formal' && (
+        <div className="space-y-4 text-left font-serif text-slate-900">
+          <div className="text-center space-y-1.5 pb-2 border-b-2 border-slate-900">
+            <h1 className="text-2xl font-bold font-serif tracking-wide text-slate-900 uppercase">{personal.name}</h1>
+            <p className="text-xs font-serif italic text-slate-700">{personal.title}</p>
+            <p className="text-[10px] font-serif text-slate-600">
+              {renderContactInfo('  •  ')}
+            </p>
+          </div>
+
+          {summary && (
+            <div className="space-y-1">
+              <h3 className="text-xs font-bold uppercase tracking-widest font-serif border-b border-slate-400 pb-0.5">Professional Summary</h3>
+              <div className="text-[11px] text-slate-800 leading-normal font-serif text-justify">{summary}</div>
+            </div>
+          )}
+
+          <div className="space-y-1">
+            <h3 className="text-xs font-bold uppercase tracking-widest font-serif border-b border-slate-400 pb-0.5">Core Qualifications & Skills</h3>
+            {renderSkillsSection("font-bold font-serif text-slate-900", "text-[10px] font-serif text-slate-800 leading-normal")}
+          </div>
+
+          {experience.length > 0 && (
+            <div className="space-y-3">
+              <h3 className="text-xs font-bold uppercase tracking-widest font-serif border-b border-slate-400 pb-0.5">Work Experience</h3>
+              {experience.map((work, idx) => (
+                <div key={idx} className="space-y-1 text-xs font-serif">
+                  <div className="flex justify-between font-bold text-slate-900">
+                    <span>{work.company} — {work.role}</span>
+                    <span>{work.dates}</span>
+                  </div>
+                  <div className="text-[10px] text-slate-800 leading-relaxed whitespace-pre-line pl-2">{work.description}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {projects.length > 0 && (
+            <div className="space-y-3">
+              <h3 className="text-xs font-bold uppercase tracking-widest font-serif border-b border-slate-400 pb-0.5">Significant Projects</h3>
+              {projects.map((proj, idx) => (
+                <div key={idx} className="space-y-0.5 text-xs font-serif">
+                  <div className="flex justify-between font-bold">
+                    <span>{proj.title}</span>
+                    <span className="text-[9px] font-normal italic">Tech: {proj.technologies}</span>
+                  </div>
+                  <div className="text-[10px] text-slate-800 leading-relaxed pl-2">{proj.description}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {education.length > 0 && (
+            <div className="space-y-1.5">
+              <h3 className="text-xs font-bold uppercase tracking-widest font-serif border-b border-slate-400 pb-0.5">Education</h3>
+              {education.map((edu, idx) => (
+                <div key={idx} className="text-xs font-serif font-bold flex justify-between">
+                  <span>{edu.degree}, {edu.school}</span>
+                  <span>{edu.year}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {renderCertificationsSection("text-xs font-bold uppercase tracking-widest font-serif border-b border-slate-400 pb-0.5", "text-[10px] font-serif space-y-1 pt-1")}
+        </div>
+      )}
+
+      {/* ==================== TEMPLATE 12: ENTRY LEVEL DATA SCIENTIST & AI ==================== */}
+      {template === 'data_scientist' && (
+        <div className="space-y-4 text-left font-sans text-slate-900">
+          <div className="border-l-4 border-blue-600 pl-4 py-1 space-y-1">
+            <h1 className="text-2xl font-extrabold tracking-tight text-slate-900">{personal.name}</h1>
+            <p className="text-xs font-bold text-blue-600 uppercase tracking-wider">{personal.title || 'Data Scientist & AI Researcher'}</p>
+            <p className="text-[10px] text-slate-600 font-semibold pt-1">
+              {renderContactInfo('  |  ')}
+            </p>
+          </div>
+
+          {summary && (
+            <div className="space-y-1">
+              <h3 className="text-xs font-extrabold uppercase tracking-widest text-blue-800 border-b border-blue-200 pb-0.5">Summary</h3>
+              <div className="text-xs text-gray-700 leading-relaxed">{summary}</div>
+            </div>
+          )}
+
+          <div className="space-y-1.5">
+            <h3 className="text-xs font-extrabold uppercase tracking-widest text-blue-800 border-b border-blue-200 pb-0.5">Data Science & AI Toolset</h3>
+            <div className="bg-blue-50/50 p-3 rounded-xl border border-blue-100">
+              {renderSkillsSection("font-bold text-blue-900", "text-[10px] text-gray-800 leading-normal")}
+            </div>
+          </div>
+
+          {projects.length > 0 && (
+            <div className="space-y-3">
+              <h3 className="text-xs font-extrabold uppercase tracking-widest text-blue-800 border-b border-blue-200 pb-0.5">Machine Learning & Analytics Projects</h3>
+              {projects.map((proj, idx) => (
+                <div key={idx} className="space-y-1 text-xs">
+                  <div className="flex justify-between font-extrabold text-slate-900">
+                    <span>{proj.title}</span>
+                    <span className="text-blue-600 text-[10px]">{proj.technologies}</span>
+                  </div>
+                  <div className="text-[11px] text-gray-650 leading-relaxed">{proj.description}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {experience.length > 0 && (
+            <div className="space-y-3">
+              <h3 className="text-xs font-extrabold uppercase tracking-widest text-blue-800 border-b border-blue-200 pb-0.5">Experience</h3>
+              {experience.map((work, idx) => (
+                <div key={idx} className="space-y-1 text-xs">
+                  <div className="flex justify-between font-extrabold text-slate-900">
+                    <span>{work.role} at {work.company}</span>
+                    <span className="text-gray-400">{work.dates}</span>
+                  </div>
+                  <div className="text-[11px] text-gray-600 leading-relaxed whitespace-pre-line">{work.description}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {education.length > 0 && (
+            <div className="space-y-2">
+              <h3 className="text-xs font-extrabold uppercase tracking-widest text-blue-800 border-b border-blue-200 pb-0.5">Education & Academic Record</h3>
+              {education.map((edu, idx) => (
+                <div key={idx} className="text-xs font-bold text-slate-800 space-y-0.5">
+                  <div className="flex justify-between">
+                    <span>{edu.degree} — {edu.school}</span>
+                    <span className="text-blue-600">{edu.year}</span>
+                  </div>
+                  {edu.coursework && <p className="text-[9px] text-gray-500 italic">Coursework: {edu.coursework}</p>}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {renderCertificationsSection("text-xs font-extrabold uppercase tracking-widest text-blue-800 border-b border-blue-200 pb-0.5", "text-[10px] space-y-1 pt-1")}
+        </div>
+      )}
+
+      {/* ==================== TEMPLATE 13: EXPERIENCED HIRE EXECUTIVE V1 ==================== */}
+      {template === 'experienced_hire_v1' && (
+        <div className="space-y-4 text-left font-sans text-slate-900">
+          <div className="bg-slate-800 text-white p-4 rounded-xl space-y-1">
+            <h1 className="text-2xl font-extrabold tracking-tight uppercase">{personal.name}</h1>
+            <p className="text-xs font-bold text-amber-300">{personal.title}</p>
+            <p className="text-[10px] text-slate-300 pt-1">
+              {renderContactInfo('  |  ')}
+            </p>
+          </div>
+
+          {summary && (
+            <div className="space-y-1">
+              <h3 className="text-xs font-black uppercase tracking-wider text-slate-800 bg-slate-100 py-1 px-2 border-l-4 border-slate-800">Executive Summary</h3>
+              <div className="text-xs text-gray-700 leading-relaxed p-1 font-medium">{summary}</div>
+            </div>
+          )}
+
+          <div className="space-y-1">
+            <h3 className="text-xs font-black uppercase tracking-wider text-slate-800 bg-slate-100 py-1 px-2 border-l-4 border-slate-800">Core Leadership & Technical Competencies</h3>
+            <div className="p-2">{renderSkillsSection("font-bold text-slate-900", "text-[11px] text-gray-800 leading-relaxed")}</div>
+          </div>
+
+          {experience.length > 0 && (
+            <div className="space-y-3">
+              <h3 className="text-xs font-black uppercase tracking-wider text-slate-800 bg-slate-100 py-1 px-2 border-l-4 border-slate-800">Professional Experience</h3>
+              {experience.map((work, idx) => (
+                <div key={idx} className="space-y-1 text-xs p-1">
+                  <div className="flex justify-between font-extrabold text-slate-900">
+                    <span>{work.role} — <span className="text-slate-700">{work.company}</span></span>
+                    <span className="text-gray-500">{work.dates}</span>
+                  </div>
+                  <div className="text-[11px] text-gray-700 leading-relaxed whitespace-pre-line">{work.description}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {education.length > 0 && (
+            <div className="space-y-2">
+              <h3 className="text-xs font-black uppercase tracking-wider text-slate-800 bg-slate-100 py-1 px-2 border-l-4 border-slate-800">Education & Qualifications</h3>
+              {education.map((edu, idx) => (
+                <div key={idx} className="text-xs font-bold text-slate-800 flex justify-between p-1">
+                  <span>{edu.degree}, {edu.school}</span>
+                  <span>{edu.year}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {renderCertificationsSection("text-xs font-black uppercase tracking-wider text-slate-800 bg-slate-100 py-1 px-2 border-l-4 border-slate-800", "text-[10px] space-y-1 p-2")}
+        </div>
+      )}
+
+      {/* ==================== TEMPLATE 14: EXPERIENCED HIRE MODERN V2 ==================== */}
+      {template === 'experienced_hire_v2' && (
+        <div className="space-y-4 text-left font-sans text-slate-900 border-t-4 border-indigo-900 pt-3">
+          <div className="flex justify-between items-start border-b border-gray-200 pb-3">
+            <div>
+              <h1 className="text-2xl font-black text-indigo-950 uppercase tracking-tight">{personal.name}</h1>
+              <p className="text-xs font-extrabold text-indigo-700 mt-0.5">{personal.title}</p>
+            </div>
+            <div className="text-[10px] font-bold text-gray-600 text-right space-y-0.5">
+              {personal.email && <p>✉ {personal.email}</p>}
+              {personal.phone && <p>☎ {personal.phone}</p>}
+              {personal.location && <p>📍 {personal.location}</p>}
+            </div>
+          </div>
+
+          {summary && (
+            <div className="space-y-1">
+              <h3 className="text-xs font-extrabold uppercase tracking-widest text-indigo-950">Executive Profile</h3>
+              <div className="text-xs text-gray-700 leading-relaxed font-semibold">{summary}</div>
+            </div>
+          )}
+
+          <div className="space-y-1.5">
+            <h3 className="text-xs font-extrabold uppercase tracking-widest text-indigo-950 border-b border-gray-200 pb-1">Skills & Domain Expertise</h3>
+            {renderSkillsSection("font-extrabold text-indigo-900", "text-[11px] text-gray-800 leading-relaxed")}
+          </div>
+
+          {experience.length > 0 && (
+            <div className="space-y-3">
+              <h3 className="text-xs font-extrabold uppercase tracking-widest text-indigo-950 border-b border-gray-200 pb-1">Career Timeline</h3>
+              {experience.map((work, idx) => (
+                <div key={idx} className="space-y-1 text-xs">
+                  <div className="flex justify-between font-black text-slate-900">
+                    <span>{work.role} | <span className="text-indigo-800">{work.company}</span></span>
+                    <span className="text-gray-400">{work.dates}</span>
+                  </div>
+                  <div className="text-[11px] text-gray-600 leading-relaxed whitespace-pre-line">{work.description}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {education.length > 0 && (
+            <div className="space-y-2">
+              <h3 className="text-xs font-extrabold uppercase tracking-widest text-indigo-950 border-b border-gray-200 pb-1">Education</h3>
+              {education.map((edu, idx) => (
+                <div key={idx} className="text-xs font-bold text-slate-800 flex justify-between">
+                  <span>{edu.degree} — {edu.school}</span>
+                  <span className="text-indigo-800">{edu.year}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {renderCertificationsSection("text-xs font-extrabold uppercase tracking-widest text-indigo-950 border-b border-gray-200 pb-1", "text-[10px] space-y-1 pt-1")}
+        </div>
+      )}
+
+      {/* ==================== TEMPLATE 15: UNIVERSITY STUDENT & GRADUATE ==================== */}
+      {template === 'student_graduate' && (
+        <div className="space-y-4 text-left font-sans text-slate-900">
+          <div className="text-center space-y-1 border-b-2 border-emerald-600 pb-3">
+            <h1 className="text-2xl font-black text-slate-900 uppercase tracking-tight">{personal.name}</h1>
+            <p className="text-xs font-extrabold text-emerald-700">{personal.title || 'Computer Science Graduate'}</p>
+            <p className="text-[10px] text-gray-600 font-semibold pt-1">
+              {renderContactInfo('  •  ')}
+            </p>
+          </div>
+
+          {education.length > 0 && (
+            <div className="space-y-2">
+              <h3 className="text-xs font-extrabold uppercase tracking-widest text-emerald-800 border-b border-emerald-200 pb-0.5">Education & Academic Background</h3>
+              {education.map((edu, idx) => (
+                <div key={idx} className="space-y-1 text-xs">
+                  <div className="flex justify-between font-black text-slate-900">
+                    <span>{edu.degree} — {edu.school}</span>
+                    <span className="text-emerald-700">{edu.year}</span>
+                  </div>
+                  {edu.coursework && <p className="text-[10px] text-gray-600 font-medium"><span className="font-bold text-slate-800">Relevant Coursework:</span> {edu.coursework}</p>}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {summary && (
+            <div className="space-y-1">
+              <h3 className="text-xs font-extrabold uppercase tracking-widest text-emerald-800 border-b border-emerald-200 pb-0.5">Objective & Profile</h3>
+              <div className="text-xs text-gray-700 leading-relaxed font-medium">{summary}</div>
+            </div>
+          )}
+
+          <div className="space-y-1.5">
+            <h3 className="text-xs font-extrabold uppercase tracking-widest text-emerald-800 border-b border-emerald-200 pb-0.5">Technical & Core Skills</h3>
+            <div className="bg-emerald-50/40 p-2.5 rounded-xl border border-emerald-100">
+              {renderSkillsSection("font-bold text-emerald-900", "text-[10px] text-gray-800 leading-normal")}
+            </div>
+          </div>
+
+          {projects.length > 0 && (
+            <div className="space-y-3">
+              <h3 className="text-xs font-extrabold uppercase tracking-widest text-emerald-800 border-b border-emerald-200 pb-0.5">Academic & Personal Projects</h3>
+              {projects.map((proj, idx) => (
+                <div key={idx} className="space-y-1 text-xs">
+                  <div className="flex justify-between font-bold text-slate-900">
+                    <span>{proj.title}</span>
+                    <span className="text-emerald-700 text-[10px]">{proj.technologies}</span>
+                  </div>
+                  <div className="text-[11px] text-gray-600 leading-relaxed">{proj.description}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {experience.length > 0 && (
+            <div className="space-y-3">
+              <h3 className="text-xs font-extrabold uppercase tracking-widest text-emerald-800 border-b border-emerald-200 pb-0.5">Internship & Work Experience</h3>
+              {experience.map((work, idx) => (
+                <div key={idx} className="space-y-1 text-xs">
+                  <div className="flex justify-between font-bold text-slate-900">
+                    <span>{work.role}, {work.company}</span>
+                    <span className="text-gray-400">{work.dates}</span>
+                  </div>
+                  <div className="text-[11px] text-gray-600 leading-relaxed whitespace-pre-line">{work.description}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {renderCertificationsSection("text-xs font-extrabold uppercase tracking-widest text-emerald-800 border-b border-emerald-200 pb-0.5", "text-[10px] space-y-1 pt-1")}
+        </div>
+      )}
+
+      {/* ==================== TEMPLATE 16: TECHNICAL PROGRAM MANAGER (TPM) ==================== */}
+      {template === 'tech_program_mgr' && (
+        <div className="space-y-4 text-left font-sans text-slate-900">
+          <div className="border-b-2 border-purple-800 pb-3 space-y-1">
+            <h1 className="text-2xl font-black text-purple-950 tracking-tight uppercase">{personal.name}</h1>
+            <p className="text-xs font-extrabold text-purple-700">{personal.title || 'Technical Program Manager (TPM)'}</p>
+            <p className="text-[10px] text-gray-600 font-semibold pt-1">
+              {renderContactInfo('  •  ')}
+            </p>
+          </div>
+
+          {summary && (
+            <div className="space-y-1">
+              <h3 className="text-xs font-extrabold uppercase tracking-widest text-purple-900 border-b border-purple-200 pb-0.5">Program Leadership Summary</h3>
+              <div className="text-xs text-gray-700 leading-relaxed font-semibold">{summary}</div>
+            </div>
+          )}
+
+          <div className="space-y-1.5">
+            <h3 className="text-xs font-extrabold uppercase tracking-widest text-purple-900 border-b border-purple-200 pb-0.5">TPM Core Matrix & Architecture Tools</h3>
+            <div className="bg-purple-50/40 p-3 rounded-xl border border-purple-100">
+              {renderSkillsSection("font-bold text-purple-900", "text-[10px] text-gray-800 leading-normal")}
+            </div>
+          </div>
+
+          {experience.length > 0 && (
+            <div className="space-y-3">
+              <h3 className="text-xs font-extrabold uppercase tracking-widest text-purple-900 border-b border-purple-200 pb-0.5">Program Management Experience</h3>
+              {experience.map((work, idx) => (
+                <div key={idx} className="space-y-1 text-xs">
+                  <div className="flex justify-between font-extrabold text-slate-900">
+                    <span>{work.role} — <span className="text-purple-800">{work.company}</span></span>
+                    <span className="text-gray-400">{work.dates}</span>
+                  </div>
+                  <div className="text-[11px] text-gray-600 leading-relaxed whitespace-pre-line">{work.description}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {projects.length > 0 && (
+            <div className="space-y-3">
+              <h3 className="text-xs font-extrabold uppercase tracking-widest text-purple-900 border-b border-purple-200 pb-0.5">Key System Deliverables</h3>
+              {projects.map((proj, idx) => (
+                <div key={idx} className="space-y-1 text-xs">
+                  <div className="flex justify-between font-bold text-slate-900">
+                    <span>{proj.title}</span>
+                    <span className="text-[10px] text-purple-700 font-extrabold">{proj.technologies}</span>
+                  </div>
+                  <div className="text-[11px] text-gray-650 leading-relaxed">{proj.description}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {education.length > 0 && (
+            <div className="space-y-2">
+              <h3 className="text-xs font-extrabold uppercase tracking-widest text-purple-900 border-b border-purple-200 pb-0.5">Education</h3>
+              {education.map((edu, idx) => (
+                <div key={idx} className="text-xs font-bold text-slate-800 flex justify-between">
+                  <span>{edu.degree} — {edu.school}</span>
+                  <span className="text-purple-800">{edu.year}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {renderCertificationsSection("text-xs font-extrabold uppercase tracking-widest text-purple-900 border-b border-purple-200 pb-0.5", "text-[10px] space-y-1 pt-1")}
+        </div>
+      )}
+
+      {/* ==================== TEMPLATE 17: CORPORATE BULLET MINIMALIST ==================== */}
+      {template === 'corporate_bullet' && (
+        <div className="space-y-3.5 text-left font-sans text-slate-900">
+          <div className="border-b border-slate-900 pb-2 space-y-0.5">
+            <h1 className="text-xl font-bold uppercase tracking-tight text-slate-900">{personal.name}</h1>
+            <p className="text-xs font-bold text-slate-700">{personal.title}</p>
+            <p className="text-[10px] text-slate-600 font-medium">
+              {renderContactInfo('  |  ')}
+            </p>
+          </div>
+
+          {summary && (
+            <div className="space-y-1">
+              <h3 className="text-[11px] font-bold uppercase tracking-wider text-slate-900 border-b border-slate-300 pb-0.5">Summary</h3>
+              <div className="text-[11px] text-slate-800 leading-normal font-normal">{summary}</div>
+            </div>
+          )}
+
+          <div className="space-y-1">
+            <h3 className="text-[11px] font-bold uppercase tracking-wider text-slate-900 border-b border-slate-300 pb-0.5">Skills</h3>
+            {renderSkillsSection("font-bold text-slate-900", "text-[10px] text-slate-800 leading-normal")}
+          </div>
+
+          {experience.length > 0 && (
+            <div className="space-y-2.5">
+              <h3 className="text-[11px] font-bold uppercase tracking-wider text-slate-900 border-b border-slate-300 pb-0.5">Work Experience</h3>
+              {experience.map((work, idx) => (
+                <div key={idx} className="space-y-0.5 text-xs">
+                  <div className="flex justify-between font-bold text-slate-900">
+                    <span>{work.role}, {work.company}</span>
+                    <span className="text-slate-600 text-[10px]">{work.dates}</span>
+                  </div>
+                  <div className="text-[10px] text-slate-800 leading-relaxed whitespace-pre-line pl-1">{work.description}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {projects.length > 0 && (
+            <div className="space-y-2.5">
+              <h3 className="text-[11px] font-bold uppercase tracking-wider text-slate-900 border-b border-slate-300 pb-0.5">Projects</h3>
+              {projects.map((proj, idx) => (
+                <div key={idx} className="space-y-0.5 text-xs">
+                  <div className="flex justify-between font-bold text-slate-900">
+                    <span>{proj.title}</span>
+                    <span className="text-[9px] text-slate-600 font-normal">Tech: {proj.technologies}</span>
+                  </div>
+                  <div className="text-[10px] text-slate-800 leading-relaxed pl-1">{proj.description}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {education.length > 0 && (
+            <div className="space-y-1">
+              <h3 className="text-[11px] font-bold uppercase tracking-wider text-slate-900 border-b border-slate-300 pb-0.5">Education</h3>
+              {education.map((edu, idx) => (
+                <div key={idx} className="text-xs font-bold text-slate-900 flex justify-between">
+                  <span>{edu.degree}, {edu.school}</span>
+                  <span>{edu.year}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {renderCertificationsSection("text-[11px] font-bold uppercase tracking-wider text-slate-900 border-b border-slate-300 pb-0.5", "text-[10px] space-y-1 pt-1")}
+        </div>
+      )}
     </>
   );
 }

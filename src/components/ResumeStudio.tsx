@@ -113,7 +113,15 @@ const TEMPLATE_OPTIONS = [
   { id: 'sidebar', name: 'Split Sidebar', tag: 'Two-Column Tech', category: 'Technical' },
   { id: 'indigo', name: 'Indigo Startup', tag: 'Modern Web', category: 'Modern' },
   { id: 'slate', name: 'Slate Corporate', tag: 'Minimalist', category: 'Corporate' },
-  { id: 'emerald', name: 'Emerald Fresh', tag: 'Badge Grid', category: 'Modern' }
+  { id: 'emerald', name: 'Emerald Fresh', tag: 'Badge Grid', category: 'Modern' },
+  { id: 'aditya_srikar', name: 'Aditya Srikar Senior Tech', tag: 'High Impact Lead', category: 'Technical' },
+  { id: 'classic_formal', name: 'Classic Formal ATS', tag: 'Word Standard', category: 'Corporate' },
+  { id: 'data_scientist', name: 'Entry Level Data Scientist', tag: 'AI & Analytics', category: 'Technical' },
+  { id: 'experienced_hire_v1', name: 'Experienced Hire v1', tag: 'Senior Executive', category: 'Executive' },
+  { id: 'experienced_hire_v2', name: 'Experienced Hire v2', tag: 'Modern Specialist', category: 'Executive' },
+  { id: 'student_graduate', name: 'University Graduate', tag: 'Student Focus', category: 'Corporate' },
+  { id: 'tech_program_mgr', name: 'Technical Program Mgr', tag: 'TPM & Agile', category: 'Technical' },
+  { id: 'corporate_bullet', name: 'Corporate Bullet', tag: 'Minimal ATS', category: 'Corporate' }
 ] as const;
 
 const BLANK_RESUME: Resume = {

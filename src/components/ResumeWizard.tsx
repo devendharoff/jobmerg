@@ -20,7 +20,15 @@ const TEMPLATE_OPTIONS = [
   { id: 'sidebar', name: 'Split Sidebar', tag: 'Two-Column Tech' },
   { id: 'indigo', name: 'Indigo Startup', tag: 'Modern Web' },
   { id: 'slate', name: 'Slate Corporate', tag: 'Minimalist' },
-  { id: 'emerald', name: 'Emerald Fresh', tag: 'Badge Grid' }
+  { id: 'emerald', name: 'Emerald Fresh', tag: 'Badge Grid' },
+  { id: 'aditya_srikar', name: 'Aditya Srikar Tech Lead', tag: 'High Impact Lead' },
+  { id: 'classic_formal', name: 'Classic Formal ATS', tag: 'Word Standard' },
+  { id: 'data_scientist', name: 'Entry Data Scientist', tag: 'AI & Analytics' },
+  { id: 'experienced_hire_v1', name: 'Experienced Hire v1', tag: 'Senior Executive' },
+  { id: 'experienced_hire_v2', name: 'Experienced Hire v2', tag: 'Modern Specialist' },
+  { id: 'student_graduate', name: 'University Graduate', tag: 'Student Focus' },
+  { id: 'tech_program_mgr', name: 'Technical Program Mgr', tag: 'TPM & Agile' },
+  { id: 'corporate_bullet', name: 'Corporate Bullet', tag: 'Minimal ATS' }
 ];
 
 function flattenSkills(skills: any): string[] {
