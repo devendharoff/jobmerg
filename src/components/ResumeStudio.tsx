@@ -3,10 +3,11 @@ import {
   Sparkles, Upload, Plus, Search, Trash2, Printer, ArrowRight, ArrowLeft, Check, CheckCircle2, 
   X, AlertCircle, AlertTriangle, ExternalLink, FileText, BookOpen, Briefcase, Award, LayoutGrid, Activity, 
   Columns, Eye, Settings, Undo, Redo, ZoomIn, ZoomOut, Copy, History, Sliders, Info, ShieldCheck, 
-  ChevronRight, Calendar, MapPin, Mail, Phone, Globe, Trash, RefreshCw, User, Award as CertIcon
+  ChevronRight, Calendar, MapPin, Mail, Phone, Globe, Trash, RefreshCw, User, Award as CertIcon, Edit3
 } from 'lucide-react';
 import ResumeTemplateRenderer from './ResumeTemplateRenderer';
 import { TemplateId } from './ResumeBuilder';
+import { extractKeywordsFromJD } from '../../services/jdAnalyzer';
 
 interface WorkExp {
   company: string;
@@ -1138,51 +1139,165 @@ export default function ResumeStudio({ userProfile, onOpenPricing }: ResumeStudi
   };
 
 
-  // Job analysis trigger
+  // Quick Edit Drawer state
+  const [isQuickEditOpen, setIsQuickEditOpen] = useState(false);
+  const [activeQuickEditTab, setActiveQuickEditTab] = useState<'personal' | 'summary' | 'skills' | 'experience' | 'education' | 'projects' | 'certifications'>('personal');
+
+  // Job analysis trigger with dynamic keyword extraction
   const handleAnalyzeJob = () => {
     if (!jobDescription.trim() || jobDescription.trim().length < 50) return;
     setIsMatching(true);
 
     setTimeout(() => {
-      // Mocked high-end Job match insights
+      // 1. Prepare candidate text & skills list
+      const candidateText = [
+        personal.name,
+        personal.title,
+        summary,
+        skillsGrouped.languages,
+        skillsGrouped.frameworks,
+        skillsGrouped.tools,
+        skillsGrouped.competencies,
+        ...experience.map(e => `${e.role} ${e.company} ${e.description} ${e.technologies || ''}`),
+        ...education.map(e => `${e.degree} ${e.school} ${e.coursework || ''}`),
+        ...projects.map(p => `${p.title} ${p.description} ${p.technologies}`),
+        ...certifications
+      ].join(' ');
+
+      const candidateSkills = [
+        ...skillsGrouped.languages.split(','),
+        ...skillsGrouped.frameworks.split(','),
+        ...skillsGrouped.tools.split(','),
+        ...skillsGrouped.competencies.split(',')
+      ].map(s => s.trim()).filter(Boolean);
+
+      // 2. Perform dynamic NLP analysis via extractKeywordsFromJD
+      const analysis = extractKeywordsFromJD(jobDescription, candidateText, candidateSkills);
+
+      // 3. Extract company name if present in JD
+      let companyName = activeResume.targetCompany || 'Target Company';
+      const companyMatch = jobDescription.match(/(?:at|company:?|hiring for|join|team at)\s+([A-Z][A-Za-z0-9\s&.]{2,30})/i);
+      if (companyMatch && companyMatch[1]) {
+        const extractedCompany = companyMatch[1].trim();
+        if (!['The', 'A', 'An', 'Our', 'We', 'This', 'Your'].includes(extractedCompany)) {
+          companyName = extractedCompany;
+        }
+      }
+
+      // 4. Extract experience requirement if present
+      let expLevel = '2–5 years';
+      const expMatch = jobDescription.match(/(\d+\s*[-–+to]\s*\d*|\d+\+?)\s*(?:years?|yrs?)/i);
+      if (expMatch && expMatch[0]) {
+        expLevel = expMatch[0].trim();
+      }
+
+      // 5. Extract location/work mode
+      let locationMode = 'Remote / Hybrid';
+      if (/remote/i.test(jobDescription)) locationMode = 'Remote';
+      else if (/hybrid/i.test(jobDescription)) locationMode = 'Hybrid';
+      else if (/on-?site/i.test(jobDescription)) locationMode = 'On-site';
+
+      const foundKws = analysis.extractedKeywords.found;
+      const missingKws = analysis.extractedKeywords.missing;
+      const priorityKws = analysis.extractedKeywords.priority;
+
+      const allExtractedKws = [...foundKws, ...missingKws];
+      setKeywordsToHighlight(allExtractedKws.length > 0 ? allExtractedKws : ['React', 'TypeScript', 'Next.js']);
+
+      const matchScore = Math.max(35, Math.min(98, analysis.currentMatchScore));
+
       const match = {
-        role: 'Frontend Development Engineer',
-        company: 'Microsoft',
-        experience: '2–4 years',
-        location: 'Hyderabad / Hybrid',
-        requiredSkills: ['React', 'TypeScript', 'Next.js', 'REST APIs', 'Data Structures'],
-        preferredSkills: ['AWS', 'Docker', 'CI/CD', 'Tailwind CSS'],
-        matchedKeywords: ['React', 'TypeScript', 'Docker', 'REST APIs', 'Tailwind CSS'],
-        missingKeywords: ['Next.js', 'AWS', 'CI/CD'],
-        matchScore: 87
+        role: analysis.jobTitle || activeResume.targetRole || 'Target Role',
+        company: companyName,
+        experience: expLevel,
+        location: locationMode,
+        requiredSkills: allExtractedKws.slice(0, 10),
+        preferredSkills: missingKws.slice(0, 5),
+        matchedKeywords: foundKws,
+        missingKeywords: missingKws,
+        matchScore: matchScore
       };
+
       setJobMatchResult(match);
+
+      // 6. Build dynamic tailoring recommendations based on actual missing keywords
+      const topMissing = priorityKws.length > 0 ? priorityKws : missingKws;
+      const recs: {
+        id: string;
+        section: 'summary' | 'experience' | 'skills';
+        index?: number;
+        before: string;
+        after: string;
+        why: string;
+        status: 'pending' | 'accepted' | 'rejected';
+      }[] = [];
+
+      if (topMissing.length > 0) {
+        const topKwsText = topMissing.slice(0, 3).join(', ');
+
+        // Summary Recommendation
+        const summaryBefore = summary || 'Experienced professional with a proven track record.';
+        const summaryAfter = summaryBefore.toLowerCase().includes(topMissing[0].toLowerCase())
+          ? summaryBefore
+          : `${summaryBefore.trim().replace(/\.$/, '')}, with specialized expertise in ${topKwsText} to drive product goals.`;
+
+        recs.push({
+          id: 'rec-summary',
+          section: 'summary',
+          before: summaryBefore,
+          after: summaryAfter,
+          why: `Incorporates top missing priority keywords (${topKwsText}) extracted directly from this specific job description.`,
+          status: 'pending'
+        });
+
+        // Experience Recommendation
+        if (experience.length > 0) {
+          const expBefore = experience[0].description || 'Engineered and maintained core application features.';
+          const expKw1 = topMissing[0] || 'scalable architecture';
+          const expKw2 = topMissing[1] || 'modern best practices';
+
+          const expAfter = `${expBefore.trim()}\n• Utilized ${expKw1} and ${expKw2} to improve throughput and streamline release cycles.`;
+
+          recs.push({
+            id: 'rec-exp-0',
+            section: 'experience',
+            index: 0,
+            before: expBefore,
+            after: expAfter,
+            why: `Weaves target qualification keywords (${expKw1}, ${expKw2}) into work experience bullet points.`,
+            status: 'pending'
+          });
+        }
+
+        // Skills Recommendation
+        if (topMissing.length >= 2) {
+          const skillsToAdd = topMissing.slice(0, 4).join(', ');
+          recs.push({
+            id: 'rec-skills',
+            section: 'skills',
+            before: skillsGrouped.tools || 'Technical Tools',
+            after: skillsGrouped.tools ? `${skillsGrouped.tools}, ${skillsToAdd}` : skillsToAdd,
+            why: `Adds missing technical requirements (${skillsToAdd}) to your Tools section for ATS compliance.`,
+            status: 'pending'
+          });
+        }
+      }
+
+      setTailorRecommendations(recs);
       setIsMatching(false);
 
-      // Populate tailoring recommendations
-      setTailorRecommendations([
-        {
-          id: 'rec-1',
-          section: 'summary',
-          before: summary,
-          after: 'Driven software engineer specializing in building responsive web applications using React, TypeScript, and Next.js. Experienced in designing microservices and integrating REST APIs with secure authentication wrappers.',
-          why: 'The job description explicitly prioritizes Next.js and REST API integration as core responsibilities.',
-          status: 'pending'
-        },
-        {
-          id: 'rec-2',
-          section: 'experience',
-          index: 0,
-          before: experience[0]?.description || '',
-          after: '• Engineered client-facing web application pages in React and Next.js using component architecture.\n• Designed and integrated high-throughput REST APIs using Node.js for backend services.\n• Maintained code version stability using Git workflows and deployed staging containers to Docker.',
-          why: 'Weaves in target keywords Next.js and REST APIs to align experience bullets directly with the qualifications.',
-          status: 'pending'
-        }
-      ]);
-    }, 1200);
+      // Save active resume target info
+      setResumes(prev => prev.map(r => r.id === selectedResumeId ? {
+        ...r,
+        targetRole: match.role,
+        targetCompany: match.company,
+        atsScore: matchScore
+      } : r));
+
+    }, 800);
   };
 
-  // Apply Tayloring change actions
+  // Apply Tailoring change actions
   const handleAcceptTailoring = (id: string) => {
     setTailorRecommendations(prev => prev.map(r => r.id === id ? { ...r, status: 'accepted' } : r));
   };
@@ -1195,8 +1310,8 @@ export default function ResumeStudio({ userProfile, onOpenPricing }: ResumeStudi
     // Create new version in timeline
     const newVersion: ResumeVersion = {
       id: `ver-${Date.now()}`,
-      name: `${activeResume.targetCompany} Tailored Version`,
-      atsScore: 94,
+      name: `${activeResume.targetCompany || 'Tailored'} Version`,
+      atsScore: Math.min(98, (jobMatchResult?.matchScore || 85) + 7),
       lastUpdated: 'Just now',
       version: `v${activeResume.versions.length + 2}`,
       summary: summary,
@@ -1216,16 +1331,18 @@ export default function ResumeStudio({ userProfile, onOpenPricing }: ResumeStudi
         if (rec.section === 'summary') {
           updatedSummary = rec.after;
         }
-        if (rec.section === 'experience' && rec.index !== undefined) {
+        if (rec.section === 'experience' && rec.index !== undefined && updatedExperience[rec.index]) {
           updatedExperience[rec.index].description = rec.after;
+        }
+        if (rec.section === 'skills') {
+          updatedSkills.tools = rec.after;
         }
       }
     });
 
-    // Boost matched keywords to skills list
-    if (jobMatchResult) {
-      updatedSkills.frameworks = [...new Set([...updatedSkills.frameworks.split(',').map(s => s.trim()), 'Next.js'])].join(', ');
-      updatedSkills.tools = [...new Set([...updatedSkills.tools.split(',').map(s => s.trim()), 'CI/CD', 'AWS'])].join(', ');
+    if (jobMatchResult && jobMatchResult.matchedKeywords.length > 0) {
+      const topMatched = jobMatchResult.matchedKeywords.slice(0, 4);
+      updatedSkills.tools = [...new Set([...updatedSkills.tools.split(',').map(s => s.trim()).filter(Boolean), ...topMatched])].join(', ');
     }
 
     setSummary(updatedSummary);
@@ -1234,7 +1351,7 @@ export default function ResumeStudio({ userProfile, onOpenPricing }: ResumeStudi
 
     setResumes(prev => prev.map(r => r.id === selectedResumeId ? {
       ...r,
-      atsScore: 94,
+      atsScore: Math.min(98, (r.atsScore || 80) + 7),
       version: `v${r.versions.length + 2}`,
       versions: [newVersion, ...r.versions]
     } : r));
@@ -1242,13 +1359,24 @@ export default function ResumeStudio({ userProfile, onOpenPricing }: ResumeStudi
     goToStep('tailorSummary');
   };
 
-  // Add / remove handlers for lists
+  // Add / remove / update handlers for lists
   const addWork = () => setExperience([...experience, { company: '', role: '', dates: '', description: '', technologies: '' }]);
   const removeWork = (idx: number) => setExperience(experience.filter((_, i) => i !== idx));
+  const updateWork = (idx: number, field: keyof WorkExp, val: string) => {
+    setExperience(prev => prev.map((item, i) => i === idx ? { ...item, [field]: val } : item));
+  };
+
   const addEdu = () => setEducation([...education, { school: '', degree: '', year: '', coursework: '' }]);
   const removeEdu = (idx: number) => setEducation(education.filter((_, i) => i !== idx));
+  const updateEdu = (idx: number, field: keyof Education, val: string) => {
+    setEducation(prev => prev.map((item, i) => i === idx ? { ...item, [field]: val } : item));
+  };
+
   const addProj = () => setProjects([...projects, { title: '', technologies: '', description: '' }]);
   const removeProj = (idx: number) => setProjects(projects.filter((_, i) => i !== idx));
+  const updateProj = (idx: number, field: keyof Project, val: string) => {
+    setProjects(prev => prev.map((item, i) => i === idx ? { ...item, [field]: val } : item));
+  };
 
   const handleAddCert = (e: React.FormEvent) => {
     e.preventDefault();
@@ -1329,6 +1457,16 @@ export default function ResumeStudio({ userProfile, onOpenPricing }: ResumeStudi
 
         {/* Top actions */}
         <div className="flex items-center gap-2">
+          {currentStep !== 'home' && (
+            <button 
+              onClick={() => setIsQuickEditOpen(true)}
+              className="px-3.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-xl text-xs font-extrabold cursor-pointer transition-all flex items-center gap-1.5 shadow-xs"
+              title="Edit any text in your resume at any stage"
+            >
+              <Edit3 className="w-3.5 h-3.5" />
+              <span>Edit Resume</span>
+            </button>
+          )}
           {currentStep !== 'home' && (
             <button 
               onClick={handlePrevStep}
@@ -1693,6 +1831,178 @@ export default function ResumeStudio({ userProfile, onOpenPricing }: ResumeStudi
                       className="w-full bg-white border border-gray-200 rounded-xl px-3 py-1.5 text-gray-805 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                     />
                   </div>
+                </div>
+              </div>
+
+              {/* Work Experience Section */}
+              <div className="border border-gray-150 p-5 rounded-3xl bg-slate-50/50 space-y-4">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-xs font-black uppercase text-slate-805 tracking-wider">Work Experience</h3>
+                  <button 
+                    onClick={addWork} 
+                    className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-extrabold flex items-center gap-1 shadow-xs cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> Add Experience
+                  </button>
+                </div>
+                {experience.map((exp, idx) => (
+                  <div key={idx} className="bg-white border border-gray-200 p-4 rounded-2xl space-y-3 relative text-xs">
+                    <div className="flex justify-between items-center">
+                      <span className="font-extrabold text-slate-900">Position #{idx + 1}</span>
+                      <button onClick={() => removeWork(idx)} className="text-red-500 hover:text-red-700 text-[10px] font-bold flex items-center gap-1 cursor-pointer">
+                        <Trash2 className="w-3.5 h-3.5" /> Remove
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <input 
+                        type="text" 
+                        placeholder="Role / Title (e.g. Senior Frontend Developer)" 
+                        value={exp.role} 
+                        onChange={e => updateWork(idx, 'role', e.target.value)}
+                        className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-1.5 font-semibold text-slate-800 focus:outline-none focus:bg-white"
+                      />
+                      <input 
+                        type="text" 
+                        placeholder="Company Name (e.g. Google)" 
+                        value={exp.company} 
+                        onChange={e => updateWork(idx, 'company', e.target.value)}
+                        className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-1.5 font-semibold text-slate-800 focus:outline-none focus:bg-white"
+                      />
+                    </div>
+                    <input 
+                      type="text" 
+                      placeholder="Dates (e.g. Jan 2022 – Present)" 
+                      value={exp.dates} 
+                      onChange={e => updateWork(idx, 'dates', e.target.value)}
+                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-1.5 font-semibold text-slate-800 focus:outline-none focus:bg-white"
+                    />
+                    <textarea 
+                      rows={3} 
+                      placeholder="Key achievements and bullet points..." 
+                      value={exp.description} 
+                      onChange={e => updateWork(idx, 'description', e.target.value)}
+                      className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 font-medium text-slate-800 focus:outline-none focus:bg-white resize-none"
+                    />
+                  </div>
+                ))}
+              </div>
+
+              {/* Education Section */}
+              <div className="border border-gray-150 p-5 rounded-3xl bg-slate-50/50 space-y-4">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-xs font-black uppercase text-slate-805 tracking-wider">Education</h3>
+                  <button 
+                    onClick={addEdu} 
+                    className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-extrabold flex items-center gap-1 shadow-xs cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> Add Education
+                  </button>
+                </div>
+                {education.map((edu, idx) => (
+                  <div key={idx} className="bg-white border border-gray-200 p-4 rounded-2xl space-y-3 relative text-xs">
+                    <div className="flex justify-between items-center">
+                      <span className="font-extrabold text-slate-900">Education #{idx + 1}</span>
+                      <button onClick={() => removeEdu(idx)} className="text-red-500 hover:text-red-700 text-[10px] font-bold flex items-center gap-1 cursor-pointer">
+                        <Trash2 className="w-3.5 h-3.5" /> Remove
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <input 
+                        type="text" 
+                        placeholder="Degree (e.g. B.S. Computer Science)" 
+                        value={edu.degree} 
+                        onChange={e => updateEdu(idx, 'degree', e.target.value)}
+                        className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-1.5 font-semibold text-slate-800 focus:outline-none focus:bg-white"
+                      />
+                      <input 
+                        type="text" 
+                        placeholder="Institution / University" 
+                        value={edu.school} 
+                        onChange={e => updateEdu(idx, 'school', e.target.value)}
+                        className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-1.5 font-semibold text-slate-800 focus:outline-none focus:bg-white"
+                      />
+                    </div>
+                    <input 
+                      type="text" 
+                      placeholder="Graduation Year (e.g. 2023)" 
+                      value={edu.year} 
+                      onChange={e => updateEdu(idx, 'year', e.target.value)}
+                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-1.5 font-semibold text-slate-800 focus:outline-none focus:bg-white"
+                    />
+                  </div>
+                ))}
+              </div>
+
+              {/* Projects Section */}
+              <div className="border border-gray-150 p-5 rounded-3xl bg-slate-50/50 space-y-4">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-xs font-black uppercase text-slate-805 tracking-wider">Projects</h3>
+                  <button 
+                    onClick={addProj} 
+                    className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-extrabold flex items-center gap-1 shadow-xs cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> Add Project
+                  </button>
+                </div>
+                {projects.map((proj, idx) => (
+                  <div key={idx} className="bg-white border border-gray-200 p-4 rounded-2xl space-y-3 relative text-xs">
+                    <div className="flex justify-between items-center">
+                      <span className="font-extrabold text-slate-900">Project #{idx + 1}</span>
+                      <button onClick={() => removeProj(idx)} className="text-red-500 hover:text-red-700 text-[10px] font-bold flex items-center gap-1 cursor-pointer">
+                        <Trash2 className="w-3.5 h-3.5" /> Remove
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <input 
+                        type="text" 
+                        placeholder="Project Title" 
+                        value={proj.title} 
+                        onChange={e => updateProj(idx, 'title', e.target.value)}
+                        className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-1.5 font-semibold text-slate-800 focus:outline-none focus:bg-white"
+                      />
+                      <input 
+                        type="text" 
+                        placeholder="Technologies Used" 
+                        value={proj.technologies} 
+                        onChange={e => updateProj(idx, 'technologies', e.target.value)}
+                        className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-1.5 font-semibold text-slate-800 focus:outline-none focus:bg-white"
+                      />
+                    </div>
+                    <textarea 
+                      rows={2} 
+                      placeholder="Project description..." 
+                      value={proj.description} 
+                      onChange={e => updateProj(idx, 'description', e.target.value)}
+                      className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 font-medium text-slate-800 focus:outline-none focus:bg-white resize-none"
+                    />
+                  </div>
+                ))}
+              </div>
+
+              {/* Certifications Section */}
+              <div className="border border-gray-150 p-5 rounded-3xl bg-slate-50/50 space-y-4">
+                <h3 className="text-xs font-black uppercase text-slate-805 tracking-wider">Certifications</h3>
+                <form onSubmit={handleAddCert} className="flex gap-2">
+                  <input 
+                    type="text" 
+                    placeholder="Add certification (e.g. AWS Certified Solutions Architect)" 
+                    value={certInput} 
+                    onChange={e => setCertInput(e.target.value)}
+                    className="flex-1 bg-white border border-gray-200 rounded-xl px-3 py-1.5 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  />
+                  <button type="submit" className="px-3.5 py-1.5 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 cursor-pointer">
+                    Add
+                  </button>
+                </form>
+                <div className="flex flex-wrap gap-2">
+                  {certifications.map((cert, idx) => (
+                    <span key={idx} className="bg-white border border-gray-200 text-slate-800 px-3 py-1 rounded-xl text-xs font-bold flex items-center gap-1.5">
+                      <span>{cert}</span>
+                      <button onClick={() => removeCert(idx)} className="text-gray-400 hover:text-red-500 cursor-pointer">
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </span>
+                  ))}
                 </div>
               </div>
 
@@ -2531,6 +2841,343 @@ export default function ResumeStudio({ userProfile, onOpenPricing }: ResumeStudi
           }
         }
       `}</style>
+
+      {/* GLOBAL QUICK EDIT DRAWER / MODAL - ACCESSIBLE FROM ALL STEPS */}
+      {isQuickEditOpen && (
+        <div className="fixed inset-0 z-50 flex justify-end bg-slate-900/60 backdrop-blur-xs animate-fade-in print:hidden">
+          <div className="w-full max-w-2xl bg-white h-full shadow-2xl flex flex-col justify-between border-l border-gray-200">
+            {/* Header */}
+            <div className="p-5 border-b border-gray-150 flex items-center justify-between bg-slate-50">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-indigo-600 text-white rounded-xl flex items-center justify-center font-bold">
+                  <Edit3 className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-slate-900 font-display">Edit Resume Content</h3>
+                  <p className="text-[10px] text-gray-500 font-semibold">Changes sync instantly across all stages & template previews</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setIsQuickEditOpen(false)}
+                className="p-1.5 text-gray-400 hover:text-slate-800 rounded-xl hover:bg-gray-200 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Quick Edit Navigation Tabs */}
+            <div className="flex items-center gap-1 p-2 bg-gray-100 border-b border-gray-200 overflow-x-auto scrollbar-none shrink-0 text-xs font-bold">
+              {[
+                { id: 'personal', label: 'Personal' },
+                { id: 'summary', label: 'Summary' },
+                { id: 'skills', label: 'Skills' },
+                { id: 'experience', label: 'Experience' },
+                { id: 'education', label: 'Education' },
+                { id: 'projects', label: 'Projects' },
+                { id: 'certifications', label: 'Certifications' }
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveQuickEditTab(tab.id as any)}
+                  className={`px-3 py-1.5 rounded-lg whitespace-nowrap transition-all cursor-pointer ${
+                    activeQuickEditTab === tab.id ? 'bg-white text-indigo-700 shadow-xs font-black' : 'text-gray-600 hover:text-slate-900'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Tab Content Body */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-4 text-xs font-semibold">
+              
+              {/* Personal Tab */}
+              {activeQuickEditTab === 'personal' && (
+                <div className="space-y-3">
+                  <div className="space-y-1">
+                    <label className="text-gray-600 font-bold">Full Name</label>
+                    <input 
+                      type="text" 
+                      value={personal.name} 
+                      onChange={e => setPersonal({...personal, name: e.target.value})} 
+                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:bg-white"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-gray-600 font-bold">Professional Title</label>
+                    <input 
+                      type="text" 
+                      value={personal.title} 
+                      onChange={e => setPersonal({...personal, title: e.target.value})} 
+                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:bg-white"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-gray-600 font-bold">Email</label>
+                      <input 
+                        type="text" 
+                        value={personal.email} 
+                        onChange={e => setPersonal({...personal, email: e.target.value})} 
+                        className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:bg-white"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-gray-600 font-bold">Phone</label>
+                      <input 
+                        type="text" 
+                        value={personal.phone} 
+                        onChange={e => setPersonal({...personal, phone: e.target.value})} 
+                        className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:bg-white"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-gray-600 font-bold">LinkedIn URL</label>
+                    <input 
+                      type="text" 
+                      value={personal.linkedin || ''} 
+                      onChange={e => setPersonal({...personal, linkedin: e.target.value})} 
+                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:bg-white"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-gray-600 font-bold">GitHub / Portfolio URL</label>
+                    <input 
+                      type="text" 
+                      value={personal.github || personal.portfolio || ''} 
+                      onChange={e => setPersonal({...personal, github: e.target.value, portfolio: e.target.value})} 
+                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:bg-white"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Summary Tab */}
+              {activeQuickEditTab === 'summary' && (
+                <div className="space-y-2">
+                  <label className="text-gray-600 font-bold">Professional Summary</label>
+                  <textarea 
+                    rows={6}
+                    value={summary}
+                    onChange={e => setSummary(e.target.value)}
+                    className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-slate-800 leading-relaxed resize-none focus:outline-none focus:bg-white"
+                    placeholder="Write a concise overview of your core qualifications and experience..."
+                  />
+                </div>
+              )}
+
+              {/* Skills Tab */}
+              {activeQuickEditTab === 'skills' && (
+                <div className="space-y-3">
+                  <div className="space-y-1">
+                    <label className="text-gray-600 font-bold">Languages</label>
+                    <input 
+                      type="text" 
+                      value={skillsGrouped.languages} 
+                      onChange={e => setSkillsGrouped({...skillsGrouped, languages: e.target.value})} 
+                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:bg-white"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-gray-600 font-bold">Frameworks & Libraries</label>
+                    <input 
+                      type="text" 
+                      value={skillsGrouped.frameworks} 
+                      onChange={e => setSkillsGrouped({...skillsGrouped, frameworks: e.target.value})} 
+                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:bg-white"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-gray-600 font-bold">Tools & Platforms</label>
+                    <input 
+                      type="text" 
+                      value={skillsGrouped.tools} 
+                      onChange={e => setSkillsGrouped({...skillsGrouped, tools: e.target.value})} 
+                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:bg-white"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-gray-600 font-bold">Core Competencies</label>
+                    <input 
+                      type="text" 
+                      value={skillsGrouped.competencies} 
+                      onChange={e => setSkillsGrouped({...skillsGrouped, competencies: e.target.value})} 
+                      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:bg-white"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Experience Tab */}
+              {activeQuickEditTab === 'experience' && (
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <span className="font-extrabold text-slate-900">Work Experience Timeline</span>
+                    <button onClick={addWork} className="px-3 py-1 bg-indigo-600 text-white rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer">
+                      <Plus className="w-3.5 h-3.5" /> Add Role
+                    </button>
+                  </div>
+                  {experience.map((exp, idx) => (
+                    <div key={idx} className="bg-slate-50 border border-gray-200 p-4 rounded-2xl space-y-3">
+                      <div className="flex justify-between items-center">
+                        <span className="font-bold text-indigo-600">Role #{idx + 1}</span>
+                        <button onClick={() => removeWork(idx)} className="text-red-500 hover:underline text-[10px] font-bold">Remove</button>
+                      </div>
+                      <input 
+                        type="text" 
+                        placeholder="Job Title" 
+                        value={exp.role} 
+                        onChange={e => updateWork(idx, 'role', e.target.value)} 
+                        className="w-full bg-white border border-gray-200 rounded-xl px-3 py-1.5"
+                      />
+                      <input 
+                        type="text" 
+                        placeholder="Company" 
+                        value={exp.company} 
+                        onChange={e => updateWork(idx, 'company', e.target.value)} 
+                        className="w-full bg-white border border-gray-200 rounded-xl px-3 py-1.5"
+                      />
+                      <input 
+                        type="text" 
+                        placeholder="Dates (e.g. Jan 2022 - Present)" 
+                        value={exp.dates} 
+                        onChange={e => updateWork(idx, 'dates', e.target.value)} 
+                        className="w-full bg-white border border-gray-200 rounded-xl px-3 py-1.5"
+                      />
+                      <textarea 
+                        rows={4} 
+                        placeholder="Bullet points / Description..." 
+                        value={exp.description} 
+                        onChange={e => updateWork(idx, 'description', e.target.value)} 
+                        className="w-full bg-white border border-gray-200 rounded-xl p-3 resize-none"
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Education Tab */}
+              {activeQuickEditTab === 'education' && (
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <span className="font-extrabold text-slate-900">Education</span>
+                    <button onClick={addEdu} className="px-3 py-1 bg-indigo-600 text-white rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer">
+                      <Plus className="w-3.5 h-3.5" /> Add Education
+                    </button>
+                  </div>
+                  {education.map((edu, idx) => (
+                    <div key={idx} className="bg-slate-50 border border-gray-200 p-4 rounded-2xl space-y-3">
+                      <div className="flex justify-between items-center">
+                        <span className="font-bold text-indigo-600">Education #{idx + 1}</span>
+                        <button onClick={() => removeEdu(idx)} className="text-red-500 hover:underline text-[10px] font-bold">Remove</button>
+                      </div>
+                      <input 
+                        type="text" 
+                        placeholder="Degree" 
+                        value={edu.degree} 
+                        onChange={e => updateEdu(idx, 'degree', e.target.value)} 
+                        className="w-full bg-white border border-gray-200 rounded-xl px-3 py-1.5"
+                      />
+                      <input 
+                        type="text" 
+                        placeholder="School / University" 
+                        value={edu.school} 
+                        onChange={e => updateEdu(idx, 'school', e.target.value)} 
+                        className="w-full bg-white border border-gray-200 rounded-xl px-3 py-1.5"
+                      />
+                      <input 
+                        type="text" 
+                        placeholder="Year" 
+                        value={edu.year} 
+                        onChange={e => updateEdu(idx, 'year', e.target.value)} 
+                        className="w-full bg-white border border-gray-200 rounded-xl px-3 py-1.5"
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Projects Tab */}
+              {activeQuickEditTab === 'projects' && (
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <span className="font-extrabold text-slate-900">Projects</span>
+                    <button onClick={addProj} className="px-3 py-1 bg-indigo-600 text-white rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer">
+                      <Plus className="w-3.5 h-3.5" /> Add Project
+                    </button>
+                  </div>
+                  {projects.map((proj, idx) => (
+                    <div key={idx} className="bg-slate-50 border border-gray-200 p-4 rounded-2xl space-y-3">
+                      <div className="flex justify-between items-center">
+                        <span className="font-bold text-indigo-600">Project #{idx + 1}</span>
+                        <button onClick={() => removeProj(idx)} className="text-red-500 hover:underline text-[10px] font-bold">Remove</button>
+                      </div>
+                      <input 
+                        type="text" 
+                        placeholder="Project Title" 
+                        value={proj.title} 
+                        onChange={e => updateProj(idx, 'title', e.target.value)} 
+                        className="w-full bg-white border border-gray-200 rounded-xl px-3 py-1.5"
+                      />
+                      <input 
+                        type="text" 
+                        placeholder="Technologies" 
+                        value={proj.technologies} 
+                        onChange={e => updateProj(idx, 'technologies', e.target.value)} 
+                        className="w-full bg-white border border-gray-200 rounded-xl px-3 py-1.5"
+                      />
+                      <textarea 
+                        rows={3} 
+                        placeholder="Description..." 
+                        value={proj.description} 
+                        onChange={e => updateProj(idx, 'description', e.target.value)} 
+                        className="w-full bg-white border border-gray-200 rounded-xl p-3 resize-none"
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Certifications Tab */}
+              {activeQuickEditTab === 'certifications' && (
+                <div className="space-y-4">
+                  <form onSubmit={handleAddCert} className="flex gap-2">
+                    <input 
+                      type="text" 
+                      placeholder="Add certification..." 
+                      value={certInput} 
+                      onChange={e => setCertInput(e.target.value)} 
+                      className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs"
+                    />
+                    <button type="submit" className="px-3.5 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold">Add</button>
+                  </form>
+                  <div className="flex flex-wrap gap-2">
+                    {certifications.map((cert, idx) => (
+                      <span key={idx} className="bg-gray-100 border border-gray-200 px-3 py-1 rounded-xl text-xs font-bold flex items-center gap-1.5">
+                        <span>{cert}</span>
+                        <button onClick={() => removeCert(idx)} className="text-gray-400 hover:text-red-500"><X className="w-3.5 h-3.5" /></button>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+            </div>
+
+            {/* Footer Done action */}
+            <div className="p-4 border-t border-gray-200 bg-slate-50 flex justify-between items-center">
+              <span className="text-[10px] text-gray-500 font-semibold">Changes are saved automatically</span>
+              <button 
+                onClick={() => setIsQuickEditOpen(false)}
+                className="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-black cursor-pointer shadow-xs"
+              >
+                Done Editing
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );
