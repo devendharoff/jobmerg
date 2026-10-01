@@ -149,14 +149,41 @@ async function parsePdfDocument(buffer: Buffer): Promise<ParsedDocument> {
       }
     }
   } catch (err: any) {
-    const textFallback = buffer.toString("utf8");
-    if (textFallback.replace(/\s/g, "").length >= 30 && !err.message.includes("timed out")) {
-      fullText = textFallback;
+    console.warn("[DeterministicParser] pdf-parse exception, trying binary stream extractor fallback:", err.message);
+    const rawStr = buffer.toString("latin1");
+    const tjMatches: string[] = [];
+    const regex = /\(([^()]*)\)\s*T[jJ]/g;
+    let m;
+    while ((m = regex.exec(rawStr)) !== null) {
+      if (m[1] && m[1].trim().length > 0) {
+        tjMatches.push(m[1].trim());
+      }
+    }
+
+    if (tjMatches.length > 5) {
+      fullText = tjMatches.join(" ");
       pageCount = 1;
       rawPagesText = [fullText];
     } else {
-      console.error("[DeterministicParser] PDF extraction error:", err.message);
-      throw new Error(`Failed to parse PDF document: ${err.message}`);
+      const asciiMatches = (rawStr.match(/[\x20-\x7E\t\r\n]{4,}/g) || [])
+        .map(s => s.trim())
+        .filter(s => !s.startsWith("%PDF") && !s.startsWith("endobj") && !s.startsWith("stream") && !s.includes("Font") && s.length > 3);
+      
+      if (asciiMatches.length > 3) {
+        fullText = asciiMatches.join("\n");
+        pageCount = 1;
+        rawPagesText = [fullText];
+      } else {
+        const textFallback = buffer.toString("utf8");
+        if (textFallback.replace(/\s/g, "").length >= 30 && !err.message.includes("timed out")) {
+          fullText = textFallback;
+          pageCount = 1;
+          rawPagesText = [fullText];
+        } else {
+          console.error("[DeterministicParser] PDF extraction error:", err.message);
+          throw new Error(`Failed to parse PDF document: ${err.message}`);
+        }
+      }
     }
   }
 

@@ -221,6 +221,55 @@ export default function ResumeWizard({ isOpen, onClose, onGenerate }: ResumeWiza
           const jobData = await uploadRes.json();
           const resumeId = jobData.resumeId;
 
+          const applyCanonicalData = (canonical: any, rawText?: string) => {
+            const mappedData = {
+              personal: {
+                name: canonical.personal?.name?.value || '',
+                email: canonical.personal?.email?.value || '',
+                phone: canonical.personal?.phone?.raw || '',
+                location: canonical.personal?.location?.value || '',
+                linkedin: canonical.personal?.linkedin?.value || '',
+                github: canonical.personal?.github?.value || '',
+                portfolio: canonical.personal?.portfolio?.value || '',
+              },
+              summary: canonical.summary?.value || '',
+              skills: {
+                languages: (canonical.skills || []).map((s: any) => s.raw_value).join(', '),
+                frameworks: '',
+                tools: '',
+                competencies: ''
+              },
+              experience: (canonical.experience || []).map((e: any) => ({
+                company: e.company?.raw || '',
+                role: e.title?.raw || '',
+                dates: e.date?.raw || '',
+                description: Array.isArray(e.description) ? e.description.join('\n• ') : (e.description || '')
+              })),
+              education: (canonical.education || []).map((e: any) => ({
+                school: e.institution || '',
+                degree: e.degree || '',
+                year: e.date?.raw || '',
+                gpa: e.grade ? `${e.grade.type}: ${e.grade.raw}` : ''
+              })),
+              projects: (canonical.projects || []).map((p: any) => ({
+                title: p.name || '',
+                technologies: Array.isArray(p.technologies) ? p.technologies.join(', ') : '',
+                description: Array.isArray(p.description) ? p.description.join(' ') : ''
+              })),
+              certifications: (canonical.certifications || []).map((c: any) => c.name),
+              confidenceScores: { overall: 95 }
+            };
+
+            setParsedResumeData(mappedData);
+            setOldResumeText(rawText || canonical.raw?.full_text || buildFullTextFromParsed(mappedData));
+            setIsParsingResume(false);
+          };
+
+          if (jobData.status === 'completed' && jobData.canonical) {
+            applyCanonicalData(jobData.canonical, jobData.rawText);
+            return;
+          }
+
           let isDone = false;
           let pollCount = 0;
           while (!isDone && pollCount < 40) {
@@ -234,49 +283,7 @@ export default function ResumeWizard({ isOpen, onClose, onGenerate }: ResumeWiza
 
             if (statusData.status === 'completed' && statusData.canonical) {
               isDone = true;
-              const canonical = statusData.canonical;
-
-              const mappedData = {
-                personal: {
-                  name: canonical.personal?.name?.value || '',
-                  email: canonical.personal?.email?.value || '',
-                  phone: canonical.personal?.phone?.raw || '',
-                  location: canonical.personal?.location?.value || '',
-                  linkedin: canonical.personal?.linkedin?.value || '',
-                  github: canonical.personal?.github?.value || '',
-                  portfolio: canonical.personal?.portfolio?.value || '',
-                },
-                summary: canonical.summary?.value || '',
-                skills: {
-                  languages: (canonical.skills || []).map((s: any) => s.raw_value).join(', '),
-                  frameworks: '',
-                  tools: '',
-                  competencies: ''
-                },
-                experience: (canonical.experience || []).map((e: any) => ({
-                  company: e.company?.raw || '',
-                  role: e.title?.raw || '',
-                  dates: e.date?.raw || '',
-                  description: Array.isArray(e.description) ? e.description.join('\n• ') : (e.description || '')
-                })),
-                education: (canonical.education || []).map((e: any) => ({
-                  school: e.institution || '',
-                  degree: e.degree || '',
-                  year: e.date?.raw || '',
-                  gpa: e.grade ? `${e.grade.type}: ${e.grade.raw}` : ''
-                })),
-                projects: (canonical.projects || []).map((p: any) => ({
-                  title: p.name || '',
-                  technologies: Array.isArray(p.technologies) ? p.technologies.join(', ') : '',
-                  description: Array.isArray(p.description) ? p.description.join(' ') : ''
-                })),
-                certifications: (canonical.certifications || []).map((c: any) => c.name),
-                confidenceScores: { overall: 95 }
-              };
-
-              setParsedResumeData(mappedData);
-              setOldResumeText(canonical.raw?.full_text || buildFullTextFromParsed(mappedData));
-              setIsParsingResume(false);
+              applyCanonicalData(statusData.canonical, statusData.rawText);
               return;
             } else if (statusData.status === 'failed') {
               isDone = true;

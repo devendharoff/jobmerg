@@ -363,6 +363,11 @@ export default function App() {
               email: profile.email,
               role: profile.role || '',
               avatarUrl: profile.avatar_url || user.imageUrl || 'https://lh3.googleusercontent.com/aida-public/AB6AXuDygoxBzgjRmZYQ4uIK-GWpjX_FRMByJYrQaV21iuO5-rVvqyFlrzVyxl_a1Vcm27q1W7sFuhkMlLVR0tTqYVJoQ_mPM9ClMRvetN0pCsTVbfoPUpak2f47mmUgJszUtvyU7xBedtbLVrFoIn914KkawqLINIJSkVz9Ued9DSm94XU2wea25YULzaNxYy7taAF-ScbG7PpLXXO0ds-Nvkdy27DQk0fsT8Ms7bQZIsO0Q25v5WbYfdSQB_bKWY4CWlCAwVzoiGXYg3RJ',
+              phone: profile.phone || '',
+              location: profile.location || '',
+              linkedin: profile.linkedin || '',
+              github: profile.github || '',
+              portfolio: profile.portfolio || '',
               skills: profile.skills || [],
               experienceYears: profile.experience_years || 0,
               desiredSalary: profile.desired_salary || '',
@@ -378,6 +383,11 @@ export default function App() {
               name,
               role: 'Software Engineer',
               avatar_url: user.imageUrl || 'https://lh3.googleusercontent.com/aida-public/AB6AXuDygoxBzgjRmZYQ4uIK-GWpjX_FRMByJYrQaV21iuO5-rVvqyFlrzVyxl_a1Vcm27q1W7sFuhkMlLVR0tTqYVJoQ_mPM9ClMRvetN0pCsTVbfoPUpak2f47mmUgJszUtvyU7xBedtbLVrFoIn914KkawqLINIJSkVz9Ued9DSm94XU2wea25YULzaNxYy7taAF-ScbG7PpLXXO0ds-Nvkdy27DQk0fsT8Ms7bQZIsO0Q25v5WbYfdSQB_bKWY4CWlCAwVzoiGXYg3RJ',
+              phone: '',
+              location: 'Bangalore, India',
+              linkedin: '',
+              github: '',
+              portfolio: '',
               skills: ['React', 'JavaScript', 'HTML/CSS'],
               experience_years: 1,
               desired_salary: '₹10L PA',
@@ -390,6 +400,11 @@ export default function App() {
               name: newProfile.name,
               role: newProfile.role,
               avatar_url: newProfile.avatar_url,
+              phone: newProfile.phone,
+              location: newProfile.location,
+              linkedin: newProfile.linkedin,
+              github: newProfile.github,
+              portfolio: newProfile.portfolio,
               skills: newProfile.skills,
               experience_years: newProfile.experience_years,
               desired_salary: newProfile.desired_salary,
@@ -402,6 +417,11 @@ export default function App() {
               email: newProfile.email,
               role: newProfile.role,
               avatarUrl: newProfile.avatar_url,
+              phone: newProfile.phone,
+              location: newProfile.location,
+              linkedin: newProfile.linkedin,
+              github: newProfile.github,
+              portfolio: newProfile.portfolio,
               skills: newProfile.skills,
               experienceYears: newProfile.experience_years,
               desiredSalary: newProfile.desired_salary,
@@ -866,7 +886,7 @@ export default function App() {
     setApplications(applications.map(app => app.id === id ? { ...app, status } : app));
     showToast(`Moved application stage to ${status}`);
     try {
-      await supabaseClient.from('applications').update({ status }).eq('id', id);
+      await supabaseClient.from('applications').update({ status }).eq('id', id).eq('user_email', userProfile.email);
     } catch (err) {
       console.error("Error updating application status in Supabase:", err);
     }
@@ -901,7 +921,7 @@ export default function App() {
     setApplications(applications.filter(app => app.id !== id));
     showToast("Deleted application card.");
     try {
-      await supabaseClient.from('applications').delete().eq('id', id);
+      await supabaseClient.from('applications').delete().eq('id', id).eq('user_email', userProfile.email);
     } catch (err) {
       console.error("Error deleting application in Supabase:", err);
     }
@@ -911,7 +931,7 @@ export default function App() {
     setApplications(applications.map(app => app.id === id ? { ...app, notes } : app));
     showToast("Notes saved.");
     try {
-      await supabaseClient.from('applications').update({ notes }).eq('id', id);
+      await supabaseClient.from('applications').update({ notes }).eq('id', id).eq('user_email', userProfile.email);
     } catch (err) {
       console.error("Error updating application notes in Supabase:", err);
     }
@@ -955,6 +975,11 @@ export default function App() {
         name: nextProfile.name,
         role: nextProfile.role,
         avatar_url: nextProfile.avatarUrl,
+        phone: nextProfile.phone,
+        location: nextProfile.location,
+        linkedin: nextProfile.linkedin,
+        github: nextProfile.github,
+        portfolio: nextProfile.portfolio,
         skills: nextProfile.skills,
         experience_years: nextProfile.experienceYears,
         desired_salary: nextProfile.desiredSalary,

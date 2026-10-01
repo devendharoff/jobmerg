@@ -23,7 +23,7 @@ export type ExtractedField<T> = {
   value: T | null;
   raw: string | null;
   source: ExtractedSource | null;
-  modified_by_user?: boolean;
+  modified_by_user: boolean;
 };
 
 // Date Field Schema

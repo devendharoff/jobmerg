@@ -62,6 +62,11 @@ export interface UserProfile {
   email: string;
   role: string;
   avatarUrl: string;
+  phone?: string;
+  location?: string;
+  linkedin?: string;
+  github?: string;
+  portfolio?: string;
   skills: string[];
   experienceYears: number;
   desiredSalary: string;

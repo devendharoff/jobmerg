@@ -144,14 +144,36 @@ export default function DeterministicResumeScanner({
         }
 
         const resData = await response.json();
+        const extractedData = resData.canonical || resData.structured;
+
+        if (extractedData) {
+          setExtractedResume(extractedData);
+          if (resData.rawText) setRawText(resData.rawText);
+          setJobStatus("completed");
+          setIsParsing(false);
+          setProgress(100);
+          setCurrentStep("Completed");
+          if (onExtractionComplete) {
+            onExtractionComplete(extractedData);
+          }
+          return;
+        }
+
         setResumeId(resData.resumeId);
         setJobStatus(resData.status || "queued");
-        setProgress(10);
-        setCurrentStep("File uploaded ✓ Extraction job queued...");
+
+        if (resData.status === "failed") {
+          setIsParsing(false);
+          setErrorMsg(resData.error || "Resume extraction failed.");
+        } else {
+          setProgress(10);
+          setCurrentStep("File uploaded ✓ Processing...");
+        }
       };
 
       reader.readAsDataURL(selectedFile);
     } catch (err: any) {
+      console.warn("[ResumeScanner] Upload exception:", err.message);
       setIsParsing(false);
       setErrorMsg(err.message || "An unexpected error occurred during upload.");
     }

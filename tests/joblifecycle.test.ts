@@ -59,7 +59,7 @@ Anna University | 2017 - 2021 | CGPA: 8.8
 
   // Poll status while processing
   let pollCount = 0;
-  while (job.status !== "completed" && job.status !== "failed" && pollCount < 10) {
+  while ((job.status as string) !== "completed" && (job.status as string) !== "failed" && pollCount < 10) {
     pollCount++;
     const currentJob = getJobByResumeId(job.resumeId);
     console.log(`   - Poll #${pollCount}: Status = ${currentJob?.status} | Progress = ${currentJob?.progress}% | Step = "${currentJob?.step}"`);

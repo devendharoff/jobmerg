@@ -30,11 +30,11 @@ export default function UserProfileManager({
   const [name, setName] = useState(userProfile.name || '');
   const [email] = useState(userProfile.email || '');
   const [role, setRole] = useState(userProfile.role || 'Software Engineer');
-  const [phone, setPhone] = useState('+91 98765 43210');
-  const [location, setLocation] = useState('Bangalore, India');
-  const [linkedin, setLinkedin] = useState('linkedin.com/in/candidate');
-  const [github, setGithub] = useState('github.com/candidate');
-  const [portfolio, setPortfolio] = useState('https://candidate.dev');
+  const [phone, setPhone] = useState(userProfile.phone || '+91 98765 43210');
+  const [location, setLocation] = useState(userProfile.location || 'Bangalore, India');
+  const [linkedin, setLinkedin] = useState(userProfile.linkedin || 'linkedin.com/in/candidate');
+  const [github, setGithub] = useState(userProfile.github || 'github.com/candidate');
+  const [portfolio, setPortfolio] = useState(userProfile.portfolio || 'https://candidate.dev');
 
   const [experienceYears, setExperienceYears] = useState(userProfile.experienceYears || 2);
   const [desiredSalary, setDesiredSalary] = useState(userProfile.desiredSalary || '₹14L PA');
@@ -79,6 +79,11 @@ export default function UserProfileManager({
       onUpdateUserProfile({
         name,
         role,
+        phone,
+        location,
+        linkedin,
+        github,
+        portfolio,
         skills,
         experienceYears,
         desiredSalary,

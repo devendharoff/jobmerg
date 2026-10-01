@@ -960,6 +960,84 @@ export default function ResumeStudio({ userProfile, onOpenPricing }: ResumeStudi
         const jobData = await uploadRes.json();
         const resumeId = jobData.resumeId;
 
+        const applyCanonicalData = (canonical: any) => {
+          const personalOut = {
+            name: canonical.personal?.name?.value || '',
+            title: canonical.experience?.[0]?.title?.raw || '',
+            email: canonical.personal?.email?.value || '',
+            phone: canonical.personal?.phone?.raw || '',
+            location: canonical.personal?.location?.value || '',
+            github: canonical.personal?.github?.value || '',
+            linkedin: canonical.personal?.linkedin?.value || '',
+            portfolio: canonical.personal?.portfolio?.value || '',
+          };
+
+          const skillsList = canonical.skills?.map((s: any) => s.raw_value).filter(Boolean) || [];
+          const skillsOut: SkillsGrouped = {
+            languages: skillsList.slice(0, 5).join(', '),
+            frameworks: skillsList.slice(5, 10).join(', '),
+            tools: skillsList.slice(10, 15).join(', '),
+            competencies: skillsList.slice(15).join(', '),
+          };
+
+          const experienceOut = (canonical.experience || []).map((e: any) => ({
+            company: e.company?.raw || '',
+            role: e.title?.raw || '',
+            dates: e.date?.raw || '',
+            description: Array.isArray(e.description) ? e.description.join('\n• ') : (e.description || ''),
+            technologies: ''
+          }));
+
+          const educationOut = (canonical.education || []).map((e: any) => ({
+            school: e.institution || '',
+            degree: e.degree || '',
+            year: e.date?.raw || '',
+            gpa: e.grade ? `${e.grade.type}: ${e.grade.raw}` : '',
+            coursework: ''
+          }));
+
+          const projectsOut = (canonical.projects || []).map((p: any) => ({
+            title: p.name || '',
+            technologies: Array.isArray(p.technologies) ? p.technologies.join(', ') : '',
+            description: Array.isArray(p.description) ? p.description.join(' ') : ''
+          }));
+
+          const certificationsOut = (canonical.certifications || []).map((c: any) => c.name);
+
+          const confidenceScoresOut = {
+            name: canonical.personal?.name?.value ? 99 : 0,
+            email: canonical.personal?.email?.value ? 99 : 0,
+            phone: canonical.personal?.phone?.raw ? 95 : 0,
+            skills: canonical.skills?.length > 0 ? 95 : 0,
+            experience: canonical.experience?.length > 0 ? 95 : 0,
+            education: canonical.education?.length > 0 ? 95 : 0,
+            overall: 95
+          };
+
+          setPersonal(personalOut);
+          setSummary(canonical.summary?.value || '');
+          setSkillsGrouped(skillsOut);
+          setExperience(experienceOut);
+          setEducation(educationOut);
+          setProjects(projectsOut);
+          setCertifications(certificationsOut);
+          setConfidenceScores(confidenceScoresOut);
+
+          setUploadProgress(100);
+          setExtractionStage('Extraction completed!');
+          setTimeout(() => {
+            goToStep('profile');
+            setUploadProgress(0);
+            setExtractionStage('');
+          }, 400);
+        };
+
+        const canonicalData = jobData.canonical || jobData.structured;
+        if (canonicalData) {
+          applyCanonicalData(canonicalData);
+          return;
+        }
+
         setUploadProgress(25);
         setExtractionStage('File validated ✓ Extraction job queued...');
 
@@ -980,80 +1058,10 @@ export default function ResumeStudio({ userProfile, onOpenPricing }: ResumeStudi
             setExtractionStage(statusData.step);
           }
 
-          if (statusData.status === 'completed' && statusData.canonical) {
+          const polledCanonical = statusData.canonical || statusData.structured;
+          if (polledCanonical) {
             isDone = true;
-            const canonical = statusData.canonical;
-
-            const personalOut = {
-              name: canonical.personal?.name?.value || '',
-              title: canonical.experience?.[0]?.title?.raw || '',
-              email: canonical.personal?.email?.value || '',
-              phone: canonical.personal?.phone?.raw || '',
-              location: canonical.personal?.location?.value || '',
-              github: canonical.personal?.github?.value || '',
-              linkedin: canonical.personal?.linkedin?.value || '',
-              portfolio: canonical.personal?.portfolio?.value || '',
-            };
-
-            const skillsList = canonical.skills?.map((s: any) => s.raw_value).filter(Boolean) || [];
-            const skillsOut: SkillsGrouped = {
-              languages: skillsList.slice(0, 5).join(', '),
-              frameworks: skillsList.slice(5, 10).join(', '),
-              tools: skillsList.slice(10, 15).join(', '),
-              competencies: skillsList.slice(15).join(', '),
-            };
-
-            const experienceOut = (canonical.experience || []).map((e: any) => ({
-              company: e.company?.raw || '',
-              role: e.title?.raw || '',
-              dates: e.date?.raw || '',
-              description: Array.isArray(e.description) ? e.description.join('\n• ') : (e.description || ''),
-              technologies: ''
-            }));
-
-            const educationOut = (canonical.education || []).map((e: any) => ({
-              school: e.institution || '',
-              degree: e.degree || '',
-              year: e.date?.raw || '',
-              gpa: e.grade ? `${e.grade.type}: ${e.grade.raw}` : '',
-              coursework: ''
-            }));
-
-            const projectsOut = (canonical.projects || []).map((p: any) => ({
-              title: p.name || '',
-              technologies: Array.isArray(p.technologies) ? p.technologies.join(', ') : '',
-              description: Array.isArray(p.description) ? p.description.join(' ') : ''
-            }));
-
-            const certificationsOut = (canonical.certifications || []).map((c: any) => c.name);
-
-            const confidenceScoresOut = {
-              name: canonical.personal?.name?.value ? 99 : 0,
-              email: canonical.personal?.email?.value ? 99 : 0,
-              phone: canonical.personal?.phone?.raw ? 95 : 0,
-              skills: canonical.skills?.length > 0 ? 95 : 0,
-              experience: canonical.experience?.length > 0 ? 95 : 0,
-              education: canonical.education?.length > 0 ? 95 : 0,
-              overall: 95
-            };
-
-            setPersonal(personalOut);
-            setSummary(canonical.summary?.value || '');
-            setSkillsGrouped(skillsOut);
-            setExperience(experienceOut);
-            setEducation(educationOut);
-            setProjects(projectsOut);
-            setCertifications(certificationsOut);
-            setConfidenceScores(confidenceScoresOut);
-
-            setUploadProgress(100);
-            setExtractionStage('Extraction completed!');
-
-            setTimeout(() => {
-              goToStep('profile');
-              setUploadProgress(0);
-              setExtractionStage('');
-            }, 400);
+            applyCanonicalData(polledCanonical);
             return;
           } else if (statusData.status === 'failed') {
             isDone = true;
@@ -1071,6 +1079,22 @@ export default function ResumeStudio({ userProfile, onOpenPricing }: ResumeStudi
         }
 
       } catch (e: any) {
+        console.warn("[ResumeStudio] API extraction notice, attempting browser fallback:", e.message);
+        try {
+          const rawDocText = atob(base64Data);
+          if (rawDocText && rawDocText.length > 30) {
+            applyLocalExtraction(rawDocText);
+            setUploadProgress(100);
+            setExtractionStage('Extraction completed!');
+            setTimeout(() => {
+              goToStep('profile');
+              setUploadProgress(0);
+              setExtractionStage('');
+            }, 400);
+            return;
+          }
+        } catch (clientErr) {}
+
         setUploadProgress(0);
         setExtractionStage('');
         setExtractionError('Resume extraction notice: ' + (e.message || 'Could not process document.'));
